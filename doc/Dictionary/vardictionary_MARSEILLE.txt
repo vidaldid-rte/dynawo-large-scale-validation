@@ -1,0 +1,47 @@
+# Point-figé Marseille
+#
+# Les zones RST et groupes étudiés sont répertoriés dans le tableau suivant:
+#
+#   TRI.PP7 & LAVERP6
+#   -----------------
+#   TRICA1 & M.PON 1 \\
+#   TRICA2 & M.PON 2 \\
+#   TRICA3 &         \\
+#   TRICA4 &         \\
+
+
+
+# Zone de TRI.PP7
+#
+# Tension du point pilote en kV:
+RST_TRI_PP7_U_IMPIN_value;   NOEUD_TENSION_TRI.PP7/2A
+# Niveau RST (K):
+RST_TRI_PP7_levelK_value;   ZONERST_NIVEAU_TRI.PP7
+# Puissance réactive des groupes en Mvar:
+DM_TRICAT 1_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_TRICA6TRANCHE1
+DM_TRICAT 2_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_TRICA6TRANCHE2
+DM_TRICAT 3_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_TRICA6TRANCHE3
+DM_TRICAT 4_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_TRICA6TRANCHE4
+
+
+
+# Zone de LAVERP6
+#
+# Tension du point pilote en kV:
+RST_LAVERP6_U_IMPIN_value;   NOEUD_TENSION_LAVERP6/1.1
+# Niveau RST (K):
+RST_LAVERP6_levelK_value;   ZONERST_NIVEAU_LAVERP6
+# Puissance réactive des groupes en Mvar:
+DM_M.PONT51_tfo_generator_QStatorPu;   GRP_PUISS_REA_STAT_M.PON.TG51
+DM_M.PONT52_tfo_generator_QStatorPu;   GRP_PUISS_REA_STAT_M.PON.TG52
+
+
+# Extra variables matched from CURVE files in the PtFige-Marseille case:
+NETWORK_COULAL71TRI.P_P1_value;   QUAD_PUISS_ACT_OR_COULAL71TRI.P
+NETWORK_COULAL71TRI.P_Q1_value;   QUAD_PUISS_REA_OR_COULAL71TRI.P
+NETWORK_TAVELL75TRI.P_P1_value;   QUAD_PUISS_ACT_OR_TAVELL75TRI.P
+NETWORK_TAVELL75TRI.P_Q1_value;   QUAD_PUISS_REA_OR_TAVELL75TRI.P
+NETWORK_TRI.PP7_1A_U_value;   NOEUD_TENSION_TRI.PP7/1A
+NETWORK_TRI.PP7_2A_U_value;   NOEUD_TENSION_TRI.PP7/2A
+NETWORK_TRI.PP7_3A_U_value;   NOEUD_TENSION_TRI.PP7/3A
+

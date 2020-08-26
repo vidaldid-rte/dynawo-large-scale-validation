@@ -1,0 +1,37 @@
+# Point-figé Toulouse
+#
+# Les zones RST et groupes étudiés sont répertoriés dans le tableau suivant:
+#
+#   BRAUDP7 & DONZAP7
+#   -----------------
+#   BLAYA 1 & GOLFE 1 \\
+#   BLAYA 2 & GOLFE 2 \\
+#   BLAYA 3 &         \\
+#   BLAYA 4 &         \\
+
+
+
+# Zone de BRAUDP7
+#
+# Tension du point pilote en kV:
+RST_BRAUDP7_U_IMPIN_value;   NOEUD_TENSION_BRAUDP7/1A
+# Niveau RST (K):
+RST_BRAUDP7_levelK_value;   ZONERST_NIVEAU_BRAUDP7
+# Puissance réactive des groupes en Mvar:
+DM_BLAYAT 1_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_BLAYA7GR1
+DM_BLAYAT 2_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_BLAYA7GR2
+DM_BLAYAT 3_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_BLAYA7GR3
+DM_BLAYAT 4_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_BLAYA7GR4
+
+
+
+# Zone de DONZAP7
+#
+# Tension du point pilote en kV:
+RST_DONZAP7_U_IMPIN_value;   NOEUD_TENSION_DONZAP7/1A
+# Niveau RST (K):
+RST_DONZAP7_levelK_value;   ZONERST_NIVEAU_DONZAP7
+# Puissance réactive des groupes en Mvar:
+DM_GOLF5T 1_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_GOLF57GOLF51
+DM_GOLF5T 2_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_GOLF57GOLF52
+

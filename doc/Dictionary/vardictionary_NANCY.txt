@@ -1,0 +1,37 @@
+# Point-figé Nancy
+#
+# Les zones RST et groupes étudiés sont répertoriés dans le tableau suivant:
+#
+#   M.SEIP7 & VIGY P7
+#   -----------------
+#   N.SE17GROUP.1 & CATG17GROUP.1 \\
+#   N.SE27GROUP.2 & CATG27GROUP.2 \\
+#                 & CATG37GROUP.3 \\
+#                 & CATG47GROUP.4 \\
+
+
+
+# Zone de M.SEIP7
+#
+# Tension du point pilote en kV:
+RST_M_SEIP7_U_IMPIN_value;   NOEUD_TENSION_M.SEIP7/1A
+# Niveau RST (K):
+RST_M_SEIP7_levelK_value;   ZONERST_NIVEAU_M.SEIP7
+# Puissance réactive des groupes en Mvar:
+DM_N.SE5T 1_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_N.SE17GROUP.1
+DM_N.SE5T 2_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_N.SE27GROUP.2
+
+
+
+# Zone de VIGY P7
+#
+# Tension du point pilote en kV:
+RST_VIGY_P7_U_IMPIN_value;   NOEUD_TENSION_VIGY P7/1A
+# Niveau RST (K):
+RST_VIGY_P7_levelK_value;   ZONERST_NIVEAU_VIGY P7
+# Puissance réactive des groupes en Mvar:
+DM_CATTET 1_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_CATG17GROUP.1
+DM_CATTET 2_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_CATG27GROUP.2
+DM_CATTET 3_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_CATG37GROUP.3
+DM_CATTET 4_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_CATG47GROUP.4
+

@@ -1,0 +1,54 @@
+# Point-figé Lyon
+#
+# Les zones RST et groupes étudiés sont répertoriés dans le tableau suivant:
+#
+#   CHAFFP7 &  GEN.PP6
+#   ------------------
+#   BUGEY7G2 & GENISH 1 \\
+#   BUGEY7G3 & GENISH 2 \\
+#   BUGEY7G4 & GENISH 3 \\
+#   BUGEY7G5 & GENISH 4 \\
+#   SSAL7T 1 & GENISH 5 \\
+#   SSAL7T 2 & GENISH 6 \\
+
+
+
+# Zone de CHAFFP7
+#
+# Tension du point pilote en kV:
+RST_CHAFFP7_U_IMPIN_value;   NOEUD_TENSION_CHAFFP7/1A
+# Niveau RST (K):
+RST_CHAFFP7_levelK_value;   ZONERST_NIVEAU_CHAFFP7
+# Puissance réactive des groupes en Mvar:
+DM_BUGEYT 2_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_BUGEY7G2
+DM_BUGEYT 3_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_BUGEY7G3
+DM_BUGEYT 4_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_BUGEY7G4
+DM_BUGEYT 5_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_BUGEY7G5
+DM_SSAL7T 1_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_SSAL77G1
+DM_SSAL7T 2_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_SSAL77G2
+
+
+
+# Zone de GEN.PP6
+#
+# Tension du point pilote en kV:
+RST_GEN_PP6_U_IMPIN_value;   NOEUD_TENSION_GEN.PP6/1A
+# Niveau RST (K):
+RST_GEN_PP6_levelK_value;   ZONERST_NIVEAU_GEN.PP6
+# Puissance réactive des groupes en Mvar:
+DM_GENISH 1_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_GEN.P6G1
+DM_GENISH 2_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_GEN.P6G2
+DM_GENISH 3_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_GEN.P6G3
+DM_GENISH 4_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_GEN.P6G4
+DM_GENISH 5_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_GEN.P6G5
+DM_GENISH 6_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_GEN.P6G6
+
+
+
+# Extra variables matched from CURVE files in the PtFige-Lyon case:
+RST_ALBERP7_levelK_value;   ZONERST_NIVEAU_ALBERP7
+NETWORK_ALBERL72G.ILE_P1_value;   QUAD_PUISS_ACT_OR_ALBERL72G.ILE
+NETWORK_ALBERL73G.ILE_P1_value;   QUAD_PUISS_ACT_OR_ALBERL73G.ILE
+NETWORK_ALBERP7_1A_U_value;   NOEUD_TENSION_ALBERP7/1A
+NETWORK_CHAFFP7_1A_U_value;   NOEUD_TENSION_CHAFFP7/1A
+

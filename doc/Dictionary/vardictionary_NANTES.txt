@@ -1,0 +1,39 @@
+# Point-figé Nantes
+#
+# Les zones RST et groupes étudiés sont répertoriés dans le tableau suivant:
+#
+#   AVOIP7 & TABARP7
+#   ----------------
+#   CHIN 1 & D.BUR 3 \\
+#   CHIN 2 & D.BUR 4 \\
+#   CHIN 3 & D.BUR 3 \\
+#   CHIN 4 & D.BUR 4 \\
+
+
+
+# Zone de AVOIP7
+#
+# Tension du point pilote en kV:
+RST_AVOI5P7_U_IMPIN_value;   NOEUD_TENSION_AVOI5P7/1.1
+# Niveau RST (K):
+RST_AVOI5P7_levelK_value;   ZONERST_NIVEAU_AVOI5P7
+# Puissance réactive des groupes en Mvar:
+DM_CHIN2T 1_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_CHIN27CHIN21
+DM_CHIN2T 2_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_CHIN27CHIN22
+DM_CHIN2T 3_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_CHINX7CHIN23
+DM_CHIN2T 4_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_CHINX7CHIN24
+
+
+
+# Zone de TABARP7
+#
+# Tension du point pilote en kV:
+RST_TABARP7_U_IMPIN_value;   NOEUD_TENSION_TABARP7/1A
+# Niveau RST (K):
+RST_TABARP7_levelK_value;   ZONERST_NIVEAU_TABARP7
+# Puissance réactive des groupes en Mvar:
+DM_D.BURT 1_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_D.BUR7D.BUR1
+DM_D.BURT 2_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_D.BUR7D.BUR2
+DM_D.BURT 3_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_D.BUX7D.BUR3
+DM_D.BURT 4_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_D.BUX7D.BUR4
+

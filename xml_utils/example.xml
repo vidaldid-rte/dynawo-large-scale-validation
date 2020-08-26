@@ -1,0 +1,9 @@
+<root>
+  <child1/>
+  <child2>
+    <gchild2a/>
+    <gchild2b/>
+    <gchild2b/>
+  </child2>
+  <child3/>
+</root>

@@ -1,0 +1,31 @@
+2020-07-21: Some errors found in the TeX reports provided by RTE:
+=================================================================
+
+1. In report_LYON.tex, L305:
+
+        \addplot[dashed,color=darkgreen!50]table[x=time,y=GRP_PUISS_REA_STAT_GEN.P6G33]{donneesModelesSortie.csv};
+
+  It's probably GRP_PUISS_REA_STAT_GEN.P6G3.
+
+
+
+
+2. In report_NANTES.tex, L178 and L191:
+
+	\addplot[color=blue!50]table[x=time,y expr=\thisrow{RST_AVOI5P7__U_IMPIN_value}*380]{curves.csv};
+	
+        \addplot[color=blue!50]table[x=time,y expr=\thisrow{RST_AVOI5P7__levelK_value}]{curves.csv};
+
+   (extra underscore?) --> Marianne SAUGIER (27 Jul): No, we have two different SVC areas in Avoine and that's
+   why we have two SVC areas in Dynawo: AVOI5P7 and AVOI5P7_. 
+
+
+
+
+3. In report_PARIS.tex, L239:
+
+        \addplot[dashed,color=darkblue!50]table[x=time,y=ZZONERST_NIVEAU_BARNAP7]{donneesModelesSortie.csv};
+
+   (double Z)
+
+

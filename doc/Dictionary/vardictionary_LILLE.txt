@@ -1,0 +1,49 @@
+# Point-figé Lille
+#
+# Les zones RST et groupes étudiés sont répertoriés dans le tableau suivant:
+#
+#    WARANP7 & LONNYP7
+#    -----------------
+#    GRAV5T 1 & CHOO 1 \\
+#    GRAV5T 2 & CHOO 2 \\
+#    GRAV5T 3 &        \\
+#    GRAV5T 4 &        \\
+#    GRAV5T 5 &        \\
+#    GRAV5T 6 &        \\
+
+
+
+# Zone de WARANP7
+#
+# Tension du point pilote en kV:
+RST_WARANP7_U_IMPIN_value;   NOEUD_TENSION_WARANP7/1A
+# Niveau RST (K):
+RST_WARANP7_levelK_value;   ZONERST_NIVEAU_WARANP7
+# Puissance réactive des groupes en Mvar:
+DM_GRAV5T 1_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_GRAV57GRAV5T1
+DM_GRAV5T 2_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_GRAV57GRAV5T2
+DM_GRAV5T 3_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_GRAV57GRAV5T3
+DM_GRAV5T 4_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_GRAV57GRAV5T4
+DM_GRAV5T 5_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_GRAV57GRAV5T5
+DM_GRAV5T 6_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_GRAV57GRAV5T6
+
+
+
+# Zone de LONNYP7
+#
+# Tension du point pilote en kV:
+RST_LONNYP7_U_IMPIN_value;   NOEUD_TENSION_LONNYP7/1A
+# Niveau RST (K):
+RST_LONNYP7_levelK_value;   ZONERST_NIVEAU_LONNYP7
+# Puissance réactive des groupes en Mvar:
+DM_CHOO2T 1_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_CHOO17GROUP.1
+DM_CHOO2T 2_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_CHOO27GROUP.2
+
+
+
+# Extra variables matched from CURVE files in the PtFige-Lile case:
+DM_GRAV5T 3_tfo_generator_PGen;   GRP_PUISS_ACT_STAT_GRAV57GRAV5T3
+DM_GRAV5T 3_tfo_generator_QGen;   GRP_PUISS_REA_STAT_GRAV57GRAV5T3
+DM_GRAV5T 4_tfo_generator_PGen;   GRP_PUISS_ACT_STAT_GRAV57GRAV5T4
+DM_GRAV5T 4_tfo_generator_QGen;   GRP_PUISS_REA_STAT_GRAV57GRAV5T4
+

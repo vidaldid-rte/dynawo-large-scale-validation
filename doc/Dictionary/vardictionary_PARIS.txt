@@ -1,0 +1,41 @@
+# Point-figé Paris
+#
+# Les zones RST et groupes étudiés sont répertoriés dans le tableau suivant:
+#
+#   BARNAP7 & MENUEP7
+#   -----------------
+#   PALUE 1 & FLAMA 1 \\
+#   PALUE 2 & FLAMA 2 \\
+#   PALUE 3 &         \\
+#   PALUE 4 &         \\
+#   PENLY 1 &         \\
+#   PENLY 2 &         \\
+
+
+
+# Zone de BARNAP7
+#
+# Tension du point pilote en kV:
+RST_BARNAP7_U_IMPIN_value;   NOEUD_TENSION_BARNAP7/1A
+# Niveau RST (K):
+RST_BARNAP7_levelK_value;   ZONERST_NIVEAU_BARNAP7
+# Puissance réactive des groupes en Mvar:
+DM_PALUET 1_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_PALUE7PALUET1
+DM_PALUET 2_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_PALUE7PALUET2
+DM_PALUET 3_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_PALUE7PALUET3
+DM_PALUET 4_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_PALUE7PALUET4
+DM_PENLYT 1_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_PENLY7PENLYT1
+DM_PENLYT 2_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_PENLY7PENLYT2
+
+
+
+# Zone de MENUEP7
+#
+# Tension du point pilote en kV:
+RST_MENUEP7_U_IMPIN_value;   NOEUD_TENSION_MENUEP7/1A
+# Niveau RST (K):
+RST_MENUEP7_levelK_value;   ZONERST_NIVEAU_MENUEP7
+# Puissance réactive des groupes en Mvar:
+DM_FLAMAT 1_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_FLAMA7FLAMAT1
+DM_FLAMAT 2_tfo_generator_QStatorPu_value;   GRP_PUISS_REA_STAT_FLAMA7FLAMAT2
+
