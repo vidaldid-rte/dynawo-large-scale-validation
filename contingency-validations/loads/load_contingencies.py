@@ -170,7 +170,9 @@ def matching_in_astre(astre_file, dynawo_loads, verbose=False):
     #        loads.append(element.get("nom"))
     # But this time we'll use XPath since it's quite simple:
     for element in root.iterfind(".//conso", root.nsmap):
-        astre_loads.add(element.get("nom"))
+        # Discard loads having noeud="-1"
+        if element.get("noeud") != "-1":
+            astre_loads.add(element.get("nom"))
 
     print("\nFound %d loads in Astre file" % len(astre_loads))
     if verbose:
