@@ -10,6 +10,64 @@ HOWTO Configure events in Dynawo and Astre
 
 
 
+IMPORTANT INFO ABOUT MODEL TOPOLOGIES
+=====================================
+
+To understand the context, it is important to know that Dynawo allows
+buses to be modeled either in a "node-breaker" topology (full topology
+with all switches & breakers), or in a "bus-breaker" topology (a
+reduced topology in which there are no switches & breakers--at least,
+within the voltage level that hosts that reduced bus). Moreover, these
+two can be used at the same time in a given case.
+
+Initially RTE provided 3 sample base cases (Lille, Lyon, Marseille) in
+which most of the buses (though not all) where NODE-BREAKER.  Then we
+were provided newer files (of the same cases) in which the majority
+(but not all) of the buses were modeled as BUS-BREAKER.
+
+Here's the analysis of how many buses are present of each kind in the
+old vs. the new cases:
+
+
+|                |              | OLD TOPO CASES |  NEW TOPO CASES |
+| -------------- | ------------ | -------------: | --------------: |
+| Lille case     |              |                |                 |
+|                | Node-breaker |       448      |        42       |
+|                | Bus-breaker  |       590      |       750       |
+|                | Total        |    **1038**    |     **792**     |
+|                | (Astre)      |     (1114)     |     (1114)      |
+|                |              |                |                 |
+| Lyon case      |              |                |                 |
+|                | Node-breaker |       589      |        24       |
+|                | Bus-breaker  |      1080      |      1345       |
+|                | Total        |    **1669**    |    **1369**     |
+|                | (Astre)      |     (2056)     |     (2056)      |
+|                |              |                |                 |
+| Marseille case |              |                |                 |
+|                | Node-breaker |       464      |        29       |
+|                | Bus-breaker  |       644      |       834       |
+|                | Total        |    **1108**    |     **863**     |
+|                | (Astre)      |     (1353)     |     (1353)      |
+|                |              |                |                 |
+
+
+
+We have to take all this into account whenever we want to configure a
+contingency event that should be the same in Dynawo and Astre. For instance:
+
+  * When configuring load disconnections, 
+
+
+If the bus topology is BUS-BREAKER, chances are that,
+compared to the Astre model, some loads have been merged (not
+always). If the corresponding loads in Astre are still disaggregated,
+the contngency in Astre will have to consist of all loads attached to
+the same bus (and the same thing in Dynawo, in case there's more than
+one aggregated load at the same bus).
+
+
+
+
 CONFIGURING EVENTS IN ASTRE
 ===========================
 
@@ -48,7 +106,7 @@ syntax:
 </scenario>
 ```
 
-**A note about the entreesAstre element and its atbus attribute**: The
+**A note about the entreesAstre element and its `atbus` attribute**: The
 `evtouvrtopo` element is wrapped in a `entreesAstre`element, having an
 `atbus`attribute.  That bus is not related to the event; it is an
 indication of the slack bus used in the powerflow calculation
@@ -59,6 +117,125 @@ phase to zero even during the dynamic simulation. For convenience
 purposes and for easing the convergence at initialization time,
 `atbus` provides Astre with the powerflow slack node.
 
+
+Configuring Astre output variables (curves)
+-------------------------------------------
+
+Here is the enum that links the different variables with their
+`typecourbe` attriibute number, which is to be used when configuring
+the output curves:
+
+    ```
+    enum TypeCourbe {
+      // noeuds
+      N_TENSION                   = 0,
+      N_PHASE                     = 1,
+      N_CONSO_ACT                 = 2,
+      N_CONSO_REA                 = 3,
+      N_DEMANDE_ACT               = 4,
+      N_DEMANDE_REA               = 5,
+      N_PUISS_ACT_MCS             = 6,
+      N_PUISS_REA_MCS             = 7,
+      N_REGLEUR_PRISE             = 8,
+      N_REGLEUR_TENS_SURV         = 9,
+      N_REGLEUR_LIMSUP_BANDEMORTE = 10,
+      N_REGLEUR_LIMINF_BANDEMORTE = 11,
+      N_SENSIVITY_DQG_DQL         = 62,
+      N_V_MAGNITUDE_PU            = 63,
+      N_MOST_DECREASED_V          = 64,
+      N_REGLEUR_PRISE_TRANSPORT   = 84,
+      N_REGLEUR_TENS_SURV_TRANSPORT = 85,
+      N_REGLEUR_LIMSUP_BANDEMORTE_TRANSPORT = 86,
+      N_REGLEUR_LIMINF_BANDEMORTE_TRANSPORT = 87,
+      // quadripoles
+      Q_PUISS_ACT_OR              = 12,
+      Q_PUISS_ACT_EX              = 13,
+      Q_PUISS_REA_OR              = 14,
+      Q_PUISS_REA_EX              = 15,
+      Q_INTENS_OR                 = 16,
+      Q_INTENS_EX                 = 17,
+      Q_REGLEUR_PRISE             = 18,
+      Q_REGLEUR_TENS_SURV         = 19,
+      Q_REGLEUR_LIMSUP_BANDEMORTE = 20,
+      Q_REGLEUR_LIMINF_BANDEMORTE = 21,
+      Q_TD_DEPHASAGE              = 22,
+      Q_IMPEDANCE_OR              = 23,
+      Q_IMPEDANCE_EX              = 24,
+      Q_TD_POSITION               = 65,
+      // groupes
+      G_TENSION_STATOR            = 25,
+      G_CONSIGNE_TENSION          = 26,
+      G_PUISS_ACT                 = 27,
+      G_PUISS_REA                 = 28,
+      G_RESERVE_PUISS_REA         = 29,
+      G_COURANT_ROTOR             = 30,
+      G_PUISS_ACT_STAT            = 46,
+      G_PUISS_REA_STAT            = 47,
+      G_U_STAT_KV                 = 48,
+      G_INTERNAL_ANGLE            = 49,
+      G_FIELD_CURRENT             = 50,
+      G_STATOR_CURRENT            = 51,
+      G_SATURATED_EMFV            = 52,
+      G_MECHANICAL_POWER          = 53,
+      G_Q_MAX                     = 54,
+
+      // csprs
+      CSPR_CONSIGNE_TENSION       = 31,
+      CSPR_PUISS_REA              = 32,
+      CSPR_RESERVE_PUISS_REA      = 33,
+      CSPR_SUSCEPTANCE            = 55,
+      CSPR_CONTROLLED_V           = 56,
+      // groupes rst
+      GRST_CONSIGNE_REAC_APR      = 34,
+      GRST_SIGNAL_ERREUR_APR      = 35,
+      GRST_LIMSUP_BANDEMORTE_APR  = 36,
+      GRST_LIMINF_BANDEMORTE_APR  = 37,
+      // regroupements
+      REGR_CONSO_ACT              = 38,
+      REGR_CONSO_REA              = 39,
+      REGR_DEMANDE_ACT            = 40,
+      REGR_DEMANDE_REA            = 41,
+      REGR_PROD_ACT               = 42,
+      REGR_PROD_REA               = 43,
+      REGR_RESERVE_REA            = 44,
+      REGR_RESERVE_ACT            = 57,
+      REGR_AVERAGE_VOLTAGE        = 58,
+      ZONERST_NIVEAU              = 45,
+      ZONERST_TENSION_PILOTE      = 88,
+      ZONERST_TENSION_CONSIGNE    = 89,
+
+      // lccs
+      LCC_PUISS_ACT_OR            = 66,
+      LCC_PUISS_ACT_EX            = 67,
+      LCC_PUISS_REA_OR              = 68,
+      LCC_PUISS_REA_EX              = 69,
+      LCC_COURANT_DC              = 70,
+      LCC_TENSION_DC_OR              = 71,
+      LCC_TENSION_DC_EX              = 72,
+      LCC_ANGLE_ALLUMAGE          = 73,
+      LCC_ANGLE_EXTINCTION          = 74,
+      LCC_PRISE_REGLEUR_OR          = 75,
+      LCC_PRISE_REGLEUR_EX          = 76,
+
+      // vscs
+      VSC_PUISS_ACT_OR            = 77,
+      VSC_PUISS_ACT_EX            = 78,
+      VSC_PUISS_REA_OR              = 79,
+      VSC_PUISS_REA_EX              = 80,
+      VSC_COURANT_DC              = 81,
+      VSC_TENSION_DC_OR              = 82,
+      VSC_TENSION_DC_EX              = 83,
+      VSC_TENSION_REF_OR              = 90,
+      VSC_TENSION_REF_EX              = 91,
+
+      // valeurs globales
+      ALL_LOST_LOAD_LINE_TRIP     = 59,
+      ALL_TOTAL_LOST_LOAD         = 60,
+      ALL_TOTAL_SHED_LOAD         = 61,
+      ALL_LOST_GEN_TRIP     = 92
+      // max = 92
+    };
+	```
 
 
 Available example cases:
@@ -213,9 +390,66 @@ check the corresponding "desc" file under the ddb directory.
 
 
 Detailed steps for tripping loads:
-----------------------------------
+==================================
 
-### In Dynawo:
+In Astre:
+---------
+
+  * Find the corresponding load in Astre: among elements with tag
+    "conso", find nom == ".ANDU7TR751".  Keep its "num" attribute,
+    which is the load id.
+
+  * Edit the event using the `evtouvrtopo` element, wrapped in a
+    `scenario` element.  Refer to the load id using the `ouvrage`
+    attribute.  Use `type="3"` for loads, and `typeevt="1"` for
+    disconnection (see table above). Example:
+  
+    ```
+      <scenario nom="scenario" duree="1200">
+        <evtouvrtopo instant="300" ouvrage="3" type="3" typeevt="1" cote="0"/>
+      </scenario>
+    ```
+
+  * For the courves output, you have to add `courbe` elements; they
+    are children of element `entreesAstre` and siblings to `scenario`.
+    The base case file will already have some courves configured (the
+    variables that monitor the behavior of the SVC: pilot point
+    voltage, K level, and P,Q of participating generators). We would
+    then add at least the voltage of the bus on which the load has
+    been disconnected (and perhaps all first-neighbor buses as well).
+    To do this,get the id of the bus that the load is attached to
+    (attribute `noeud`), and add an element as in the example:
+	
+	```
+	  <courbe nom="BUSLABEL_Upu_value" typecourbe="63" ouvrage="2" type="7"/>
+	```
+
+    Here typecourbe="0" means buses (noeud).
+    The name of the variable is free.  In order to have names that
+    match those in Dynawo, it is useful to construct the name as
+    `"BUSLABEL" + "_Upu_value"`, where BUSLABEL is the name of the
+    corresponding bus in Dynawo. In the example above, bus ".ANDU771".
+	
+
+**A note about load models in Astre:** the different static loads
+("conso") on one node are aggregated on one only dynamic object
+("dynanoeud"), for which the behavior is defined by both the load and
+node elements. Indeed, for example, the dynamic behavior is defined by
+the "type" element in dynanoeud (0 being a load behind one
+transformer, 1 being a load between two normal transformers, 2 being a
+load behind one ideal and one normal transformer, 3 being an
+alpha-beta load, and 4 being a PQ load). The only information taken
+from the static load element is the p and q reference/set
+point/initial values.  Nevertheless, the disconnection event should be
+built using the evtouvrtopo="3" syntax, acting on the corresponding
+"conso" element. At the time of the event, Astre will modify the p
+and q reference values accordingly (pref_new = pref_old -
+p_disconnected).
+
+
+
+In Dynawo:
+----------
 
   * Find the id of the load in the DYD file: among elements with tag
     "BlackBoxModel" and attribute "lib" == "Load*", find the desired
@@ -253,12 +487,60 @@ Detailed steps for tripping loads:
       </set>
     ```
 
+  * In the CRV file, expand the `curvesInput` section with the names
+    of any additional variables that makes sense to have in the
+    output. The base case file is already prepared with the variables
+    that monitor the behavior of the SVC (pilot point voltage, K
+    level, and P,Q of participating generators).  We would then add at
+    least the voltage of the bus on which the load has been
+    disconnected (and perhaps all first-neighbor buses as well).  To
+    do so, first find the static load in the IIDM (using the
+    `staticID` of the load model in the DYD file). Now you have to
+    take into account that the bus topology may be either
+    `BUS_BREAKER` or `NODE_BREAKER`, as you'll do things differently
+    in each case:
+	
+	  - `BUS_BREAKER`: recognizable because the static load has an
+        attribute "bus", which is the identifyer of the correspondig
+        `bus` element in the IIDM (Note: there's no need to search for
+        this bus through the whole XML; you can search it from the
+        parent element of the load, the `voltageLevel`). Its voltage
+        variable is formed by concatenating the bus id and
+        `"_Upu_value"`. The specified model has to be
+        "NETWORK". Example, for load ".ANDU7TR751":  
+		`<curve model="NETWORK" variable=".ANDU771_Upu_value"/>`
+			  
+	  - `NODE_BREAKER`: recognizable because the static load has an
+        attribute "node" instead of "bus". In the node-breaker
+        topology there are no `bus` elements; instead, there are
+        `busbarSection` elements, which connect with each other and
+        loads, gens, etc. through "nodes". Now, it would be a bit
+        contrived to resolve the topology in order to find out which
+        of the busbarSections a load is effectively connected to. This
+        is not worth it, as we just want a voltage point to monitor
+        that is "close enough" to the disconnected load.  Instead, we
+        will resort to this **simple heuristic**: just take the first
+        busbarSection that happens to have a non-null or non-zero
+        voltage value (attribute "v"), and we will assume the load was
+        connected to that one. Its voltage variable is formed by
+        concatenating the busbarSection id and `"_Upu_value"`. The
+        specified model has to be "NETWORK". Example, for load
+        "AULNO1LMA1":  
+		`<curve model="NETWORK" variable="AULNOP1_1C_Upu_value"/>`
+		
 
-### In Astre:
 
-  * Find the corresponding load in Astre: among elements with tag
-    "conso", find nom == ".ANDU7TR751".  Keep its "num" attribute,
-    which is the load id.
+
+
+Detailed steps for tripping shunts:
+===================================
+
+In Astre:
+---------
+
+  * Find the corresponding shunt in Astre: among elements with tag
+    "shunt", find nom == "TODO".  Keep its "num" attribute, which is
+    the shunt id.
 
   * Edit the event using the `evtouvrtopo` element, wrapped in a
     `scenario` element.  Refer to the load id using the `ouvrage`
@@ -266,49 +548,13 @@ Detailed steps for tripping loads:
   
     ```
       <scenario nom="scenario" duree="1200">
-        <evtouvrtopo instant="300" ouvrage="3" type="3" typeevt="1" cote="0"/>
+        <evtouvrtopo instant="300" ouvrage="TODO" type="4" typeevt="1" cote="0"/>
       </scenario>
     ```
 
-Reminder of event types:
 
-    ```
-                type="{2 if generator (declared as groupe element in the xml)
-                       3 if load (declared as conso element in the xml)
-                       4 if shunt (declared as shunt element in the xml)
-                       5 if switch/breaker (declared as couplage in the xml)???
-                       9 if line (declared as quadripole element in the xml)}"
-    ```
-
-And typeevt is always 1 for disconnection.
-
-
-**A note about load models in Astre:** the different static loads
-("conso") on one node are aggregated on one only dynamic object
-("dynanoeud"), for which the behavior is defined by both the load and
-node elements. Indeed, for example, the dynamic behavior is defined by
-the "type" element in dynanoeud (0 being a load behind one
-transformer, 1 being a load between two normal transformers, 2 being a
-load behind one ideal and one normal transformer, 3 being an
-alpha-beta load, and 4 being a PQ load). The only information taken
-from the static load element is the p and q reference/set
-point/initial values.  Nevertheless, the disconnection event should be
-built using the evtouvrtopo="3" syntax, acting on the corresponding
-"conso" element. At the time of the event, Astre will modify the p
-and q reference values accordingly (pref_new = pref_old -
-p_disconnected).
-
-
-
-
-
-
-
-
-Steps for tripping shunts:
---------------------------
-
-### In Dynawo:
+In Dynawo:
+----------
 
   * Find the id of load in IIDM: among elements with tag "shunt", find
     the desired id (e.g. "TODO")
@@ -342,34 +588,6 @@ Steps for tripping shunts:
       </set>
     ```
 
-
-### In Astre:
-
-  * Find the corresponding shunt in Astre: among elements with tag
-    "shunt", find nom == "TODO".  Keep its "num" attribute, which is
-    the shunt id.
-
-  * Edit the event using the `evtouvrtopo` element, wrapped in a
-    `scenario` element.  Refer to the load id using the `ouvrage`
-    attribute.  Example:
-  
-    ```
-      <scenario nom="scenario" duree="1200">
-        <evtouvrtopo instant="300" ouvrage="TODO" type="4" typeevt="1" cote="0"/>
-      </scenario>
-    ```
-
-Reminder of event types:
-
-    ```
-                type="{2 if generator (declared as groupe element in the xml)
-                       3 if load (declared as conso element in the xml)
-                       4 if shunt (declared as shunt element in the xml)
-                       5 if switch/breaker (declared as couplage in the xml)???
-                       9 if line (declared as quadripole element in the xml)}"
-    ```
-
-And typeevt is always 1 for disconnection.
 
 
 
