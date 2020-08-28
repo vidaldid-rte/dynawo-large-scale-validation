@@ -68,7 +68,7 @@ def main():
     for load_name in dynawo_loads:
 
         # Uncomment this for generating just a few cases:
-        # if load_name not in [".ANDU7TR751", "BIPOL7INJ1", "TUNNE6CONSO1"]: continue
+        # if load_name not in [".ANDU7TR751", "AULNO1LMA1"]:  continue
 
         print("Generating contingency case for load: %s" % load_name)
         # Copy the whole input tree to a new path:
@@ -192,6 +192,9 @@ def matching_in_astre(astre_file, dynawo_loads, verbose=False):
 
 
 def config_dynawo_load_contingency(casedir, load_name):
+    ###########################################################
+    # DYD file: configure an event model for the disconnection
+    ###########################################################
     dyd_file = casedir + DYD_FILE
     print("   Editing file %s" % dyd_file)
     tree = etree.parse(dyd_file)
@@ -244,10 +247,12 @@ def config_dynawo_load_contingency(casedir, load_name):
         encoding="UTF-8",
     )
 
+    ###########################################################
     # PAR file: add a section with the disconnecton parameters
+    ###########################################################
     par_file = casedir + PAR_FILE
     print("   Editing file %s" % par_file)
-    tree = etree.parse(par_file)
+    tree = etree.parse(par_file)  # TODO: why doesn't remove_blank_text work here?
     root = tree.getroot()
     ns = etree.QName(root).namespace
 
@@ -282,35 +287,164 @@ def config_dynawo_load_contingency(casedir, load_name):
         encoding="UTF-8",
     )
 
+    ############################################################
+    # CRV file: configure which variables we want in the output
+    ############################################################
+
+    # We expand the `curvesInput` section with any additional
+    # variables that makes sense to have in the output. The base case
+    # is expected to have the variables that monitor the behavior of
+    # the SVC (pilot point voltage, K level, and P,Q of participating
+    # generators).  We will keep these, and add new ones.
+    #
+    # For now we'll just add the voltage at the contingency bus. To do
+    # this, we have to use the IIDM file, where the load has an id
+    # equal to the `staticID` attribute of the dynamic load model
+    # (variable load_name here). But now you have to take into account
+    # that the bus topology may be either `BUS_BREAKER` or
+    # `NODE_BREAKER`, as you'll do things differently in each case:
+    #
+    #   - `BUS_BREAKER`: recognizable because the static load has an
+    #     attribute "bus", which is the identifyer of the correspondig
+    #     `bus` element in the IIDM (Note: there's no need to search
+    #     for this bus through the whole XML; you can search it from
+    #     the parent element of the load, the `voltageLevel`). Its
+    #     voltage variable is formed by concatenating the bus id and
+    #     `"_Upu_value"`. The specified model has to be
+    #     "NETWORK". Example, for load ".ANDU7TR751":
+    #
+    #        `<curve model="NETWORK" variable=".ANDU771_Upu_value"/>`
+    #
+    #   - `NODE_BREAKER`: recognizable because the static load has an
+    #     attribute "node" instead of "bus". In the node-breaker
+    #     topology there are no `bus` elements; instead, there are
+    #     `busbarSection` elements, which connect with each other and
+    #     loads, gens, etc. through "nodes". Now, it would be a bit
+    #     contrived to resolve the topology in order to find out which
+    #     of the busbarSections a load is effectively connected
+    #     to. This is not worth it, as we just want a voltage point to
+    #     monitor that is "close enough" to the disconnected load.
+    #     Instead, we will resort to this **simple heuristic**: just
+    #     take the first busbarSection that happens to have a non-null
+    #     voltage value (attribute "v"), and we will assume the load
+    #     was connected to that one. Its voltage variable is formed by
+    #     concatenating the busbarSection id and `"_Upu_value"`. The
+    #     specified model has to be "NETWORK". Example, for load
+    #     "AULNO1LMA1":
+    #
+    #        `<curve model="NETWORK" variable="AULNOP1_1C_Upu_value"/>`
+    #
+
+    iidm_file = casedir + IIDM_FILE
+    tree = etree.parse(iidm_file)
+    root = tree.getroot()
+    ns = etree.QName(root).namespace
+    # Find out if it's BUS_BREAKER or NODE_BREAKER
+    for iidm_load in root.iter("{%s}load" % ns):
+        if iidm_load.get("id") == load_name:
+            break
+    topology = iidm_load.getparent().get("topologyKind")
+    # Find out the bus name
+    bus_name = None
+    if topology == "BUS_BREAKER":
+        bus_name = iidm_load.get("bus")
+    elif topology == "NODE_BREAKER":
+        node_breaker_topo = iidm_load.getparent().find("{%s}nodeBreakerTopology" % ns)
+        for node in node_breaker_topo:
+            node_type = etree.QName(node).localname
+            if node_type == "busbarSection" and node.get("v") is not None:
+                bus_name = node.get("id")
+                break
+        if bus_name is None:
+            print("KK!!!")
+            raise ValueError("No busbar found for load %" % load_name)
+    else:
+        raise ValueError("Load % in a substation with unknown topology!" % load_name)
+
+    # Finally, add the corresponding curve to the CRV file
+    crv_file = casedir + CRV_FILE
+    print("   Editing file %s" % crv_file)
+    tree = etree.parse(crv_file, etree.XMLParser(remove_blank_text=True))
+    curves_input = tree.getroot()
+    ns = etree.QName(curves_input).namespace
+    curves_input.append(
+        etree.Element("curve", model="NETWORK", variable=bus_name + "_Upu_value")
+    )
+    # Write out the CRV file, preserving the XML format
+    tree.write(
+        crv_file,
+        pretty_print=True,
+        xml_declaration='<?xml version="1.0" encoding="UTF-8"?>',
+        encoding="UTF-8",
+    )
+
     return 0
 
 
 def config_astre_load_contingency(casedir, load_name):
     astre_file = casedir + ASTRE_FILE
     print("   Editing file %s" % astre_file)
-    tree = etree.parse(astre_file)
+    tree = etree.parse(astre_file, etree.XMLParser(remove_blank_text=True))
     root = tree.getroot()
     ns = etree.QName(root).namespace
 
     # Find the load in Astre (elements with tag "conso"; load name is atttribute "nom")
-    # Keep its "num" attribute, which is the load id.
-    for element in root.iter("{%s}conso" % ns):
-        if element.get("nom") == load_name:
+    # Keep its load id ("num") and its bus id ("noeud")
+    for astre_load in root.iter("{%s}conso" % ns):
+        if astre_load.get("nom") == load_name:
             break
-    load_id = element.get("num")
+    load_id = astre_load.get("num")
+    bus_id = astre_load.get("noeud")
 
-    # Edit the event by means of the `evtouvrtopo` element
-    # (TODO: WE'RE ASSUMING THERE'S ONLY ONE; CONTEMPLATE OTHER CASES)
-    # Refer to the load id using the `ouvrage` attribute
-    # The event type for loads is "3"  (and typeevt is always 1 for disconnection)
+    # Configure the event by means of the `evtouvrtopo` element.  We
+    # just edit the first existing event (keeping its time value), and
+    # remove all other events.  We link to the load id using the
+    # `ouvrage` attribute.  The event type for loads is "3", and
+    # typeevt for disconnections is "1").
     nevents = 0
-    for element in root.iter("{%s}evtouvrtopo" % ns):
-        if nevents >= 1:
-            print("WARNING: multiple evtouvrtopo events found in Astre file!")
+    for astre_event in root.iter("{%s}evtouvrtopo" % ns):
+        if nevents == 0:
+            astre_event.set("ouvrage", load_id)
+            astre_event.set("type", "3")
+            nevents = 1
+        else:
+            astre_event.getparent().remove(astre_event)
+    if nevents != 1:
+        raise ValueError("Astre file %s does not contain any events" % astre_file)
+
+    # Add variables to the curves section: "courbe" elements are
+    # children of element "entreesAstre" and siblings to "scenario".
+    # The base case file is expected to have some courves configured
+    # (the variables that monitor the behavior of the SVC: pilot point
+    # voltage, K level, and P,Q of participating generators). We will
+    # keep these, and add new ones.
+    #
+    # For now we'll just add the voltage at the contingency bus. To do
+    # this, we get the name of the bus that the load is attached to
+    # and add an element as in the example:
+    #
+    #     ```
+    #       <courbe nom="BUSNAME_Upu_value" typecourbe="63" ouvrage="BUSID" type="7"/>
+    #     ```
+    #
+    # Here we use variable names that are as close as possible to
+    # those used in Dynawo.
+    for load_bus in root.iter("{%s}noeud" % ns):
+        if load_bus.get("num") == bus_id:
             break
-        element.set("ouvrage", load_id)
-        element.set("type", "3")
-        nevents += 1
+    load_bus_name = load_bus.get("nom")
+
+    first_astre_curve = root.find(".//{%s}courbe" % ns)
+    astre_entrees = first_astre_curve.getparent()
+    astre_entrees.append(
+        etree.Element(
+            "courbe",
+            nom="NETWORK_" + load_bus_name + "_Upu_value",
+            typecourbe="63",
+            ouvrage=bus_id,
+            type="7",
+        )
+    )
 
     # Write out the Astre file, preserving the XML format
     tree.write(
