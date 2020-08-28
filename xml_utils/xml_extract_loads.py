@@ -17,13 +17,17 @@ def main():
     print("# List of all Loads:")
     for element in root.iter(tag=etree.Element):
         tag = etree.QName(element).localname
-        if tag == "load" and float(element.get("p")) > 80.0:  # Dynawo IIDM
+        #if tag == "load" and float(element.get("p")) > 80.0:  # Dynawo IIDM
+        if tag == "load":  # Dynawo IIDM
             print(
                 xstr(element.get("id"))
-                + "   (p=%s, q=%s)" % (element.get("p"), element.get("q"))
+                #+ "   (p=%s, q=%s)" % (element.get("p"), element.get("q"))
             )
         elif tag == "blackBoxModel" and element.get("lib")[0:4] == "Load":  # Dynawo DYD
-            print(xstr(element.get("id")) + "   (" + element.get("lib") + ")")
+            print(
+                 xstr(element.get("id"))
+                 #+ "   (" + element.get("lib") + ")"
+                 )
         elif tag == "conso":  # Astre
             print(xstr(element.get("nom")))
 
