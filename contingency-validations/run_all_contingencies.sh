@@ -37,7 +37,7 @@ EOF
 
 find_cmd()
 {
-    find "$baseDir" -type d -name "$casePrefix"'*'
+    find "$baseDir" -maxdepth 1 -type d -name "$casePrefix"'*'
 }
 
 
