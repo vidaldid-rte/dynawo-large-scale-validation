@@ -146,8 +146,14 @@ if [ ! -f donneesModelesSortie.csv ]; then
 fi
 cd $OLD_PWD
 mv -f "$inDir"/Astre/donneesModelesSortie.csv "$outDir/$prefix"-Astre.csv
-mv -f "$inDir"/Astre/log.txt "$outDir/$prefix"-Astre.log
 
+LOG="$outDir/$prefix"-Astre.log
+mv -f "$inDir"/Astre/log.txt "$LOG"
+ASTRE_LOG="$inDir"/Astre/donneesModelesLog.xml
+if fgrep -q 'level="ERROR"' "$ASTRE_LOG"; then
+    echo -e "\n\n\nSOME ERRORS WERE FOUND -- CONTENT OF donneesModelesLog.xml:" >> "$LOG"
+    cat "$ASTRE_LOG" >> "$LOG"
+fi
 
 
 ########################################
@@ -166,7 +172,15 @@ if [ ! -f ./tFin/outputs/curves/curves.csv ]; then
 fi
 cd $OLD_PWD
 mv -f "$inDir"/tFin/outputs/curves/curves.csv "$outDir/$prefix"-Dynawo.csv
-mv -f "$inDir"/log.txt "$outDir/$prefix"-Dynawo.log
+mv -f "$inDir"/tFin/outputs/constraints/constraints.xml "$outDir/$prefix"-Dynawo.constraints.xml
+
+LOG="$outDir/$prefix"-Dynawo.log
+mv -f "$inDir"/log.txt "$LOG"
+DYNAWO_LOG="$inDir"/tFin/outputs/logs/dynamo.log
+if fgrep -q 'ERROR' "$DYNAWO_LOG"; then
+    echo -e "\n\n\nSOME ERRORS WERE FOUND -- CONTENT OF dynawo.log:" >> "$LOG"
+    cat "$DYNAWO_LOG" >> "$LOG"
+fi
 
 
 
