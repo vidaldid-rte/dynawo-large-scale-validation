@@ -32,8 +32,8 @@ RST_LAVERP6_U_IMPIN_value;   NOEUD_TENSION_LAVERP6/1.1
 # Niveau RST (K):
 RST_LAVERP6_levelK_value;   ZONERST_NIVEAU_LAVERP6
 # Puissance réactive des groupes en Mvar:
-DM_M.PONT51_tfo_generator_QStatorPu;   GRP_PUISS_REA_STAT_M.PON.TG51
-DM_M.PONT52_tfo_generator_QStatorPu;   GRP_PUISS_REA_STAT_M.PON.TG52
+DM_M.PONT61_tfo_generator_QStatorPu;   GRP_PUISS_REA_STAT_M.PON.TG61
+DM_M.PONT62_tfo_generator_QStatorPu;   GRP_PUISS_REA_STAT_M.PON.TG62
 
 
 # Extra variables matched from CURVE files in the PtFige-Marseille case:
