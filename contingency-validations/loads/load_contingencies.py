@@ -356,7 +356,6 @@ def config_dynawo_load_contingency(casedir, load_name):
                 bus_name = node.get("id")
                 break
         if bus_name is None:
-            print("KK!!!")
             raise ValueError("No busbar found for load %" % load_name)
     else:
         raise ValueError("Load % in a substation with unknown topology!" % load_name)
