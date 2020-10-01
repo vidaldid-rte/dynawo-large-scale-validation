@@ -14,8 +14,8 @@ IMPORTANT INFO ABOUT MODEL TOPOLOGIES
 =====================================
 
 To understand the context, it is important to know that Dynawo allows
-buses to be modeled either in a "node-breaker" topology (full topology
-with all switches & breakers), or in a "bus-breaker" topology (a
+buses to be modeled either with a "node-breaker" topology (full
+topology with all switches & breakers), or a "bus-breaker" topology (a
 reduced topology in which there are no switches & breakers--at least,
 within the voltage level that hosts that reduced bus). Moreover, these
 two can be used at the same time in a given case.
@@ -395,6 +395,8 @@ Detailed steps for tripping loads:
 In Astre:
 ---------
 
+A step by step example using load ".ANDU7TR751" (Lille case):
+
   * Find the corresponding load in Astre: among elements with tag
     "conso", find nom == ".ANDU7TR751".  Keep its "num" attribute,
     which is the load id.
@@ -424,7 +426,7 @@ In Astre:
 	  <courbe nom="BUSLABEL_Upu_value" typecourbe="63" ouvrage="2" type="7"/>
 	```
 
-    Here typecourbe="0" means buses (noeud).
+    Here typecourbe="63" means bus (noeud) voltage in per-unit.
     The name of the variable is free.  In order to have names that
     match those in Dynawo, it is useful to construct the name as
     `"BUSLABEL" + "_Upu_value"`, where BUSLABEL is the name of the
@@ -538,55 +540,85 @@ Detailed steps for tripping shunts:
 In Astre:
 ---------
 
-  * Find the corresponding shunt in Astre: among elements with tag
-    "shunt", find nom == "TODO".  Keep its "num" attribute, which is
-    the shunt id.
+A step by step example using shunt ".AUBA6REAC.1" (Lille case):
+
+  * Find the shunt in Astre: among elements with tag "shunt", find nom
+    == ".AUBA6REAC.1".  Keep its "num" attribute, which is the shunt
+    id (in this case, 34).
 
   * Edit the event using the `evtouvrtopo` element, wrapped in a
-    `scenario` element.  Refer to the load id using the `ouvrage`
+    `scenario` element.  Refer to the shunt id using the `ouvrage`
     attribute.  Example:
   
     ```
       <scenario nom="scenario" duree="1200">
-        <evtouvrtopo instant="300" ouvrage="TODO" type="4" typeevt="1" cote="0"/>
+		<evtouvrtopo instant="300" ouvrage="34" type="4" typeevt="1" cote="0"/>
       </scenario>
     ```
+
+  * For the curves output: just the same as with loads, see above.
+    For instance, to add the voltage of the bus on which the shunt has
+    been disconnected, get the id of the shunt's bus (in this case:
+    noeud="3" --> bus ".AUBAP61"), and add this to the list of
+    existing courbe elements:
+	
+	```
+	  <courbe nom=".AUBAP61_Upu_value" typecourbe="63" ouvrage="3" type="7"/>
+	```
+
+    See above (loads) for more details about curves in Astre.
+
+
 
 
 In Dynawo:
 ----------
 
-  * Find the id of load in IIDM: among elements with tag "shunt", find
-    the desired id (e.g. "TODO")
+In contrast with loads, shunts do not have their own dynamic model in
+the DYD file.  To disconnect them, we have to do it through their
+static description, using an `EventConnectedStatus` instead of an
+`EventSetPointBoolean` (see the Introduction above, about the three
+differnent types of disconnections).
+  
+A step by step example using shunt ".AUBA6REAC.1" (Lille case):
+  
+  * Find the shunt in the IIDM file by seaching the "shunt" elements;
+    the id attribute is the shunt name. Note that if the "bus"
+    attribute does not exist, the shunt is not connected (q=0).
 
-  * In the DYD file, declare a model `EventConnectedStatus` with the
-    corrresponding section in the PAR file:
-	
+  * Edit the DYD file to add an `EventConnectedStatus` model as follows:
     ```
-      <blackBoxModel id="Disconnect my shunt" lib="EventConnectedStatus" parFile="fic_PAR.xml" parId="99991234"/>
-    ```
+	  <blackBoxModel id="Disconnect my shunt" lib="EventConnectedStatus" parFile="tFin/fic_PAR.xml" parId="99991234"/>
 
-  * And (also in the DYD file) connect this with the corresponding id
-    in NETWORK (which you'll have to look for in the IIDM file).  Look
-    in the ddb desc file of the Event model for the variable you need
-    to connect as var1.  As for var2, for NETWORK models the var2 is
-    always composed by appending "_state_value".
-	
+	```
+
+  * And (also in the DYD file) connect this model with the static id2
+    `NETWORK` and a var2 that refers to the shunt id in the IIDM file,
+    plus the sufffix `_state_value`:
+
     ```
-      <connect id1="Disconnect my shunt" var1="event_state1_value" id2="NETWORK" var2="TODO_state_value"/>
-    ```
+      <connect id1="Disconnect my shunt" var1="event_state1_value" id2="NETWORK" var2=".AUBA6REAC.1_state_value"/>
+
+	```
 
   * In the PAR file, add a section with the parameters for the
     disconnection (the time and the action itself).  You can look in
     the ddb desc file of the `EventConnectedStatus` model if you want
     to check the exact names of these parameters:
 	
-    ```
+	```
       <set id="99991234">
         <par type="DOUBLE" name="event_tEvent" value="4300"/>
         <par type="BOOL" name="event_open" value="true"/>
       </set>
     ```
+
+  * In the CRV file, expand the `curvesInput` section with the names
+    of any additional variables that makes sense to have in the
+    output. See above (loads) for details.  Note that if you want to
+    configure a curve for the shunt bus voltage, you can easily find
+    the bus through the shunt's attribute "bus".
+	
 
 
 
