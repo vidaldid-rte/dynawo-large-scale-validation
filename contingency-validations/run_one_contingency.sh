@@ -173,6 +173,7 @@ fi
 cd $OLD_PWD
 mv -f "$inDir"/tFin/outputs/curves/curves.csv "$outDir/$prefix"-Dynawo.csv
 mv -f "$inDir"/tFin/outputs/constraints/constraints.xml "$outDir/$prefix"-Dynawo.constraints.xml
+mv -f "$inDir"/tFin/outputs/timeLine/timeline.xml "$outDir/$prefix"-Dynawo.timeLine.xml
 
 LOG="$outDir/$prefix"-Dynawo.log
 mv -f "$inDir"/log.txt "$LOG"
