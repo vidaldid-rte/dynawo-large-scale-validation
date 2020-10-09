@@ -145,10 +145,10 @@ if [ ! -f donneesModelesSortie.csv ]; then
    exit 1
 fi
 cd $OLD_PWD
-mv -f "$inDir"/Astre/donneesModelesSortie.csv "$outDir/$prefix"-Astre.csv
+cp "$inDir"/Astre/donneesModelesSortie.csv "$outDir/$prefix"-Astre.csv
 
 LOG="$outDir/$prefix"-Astre.log
-mv -f "$inDir"/Astre/log.txt "$LOG"
+cp "$inDir"/Astre/log.txt "$LOG"
 ASTRE_LOG="$inDir"/Astre/donneesModelesLog.xml
 if fgrep -q 'level="ERROR"' "$ASTRE_LOG"; then
     echo -e "\n\n\nSOME ERRORS WERE FOUND -- CONTENT OF donneesModelesLog.xml:" >> "$LOG"
@@ -171,12 +171,12 @@ if [ ! -f ./tFin/outputs/curves/curves.csv ]; then
    exit 1
 fi
 cd $OLD_PWD
-mv -f "$inDir"/tFin/outputs/curves/curves.csv "$outDir/$prefix"-Dynawo.csv
-mv -f "$inDir"/tFin/outputs/constraints/constraints.xml "$outDir/$prefix"-Dynawo.constraints.xml
-mv -f "$inDir"/tFin/outputs/timeLine/timeline.xml "$outDir/$prefix"-Dynawo.timeLine.xml
+cp "$inDir"/tFin/outputs/curves/curves.csv "$outDir/$prefix"-Dynawo.csv
+cp "$inDir"/tFin/outputs/constraints/constraints.xml "$outDir/$prefix"-Dynawo.constraints.xml
+cp "$inDir"/tFin/outputs/timeLine/timeline.xml "$outDir/$prefix"-Dynawo.timeLine.xml
 
 LOG="$outDir/$prefix"-Dynawo.log
-mv -f "$inDir"/log.txt "$LOG"
+cp "$inDir"/log.txt "$LOG"
 DYNAWO_LOG="$inDir"/tFin/outputs/logs/dynamo.log
 if fgrep -q 'ERROR' "$DYNAWO_LOG"; then
     echo -e "\n\n\nSOME ERRORS WERE FOUND -- CONTENT OF dynawo.log:" >> "$LOG"
