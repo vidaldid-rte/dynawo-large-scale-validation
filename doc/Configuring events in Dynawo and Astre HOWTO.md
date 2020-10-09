@@ -118,12 +118,37 @@ purposes and for easing the convergence at initialization time,
 `atbus` provides Astre with the powerflow slack node.
 
 
-Configuring Astre output variables (curves)
--------------------------------------------
+Configuring Astre output variables ("courbes")
+----------------------------------------------
 
-Here is the enum that links the different variables with their
-`typecourbe` attriibute number, which is to be used when configuring
-the output curves:
+The variables are selected to appear in the output by configuring
+`courbe` elements in the input XML file. These are children of element
+`entreesAstre` and siblings to `scenario`.
+
+We have already configured (by hand) the base case file with some
+curves; these correspond to the variables that monitor the behavior of
+the area SVC: pilot point voltage, K level, and P,Q of participating
+generators. One would then add at least the voltage of the bus on
+which the element (load, shunt, gen, whatever) has been disconnected;
+and perhaps all first-neighbor buses as well.
+
+To do this, get the id of the bus that the element was attached to
+(attribute `noeud`), and add an XML element as in the example:
+	
+	```
+	  <courbe nom="BUSLABEL_Upu_value" typecourbe="63" ouvrage="2" type="7"/>
+	```
+
+The name of the variable is free.  In order to have names that match
+those in Dynawo, it is useful to construct the name as `"BUSLABEL" +
+"_Upu_value"`, where BUSLABEL is the name of the corresponding bus in
+Dynawo. In the example above, bus ".ANDU771" (Lille case).
+
+Here typecourbe="63" means bus (noeud) voltage in per-unit, while
+ouvrage="2" refers to the id (attribute "num") of the bus. Here is the
+enum that links the different variables with their `typecourbe`
+attriibute number, which is to be used when configuring the output
+curves:
 
     ```
     enum TypeCourbe {
@@ -389,11 +414,63 @@ check the corresponding "desc" file under the ddb directory.
 
 
 
+Configuring Dynawo output variables ("curves")
+----------------------------------------------
+
+The variables are selected to appear in the output by configuring
+`curve` elements in the CRV file.
+
+We have already configured (by hand) the base case file with some
+curves; these correspond to the variables that monitor the behavior of
+the area SVC: pilot point voltage, K level, and P,Q of participating
+generators. One would then add at least the voltage of the bus at
+which the element (load, shunt, gen, whatever) has been disconnected;
+and perhaps all first-neighbor buses as well.
+
+To do this, first find the element in the IIDM. Then, to find the bus
+it is attached to, you first have to take into account that the
+substation topology (actually, the "voltageLevel" topology) may be
+either `BUS_BREAKER` or `NODE_BREAKER`, since you'll do things
+differently in each case. You will find out the topology type by
+finding the element's parent (voltageLevel) and reading its
+`topologyKind` attribute.  This is how to proceed in each case:
+
+  - `BUS_BREAKER`: in this case there might be more than one bus in
+     the busBreakerTopology. Precisely because of this, the element
+     (load, gen, etc.) will contain an attribute "bus", which is the
+     identifyer of the correspondig `bus` element. Its voltage
+     variable is formed by concatenating the bus id and
+     `"_Upu_value"`. The specified model has to be "NETWORK". Example,
+     for load ".ANDU7TR751":  
+	   `<curve model="NETWORK" variable=".ANDU771_Upu_value"/>`
+			  
+  - `NODE_BREAKER`: in this case the nodeBreakerTopology contains
+    switches and busbarSections. Switches and busBarSections define
+    electrical "nodes", where each switch connects two nodes and each
+    busbarSection is one end-node.  The element in question (load,
+    gen, etc.) will have an attribute "node" instead of "bus".  Now,
+    it would be a bit contrived to resolve the topology in order to
+    find out which of the busbarSections the element is effectively
+    connected to. This is not worth it, as we just want a monitor
+    voltage point that is "close enough" to the disconnected element.
+    Instead, we will resort to this **simple heuristic**: we will just
+    take the first busbarSection that happens to have a non-null or
+    non-zero voltage value (attribute "v"), and we will assume that
+    the tripped element was connected to that one. Its voltage
+    variable is formed by concatenating the busbarSection id and
+    `"_Upu_value"`. The specified model has to be "NETWORK". Example,
+     for load "AULNO1LMA1":  
+		`<curve model="NETWORK" variable="AULNOP1_1C_Upu_value"/>`
+
+
+
+
+
 Detailed steps for tripping loads:
 ==================================
 
-In Astre:
----------
+Tripping loads in Astre:
+------------------------
 
 A step by step example using load ".ANDU7TR751" (Lille case):
 
@@ -412,26 +489,9 @@ A step by step example using load ".ANDU7TR751" (Lille case):
       </scenario>
     ```
 
-  * For the courves output, you have to add `courbe` elements; they
-    are children of element `entreesAstre` and siblings to `scenario`.
-    The base case file will already have some courves configured (the
-    variables that monitor the behavior of the SVC: pilot point
-    voltage, K level, and P,Q of participating generators). We would
-    then add at least the voltage of the bus on which the load has
-    been disconnected (and perhaps all first-neighbor buses as well).
-    To do this,get the id of the bus that the load is attached to
-    (attribute `noeud`), and add an element as in the example:
-	
-	```
-	  <courbe nom="BUSLABEL_Upu_value" typecourbe="63" ouvrage="2" type="7"/>
-	```
+  * Finally, add suitable output variables ("courbes") as described in
+    the Section above, _"Configuring Astre output variables"_.
 
-    Here typecourbe="63" means bus (noeud) voltage in per-unit.
-    The name of the variable is free.  In order to have names that
-    match those in Dynawo, it is useful to construct the name as
-    `"BUSLABEL" + "_Upu_value"`, where BUSLABEL is the name of the
-    corresponding bus in Dynawo. In the example above, bus ".ANDU771".
-	
 
 **A note about load models in Astre:** the different static loads
 ("conso") on one node are aggregated on one only dynamic object
@@ -450,17 +510,15 @@ p_disconnected).
 
 
 
-In Dynawo:
-----------
+Tripping loads in Dynawo:
+-------------------------
 
   * Find the id of the load in the DYD file: among elements with tag
     "BlackBoxModel" and attribute "lib" == "Load*", find the desired
     load name using the attribute `staticId`.  Then keep the id, which
-    is usually the same but prefixed with "DM_" (and starting "."
-    converted to "_") Example:	
-	```
-	<blackBoxModel id="DM__ANDU7TR751" lib="LoadPQ" parFile="tFin/fic_PAR.xml" parId="1000" staticId=".ANDU7TR751">
-	```
+    is usually the same but prefixed with "DM_" (and dots "."
+    converted to undersocres "_").  In this example we will use loas
+    ".ANDU7TR751".
 
   * In the DYD file, declare a model `EventSetPointBoolean` with the
     corrresponding section in the PAR file:
@@ -489,47 +547,9 @@ In Dynawo:
       </set>
     ```
 
-  * In the CRV file, expand the `curvesInput` section with the names
-    of any additional variables that makes sense to have in the
-    output. The base case file is already prepared with the variables
-    that monitor the behavior of the SVC (pilot point voltage, K
-    level, and P,Q of participating generators).  We would then add at
-    least the voltage of the bus on which the load has been
-    disconnected (and perhaps all first-neighbor buses as well).  To
-    do so, first find the static load in the IIDM (using the
-    `staticID` of the load model in the DYD file). Now you have to
-    take into account that the bus topology may be either
-    `BUS_BREAKER` or `NODE_BREAKER`, as you'll do things differently
-    in each case:
-	
-	  - `BUS_BREAKER`: recognizable because the static load has an
-        attribute "bus", which is the identifyer of the correspondig
-        `bus` element in the IIDM (Note: there's no need to search for
-        this bus through the whole XML; you can search it from the
-        parent element of the load, the `voltageLevel`). Its voltage
-        variable is formed by concatenating the bus id and
-        `"_Upu_value"`. The specified model has to be
-        "NETWORK". Example, for load ".ANDU7TR751":  
-		`<curve model="NETWORK" variable=".ANDU771_Upu_value"/>`
-			  
-	  - `NODE_BREAKER`: recognizable because the static load has an
-        attribute "node" instead of "bus". In the node-breaker
-        topology there are no `bus` elements; instead, there are
-        `busbarSection` elements, which connect with each other and
-        loads, gens, etc. through "nodes". Now, it would be a bit
-        contrived to resolve the topology in order to find out which
-        of the busbarSections a load is effectively connected to. This
-        is not worth it, as we just want a voltage point to monitor
-        that is "close enough" to the disconnected load.  Instead, we
-        will resort to this **simple heuristic**: just take the first
-        busbarSection that happens to have a non-null or non-zero
-        voltage value (attribute "v"), and we will assume the load was
-        connected to that one. Its voltage variable is formed by
-        concatenating the busbarSection id and `"_Upu_value"`. The
-        specified model has to be "NETWORK". Example, for load
-        "AULNO1LMA1":  
-		`<curve model="NETWORK" variable="AULNOP1_1C_Upu_value"/>`
-		
+  * Finally, add suitable output variables ("curves") as described in
+    the Section above, _"Configuring Dynawo output variables"_.
+
 
 
 
@@ -537,8 +557,8 @@ In Dynawo:
 Detailed steps for tripping shunts:
 ===================================
 
-In Astre:
----------
+Tripping shunts in Astre:
+-------------------------
 
 A step by step example using shunt ".AUBA6REAC.1" (Lille case):
 
@@ -548,7 +568,8 @@ A step by step example using shunt ".AUBA6REAC.1" (Lille case):
 
   * Edit the event using the `evtouvrtopo` element, wrapped in a
     `scenario` element.  Refer to the shunt id using the `ouvrage`
-    attribute.  Example:
+    attribute.  Use `type="4"` for shunts, and `typeevt="1"` for
+    disconnection (see table above). Example:
   
     ```
       <scenario nom="scenario" duree="1200">
@@ -556,23 +577,13 @@ A step by step example using shunt ".AUBA6REAC.1" (Lille case):
       </scenario>
     ```
 
-  * For the curves output: just the same as with loads, see above.
-    For instance, to add the voltage of the bus on which the shunt has
-    been disconnected, get the id of the shunt's bus (in this case:
-    noeud="3" --> bus ".AUBAP61"), and add this to the list of
-    existing courbe elements:
-	
-	```
-	  <courbe nom=".AUBAP61_Upu_value" typecourbe="63" ouvrage="3" type="7"/>
-	```
-
-    See above (loads) for more details about curves in Astre.
+  * Finally, add suitable output variables ("courbes") as described in
+    the Section above, _"Configuring Astre output variables"_.
 
 
 
-
-In Dynawo:
-----------
+Tripping shunts in Dynawo:
+--------------------------
 
 In contrast with loads, shunts do not have their own dynamic model in
 the DYD file.  To disconnect them, we have to do it through their
@@ -580,7 +591,7 @@ static description, using an `EventConnectedStatus` instead of an
 `EventSetPointBoolean` (see the Introduction above, about the three
 differnent types of disconnections).
   
-A step by step example using shunt ".AUBA6REAC.1" (Lille case):
+A step by step example, using shunt ".AUBA6REAC.1" (Lille case):
   
   * Find the shunt in the IIDM file by seaching the "shunt" elements;
     the id attribute is the shunt name. Note that if the "bus"
@@ -612,13 +623,146 @@ A step by step example using shunt ".AUBA6REAC.1" (Lille case):
         <par type="BOOL" name="event_open" value="true"/>
       </set>
     ```
-
-  * In the CRV file, expand the `curvesInput` section with the names
-    of any additional variables that makes sense to have in the
-    output. See above (loads) for details.  Note that if you want to
-    configure a curve for the shunt bus voltage, you can easily find
-    the bus through the shunt's attribute "bus".
+  * Finally, add suitable output variables ("curves") as described in
+    the Section above, _"Configuring Dynawo output variables"_.
 	
+
+
+
+Detailed steps for tripping generators:
+=======================================
+
+Some quick stats on generators:
+
+| GEN TYPE   |  Lille |   Lyon | Marseille |
+| --------   | -----: | -----: | --------: |
+| HYDRO      |      4 |    404 |       160 |
+| NUCLEAR    |     28 |     22 |	    10 |
+| OTHER      |     12 |     14 |	    23 |
+| SOLAR      |      6 |     77 |	   188 |
+| THERMAL    |     27 |      6 |	    17 |
+| WIND       |    190 |     44 |	    18 |
+| Total      |    267 |    567 |	   416 |
+| (inactive) |    (25)|   (135)|       (64)|
+
+
+
+
+
+
+
+Tripping generators in Astre:
+-----------------------------
+
+A step by step example using generator "HAUBO4GR1" (Lille case):
+
+  * Find the gen in Astre: among elements with tag "groupe", find nom
+    == "HAUBO4GR1".  Keep its "num" attribute, which is the gen id (in
+    this case, 55).
+
+  * Edit the event using the `evtouvrtopo` element, wrapped in a
+    `scenario` element.  Refer to the gen id using the `ouvrage`
+    attribute. Use `type="2"` for generators, and `typeevt="1"` for
+    disconnection (see table above).  Example:
+  
+    ```
+      <scenario nom="scenario" duree="1200">
+		<evtouvrtopo instant="300" ouvrage="55" type="2" typeevt="1" cote="0"/>
+      </scenario>
+    ```
+
+  * Finally, add suitable output variables ("courbes") as described in
+    the Section above, _"Configuring Astre output variables"_.
+
+
+
+
+Tripping generators in Dynawo:
+------------------------------
+
+Generators may or may not have a dynamic model.  To disconnect them,
+one has to do things differently in one case and the other.
+
+If the generator does *not* have a dynamic model, the disconnection is
+performed similar to shunts, using an `EventConnectedStatus` model.
+(see the Introduction, about the three differnent types of
+disconnections).  Here is a step by step example, using gen "BLOCAIN1"
+(Lille case):
+ 
+  * Find the gen in the IIDM file by seaching the "generator"
+    elements; the id attribute is the gen name. Note that if the gen
+    has attributes p="-0" q="-0" (both with the minus sign), then it
+    is already disconnected.
+
+  * Edit the DYD file to add an `EventConnectedStatus` model as follows:
+    ```
+	  <blackBoxModel id="Disconnect my gen" lib="EventConnectedStatus" parFile="tFin/fic_PAR.xml" parId="99991234"/>
+
+	```
+
+  * And (also in the DYD file) connect this model with the static id2
+    `NETWORK` and a var2 that refers to the gen id in the IIDM file,
+    plus the sufffix `_state_value`:
+
+    ```
+      <connect id1="Disconnect my gen" var1="event_state1_value" id2="NETWORK" var2="BLOCAIN1_state_value"/>
+
+	```
+
+  * In the PAR file, add a section with the parameters for the
+    disconnection (the time and the action itself).  You can look in
+    the ddb desc file of the `EventConnectedStatus` model if you want
+    to check the exact names of these parameters:
+	
+	```
+      <set id="99991234">
+        <par type="DOUBLE" name="event_tEvent" value="4300"/>
+        <par type="BOOL" name="event_open" value="true"/>
+      </set>
+    ```
+
+If the generator *does* have a dynamic model, the disconnection is
+performed similar to loads, using an `EventSetPointBoolean` model.
+Here's a step by step example, using gen "HAUBO4GR1" (Lille case):
+
+  * Find the id of the gen in the DYD file: among elements with tag
+    "BlackBoxModel" and attribute "lib" == "Gen*", find the desired
+    generator name using the attribute `staticId`.  Then keep the id,
+    which is usually the same but prefixed with "DM_" (and dots
+    converted to underscores).
+
+  * In the DYD file, declare a model `EventSetPointBoolean` with the
+    corrresponding section in the PAR file:
+    ```
+      <blackBoxModel id="Disconnect my gen" lib="EventSetPointBoolean" parFile="fic_PAR.xml" parId="99991234"/>
+    ```
+
+  * And (also in the DYD file) connect this with the corresponding id
+    of the gen model in the same DYD file.  Look in the ddb desc file
+    of the EventSetPointBoolean model for the variable you need to
+    connect as var1.  Look in the ddb desc file of the Generator*
+    model for the variable you need to connect as var2.
+	```
+      <connect id1="Disconnect my gen" var1="event_state1_value" id2="DM_HAUBO4GR1" var2="generator_switchOffSignal2_value"/>
+    ```
+
+  * In the PAR file, add a section with the parameters for the
+    disconnection (the time and the action itself).  You can look in
+    the ddb desc file of the `EventSetPointBoolean` model if you want
+    to check the exact names of these parameters:
+	
+	```
+      <set id="99991234">
+        <par type="DOUBLE" name="event_tEvent" value="4300"/>
+        <par type="BOOL" name="event_stateEvent1" value="true"/>
+      </set>
+    ```
+
+Finally, add suitable output variables ("curves") as described in the
+Section above, _"Configuring Dynawo output variables"_.
+
+
+
 
 
 
