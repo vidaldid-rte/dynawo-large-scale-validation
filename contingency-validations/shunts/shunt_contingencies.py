@@ -93,7 +93,7 @@ def main():
 
         # Save the wole case using "deduplication"
         deduped_case = dirname + "/shunt_" + shunt_name
-        dedup_save(edited_case, deduped_case)
+        dedup_save(basename, edited_case, deduped_case)
 
     # Finally, save the values of disconnected shunts in all processed cases
     save_total_shuntQ(dirname, dynawo_shunts)
@@ -163,7 +163,7 @@ def remove_case(dest_case):
         raise
 
 
-def dedup_save(edited_case, deduped_case):
+def dedup_save(basename, edited_case, deduped_case):
     # If the destination exists, warn and rename it to OLD
     if os.path.exists(deduped_case):
         print(
@@ -173,7 +173,8 @@ def dedup_save(edited_case, deduped_case):
         os.rename(deduped_case, deduped_case + "__OLD__")
 
     # Save it using "deduplication" (actually, hard links)
-    dedup_cmd = "rsync -a --delete --link-dest=../BASECASE '%s/' '%s'" % (
+    dedup_cmd = "rsync -a --delete --link-dest=../%s '%s/' '%s'" % (
+        basename,
         edited_case,
         deduped_case,
     )
