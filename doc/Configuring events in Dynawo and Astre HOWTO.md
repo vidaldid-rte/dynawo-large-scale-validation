@@ -23,7 +23,14 @@ two can be used at the same time in a given case.
 Initially RTE provided 3 sample base cases (Lille, Lyon, Marseille) in
 which most of the buses (though not all) where NODE-BREAKER.  Then we
 were provided newer files (of the same cases) in which the majority
-(but not all) of the buses were modeled as BUS-BREAKER.
+(but not all) of the buses were modeled as BUS-BREAKER. This has to be
+taken into account when configuring a contingency event that should be
+the same in Dynawo and Astre.
+
+Additionally, the new set of files not only has node-breaker busbars
+fused into single bus-breaker buses; it also has many **loads** that
+have been merged.
+
 
 Here's the analysis of how many buses are present of each kind in the
 old vs. the new cases:
@@ -51,19 +58,6 @@ old vs. the new cases:
 |                |              |                |                 |
 
 
-
-We have to take all this into account whenever we want to configure a
-contingency event that should be the same in Dynawo and Astre. For instance:
-
-  * When configuring load disconnections, 
-
-
-If the bus topology is BUS-BREAKER, chances are that,
-compared to the Astre model, some loads have been merged (not
-always). If the corresponding loads in Astre are still disaggregated,
-the contngency in Astre will have to consist of all loads attached to
-the same bus (and the same thing in Dynawo, in case there's more than
-one aggregated load at the same bus).
 
 
 
@@ -632,7 +626,7 @@ A step by step example, using shunt ".AUBA6REAC.1" (Lille case):
 Detailed steps for tripping generators:
 =======================================
 
-Some quick stats on generators:
+Some quick stats on generators (from Dynawo files):
 
 | GEN TYPE   |  Lille |   Lyon | Marseille |
 | --------   | -----: | -----: | --------: |
@@ -644,10 +638,6 @@ Some quick stats on generators:
 | WIND       |    190 |     44 |	    18 |
 | Total      |    267 |    567 |	   416 |
 | (inactive) |    (25)|   (135)|       (64)|
-
-
-
-
 
 
 
@@ -673,7 +663,6 @@ A step by step example using generator "HAUBO4GR1" (Lille case):
 
   * Finally, add suitable output variables ("courbes") as described in
     the Section above, _"Configuring Astre output variables"_.
-
 
 
 
@@ -763,6 +752,142 @@ Section above, _"Configuring Dynawo output variables"_.
 
 
 
+
+
+
+Detailed steps for tripping lines and transformers:
+==================================================
+
+In dynawo, lines and transformers are contained in the IIDM file, They
+are represented by elements with XML tags "line", and "transformer",
+respectively.  They do not have a corresponding dynamic model in the
+DYD file. Phase-shifting transformers can be identified because they
+contain a child element with tag `phaseTapChanger` (standard
+transformers have a `ratioTapChanger` instead). 
+
+Note: all transformers in all three Dynawo cases (Lille, Lyon,
+Marseille) seem to be **two-winding**. There are no three-winding
+tranformers (at least, not modeled as such).  Also, the high-voltage
+side is almost always the "TO" side (or bus2); there's only two
+exceptions in the Lyon case ( SIEREY764, SIEREY762) and another two in
+the Marseille case (G.ILEY761, G.ILEY762).
+
+
+In Astre, both lines ans transformers are described by elements with
+tag "quadripole", and they can be told apart by the value of the
+`type` attribute: 0--lines; 1--transformers; 2--phase shifting
+transformers. The "from" and "to" buses are described in the "nor"
+(noeud origine) an "nex" (noeud extreme) attributes, respectively.
+
+
+Some quick stats:
+
+| Lille case      | Astre  | Dynawo  |
+| --------------  | -----: | ------: | 
+| Lines           |    969 |     969 |
+| Transformers    |    257 |     214 |
+| Phase Shifters  |      4 |       4 |
+| TOTAL           |   1230 |    1187 |
+
+
+| Lyon case       | Astre  | Dynawo  |
+| --------------  | -----: | ------: | 
+| Lines           |   1562 |    1561 |
+| Transformers    |    521 |     391 |
+| Phase Shifters  |      5 |       5 |
+| TOTAL           |   2088 |    1957 |
+
+
+| Marseille case  | Astre  | Dynawo  |
+| --------------  | -----: | ------: | 
+| Lines           |    980 |     979 |
+| Transformers    |    377 |     269 |
+| Phase Shifters  |      5 |       5 |
+| TOTAL           |   1362 |    1253 |
+
+
+
+Tripping lines and transformers in Astre:
+-----------------------------------------
+
+A step by step example using line "CHARPL31CIVRI" (Lyon case):
+
+  * Find the line in Astre: among elements with tag "quadripole", find
+    nom == "CHARPL31CIVRI".  Keep its "num" attribute, which is the
+    line id (in this case, 711). Apparently [TO BE CONFIRMED], lines
+    that are already disconnected can be detected by the values of P,Q
+    flows:
+	```
+	  <variables por="0" pex="0" qor="0" qex="0"/>
+	```
+
+  * Edit the event using the `evtouvrtopo` element, wrapped in a
+    `scenario` element.  Refer to the line id using the `ouvrage`
+    attribute. Use `type="9"` for lines, and `typeevt="1"` for
+    disconnection (see table above).  Choose the end of the connection
+    using the `cote` attribute (0 = both ends; 1 = "From" end; 2 =
+    "To" end). Example:
+  
+    ```
+      <scenario nom="scenario" duree="1200">
+		<evtouvrtopo instant="300" ouvrage="711" type="9" typeevt="1" cote="0"/>
+      </scenario>
+    ```
+
+  * Finally, add suitable output variables ("courbes") as described in
+    the Section above, _"Configuring Astre output variables"_.
+
+
+
+
+Tripping lines and transformers in Dynawo:
+------------------------------------------
+
+Lines and transformers in RTE's Dynawo cases usually have a static
+model only. But in this case the disconnection is not performed using
+an `EventConnectedStatus` model, but an `EventQuadripoleDisconnection`
+instead, so that one can specify which side(s) will be disconnected
+(see the Introduction, about the three differnent types of
+disconnections).  Here is a step by step example, using line
+"CHARPL31CIVRI" (Lyon case):
+ 
+  * Find the line in the IIDM file by seaching the "line" elements
+    (for transformers, search the "twoWindingsTransformer" elements
+    instead); the id attribute is the line name. Apparently [TO BE
+    CONFIRMED], lines are disconnected if all values are zero,
+    possibly with signed zeros (example: p1="0" q1="-0" p2="0"
+    q2="-0").
+
+  * Edit the DYD file to add an `EventQuadripoleDisconnection` model as follows:
+    ```
+	  <blackBoxModel id="Disconnect my BRANCH" lib="EventQuadripoleDisconnection" parFile="tFin/fic_PAR.xml" parId="99991234"/>
+
+	```
+
+  * And (also in the DYD file) connect this model with the static id2
+    `NETWORK` and a var2 that refers to the line id in the IIDM file,
+    plus the sufffix `_state_value`:
+
+    ```
+      <connect id1="Disconnect my BRANCH" var1="event_state1_value" id2="NETWORK" var2="CHARPL31CIVRI_state_value"/>
+
+	```
+
+  * In the PAR file, add a section with the parameters for the
+    disconnection (the time and the action itself).  You can look in
+    the ddb desc file of the `EventQuadripoleDisconnection` model if
+    you want to check the exact names of these parameters:
+	
+	```
+      <set id="99991234">
+        <par type="DOUBLE" name="event_tEvent" value="4300"/>
+        <par type="BOOL" name="event_disconnectOrigin" value="false"/>
+        <par type="BOOL" name="event_disconnectExtremity" value="true"/>
+      </set>
+    ```
+
+   * Finally, add suitable output variables ("curves") as described in
+     the Section above, _"Configuring Dynawo output variables"_.
 
 
 
