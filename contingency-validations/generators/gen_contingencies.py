@@ -52,10 +52,12 @@ IIDM_FILE = "/tFin/fic_IIDM.xml"
 
 def main():
 
-    if len(sys.argv) != 2:
-        print("\nUsage: %s base_case\n" % sys.argv[0])
+    if len(sys.argv) < 2:
+        print("\nUsage: %s base_case [element1 element2 element3 ...]\n" % sys.argv[0])
         return 2
     base_case = sys.argv[1]
+    filter_list = sys.argv[2:]
+
     verbose = True
 
     # Check all needed files are in place
@@ -74,9 +76,10 @@ def main():
     # For each matching GEN, generate the contingency case
     for gen_name in dynawo_gens:
 
-        # Uncomment this for generating just a few cases:
-        # if gen_name not in ["SSPOLIN1", ".BRUM7ANNEAU1", ".BRUM7ANNEAU2", "CXSSEIN1"]:
-        #     continue
+        # If the script was passed a list of generators, filter for them here
+        # (e.g. "SSPOLIN1", ".BRUM7ANNEAU1", ".BRUM7ANNEAU2", "CXSSEIN1")
+        if len(filter_list) != 0 and gen_name not in filter_list:
+            continue
 
         print(
             "Generating contingency case for gen %s (at bus: %s)"
@@ -509,7 +512,7 @@ def save_total_genPQ(dirname, dynawo_gens, astre_gens):
         "Q_dwo",
         "Q_ast",
         "Qdiff_pct",
-        "PQdiff_pct",
+        "sumPQdiff_pct",
     ]
     data_list = []
     # We enumerate the astre_gens dict because it contains the cases
@@ -522,14 +525,14 @@ def save_total_genPQ(dirname, dynawo_gens, astre_gens):
         Q_dwo = dynawo_gens[gen_name].Q
         Q_ast = astre_gens[gen_name][1]
         Qdiff_pct = 100 * (Q_dwo - Q_ast) / max(abs(Q_ast), 0.001)
-        PQdiff_pct = abs(Pdiff_pct) + abs(Qdiff_pct)
+        sumPQdiff_pct = abs(Pdiff_pct) + abs(Qdiff_pct)
         data_list.append(
-            [gen_name, P_dwo, P_ast, Pdiff_pct, Q_dwo, Q_ast, Qdiff_pct, PQdiff_pct]
+            [gen_name, P_dwo, P_ast, Pdiff_pct, Q_dwo, Q_ast, Qdiff_pct, sumPQdiff_pct]
         )
 
     df = pd.DataFrame(data_list, columns=column_list)
     df.sort_values(
-        by=["PQdiff_pct"], inplace=True, ascending=False, na_position="first"
+        by=["sumPQdiff_pct"], inplace=True, ascending=False, na_position="first"
     )
     df.to_csv(file_name, index=False, sep=";", float_format="%.3f", encoding="utf-8")
 
