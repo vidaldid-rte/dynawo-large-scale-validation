@@ -9,7 +9,8 @@
 #
 # Takes a base case consisting of two corresponding Dynawo and Astre
 # files and, enumerating all loads that can be matched in the two,
-# creates the files needed to run the simulations.
+# creates the files needed to run all single-load contingency
+# simulations.
 #
 # On input, the files are expected to have this structure:
 #
