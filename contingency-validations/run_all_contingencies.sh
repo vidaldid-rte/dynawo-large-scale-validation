@@ -19,7 +19,7 @@ usage()
 {
     cat <<EOF
 
-Usage: $0 [OPTIONS] CASEDIR INPUTPREFIX
+Usage: $0 [OPTIONS] CASE_DIR BASECASE CASE_PREFIX
   Options:
     -c | --cleanup    Delete input cases (both Astre & Dynawo) after getting the results
     -d | --debug      More debug messages
@@ -37,7 +37,7 @@ EOF
 
 find_cmd()
 {
-    find "$baseDir" -maxdepth 1 -type d -name "$casePrefix"'*'
+    find "$CASE_DIR" -maxdepth 1 -type d -name "$CASE_PREFIX"'*'
 }
 
 
@@ -46,7 +46,7 @@ find_cmd()
 # -use return value from ${PIPESTATUS[0]}, because ! hosed $?
 ! getopt --test > /dev/null 
 if [[ ${PIPESTATUS[0]} -ne 4 ]]; then
-    echo 'I’m sorry, `getopt --test` failed in this environment.'
+    echo "I’m sorry, 'getopt --test' failed in this environment."
     exit 1
 fi
 
@@ -61,6 +61,7 @@ LONGOPTS=cleanup,debug,help,output:,verbose,sequential
 if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
     # e.g. return value is 1
     #  then getopt has complained about wrong arguments to stdout
+    usage
     exit 2
 fi
 # read getopt’s output this way to handle the quoting right:
@@ -106,8 +107,8 @@ while true; do
 done
 
 if [ $v = "y" ]; then
-    echo "OPTIONS: cleanup: $c, debug: $d, help: $h, outDir: $outDir, verbose: $v"
-    echo "PARAMS: $@"
+    echo "OPTIONS: cleanup: $c, debug: $d, help: $h, output: $outDir, verbose: $v, sequential: $s"
+    echo "PARAMS: $*"
 fi
 
 if [ $h = "y" ]; then
@@ -116,8 +117,9 @@ if [ $h = "y" ]; then
 fi
 
 # handle non-option arguments
-if [[ $# -ne 2 ]]; then
-    echo -e "\n$0: please specify the base directory containing cases and a case prefix"
+if [[ $# -ne 3 ]]; then
+    echo
+    echo "$0: please specify the base directory containing cases, the basecase, and a case prefix"
     usage
     exit 4
 fi
@@ -131,38 +133,45 @@ fi
 #######################################
 # The real meat starts here
 ########################################
-baseDir=$1
-casePrefix=$2
-if [ ! -d "$baseDir" ]; then
-   echo "Base directory $baseDir not found."
+CASE_DIR=$1
+BASECASE=$2
+CASE_PREFIX=$3
+if [ ! -d "$CASE_DIR" ]; then
+   echo "Directory $CASE_DIR not found."
+   exit 1
+fi
+
+if [ ! -d "$BASECASE" ]; then
+   echo "Basecase $BASECASE not found."
    exit 1
 fi
 
 dirList=$(find_cmd)
 if [ -z "$dirList" ]; then
-   echo -e "No cases with pattern $casePrefix* found under $baseDir"
+   echo -e "No cases with pattern $CASE_PREFIX* found under $CASE_DIR"
    exit 1
 fi
 
 # Create the output dir if it doesn't exist
 mkdir -p "$outDir"
 
-# Run each case, using GNU parallel if available
-if [ $c = "y" ]; then   # TODO: do this properly with an array
-    OPTS="-c -o $outDir"
+# Run each contingency case (using GNU parallel if available)
+declare -a OPTS
+if [ $c = "y" ]; then
+    OPTS=("-c" "-o" "$outDir" "$BASECASE")
 else
-    OPTS="-o $outDir"
+    OPTS=("-o" "$outDir" "$BASECASE")
 fi
 run_case=$(dirname "$0")/run_one_contingency.sh
-if [ $s = "y" -o -z $(which parallel) ]; then
+if [ $s = "y" ] || ! [ -x "$(type -p parallel)" ]; then
     echo "*** Running sequentially"
-    set +e   # allow to continue if some fail
-    find_cmd | while read CASE; do
-	echo "   $CASE"
-	$run_case $OPTS "$CASE"
+    set +e   # allow to continue if any case fails
+    find_cmd | while read -r CONTG_CASE; do
+	echo "   $CONTG_CASE"
+	$run_case "${OPTS[@]}" "$CONTG_CASE"
     done
 else
     echo "*** Running in parallel"
-    find_cmd | parallel -j+0 --eta $run_case $OPTS {}
+    find_cmd | parallel -j 50% --eta "$run_case" "${OPTS[@]}" {}
 fi
 
