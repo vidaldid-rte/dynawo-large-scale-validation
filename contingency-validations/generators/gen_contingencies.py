@@ -58,7 +58,7 @@ def main():
     base_case = sys.argv[1]
     filter_list = sys.argv[2:]
 
-    verbose = True
+    verbose = False
 
     # Check all needed files are in place
     base_case, basename, dirname = check_inputfiles(base_case, verbose)
@@ -77,7 +77,7 @@ def main():
     for gen_name in dynawo_gens:
 
         # If the script was passed a list of generators, filter for them here
-        # (e.g. "SSPOLIN1", ".BRUM7ANNEAU1", ".BRUM7ANNEAU2", "CXSSEIN1")
+        # DEBUG: filter_list = ["CXSSEIN1", "BARNA7ANNEAU1PALU", "PENL57ANNEAU1PENL"]
         if len(filter_list) != 0 and gen_name not in filter_list:
             continue
 
