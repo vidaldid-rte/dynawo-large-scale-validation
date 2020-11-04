@@ -783,7 +783,7 @@ transformers. The "from" and "to" buses are described in the "nor"
 Some quick stats:
 
 | Lille case      | Astre  | Dynawo  |
-| --------------  | -----: | ------: | 
+| --------------  | -----: | ------: |
 | Lines           |    969 |     969 |
 | Transformers    |    257 |     214 |
 | Phase Shifters  |      4 |       4 |
@@ -791,7 +791,7 @@ Some quick stats:
 
 
 | Lyon case       | Astre  | Dynawo  |
-| --------------  | -----: | ------: | 
+| --------------  | -----: | ------: |
 | Lines           |   1562 |    1561 |
 | Transformers    |    521 |     391 |
 | Phase Shifters  |      5 |       5 |
@@ -799,7 +799,7 @@ Some quick stats:
 
 
 | Marseille case  | Astre  | Dynawo  |
-| --------------  | -----: | ------: | 
+| --------------  | -----: | ------: |
 | Lines           |    980 |     979 |
 | Transformers    |    377 |     269 |
 | Phase Shifters  |      5 |       5 |
