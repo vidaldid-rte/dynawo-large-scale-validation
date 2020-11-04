@@ -51,11 +51,13 @@ IIDM_FILE = "/tFin/fic_IIDM.xml"
 
 def main():
 
-    if len(sys.argv) != 2:
-        print("\nUsage: %s base_case\n" % sys.argv[0])
+    if len(sys.argv) < 2:
+        print("\nUsage: %s base_case [element1 element2 element3 ...]\n" % sys.argv[0])
         return 2
     base_case = sys.argv[1]
-    verbose = True
+    filter_list = sys.argv[2:]
+
+    verbose = False
 
     # Check all needed files are in place
     base_case, basename, dirname = check_inputfiles(base_case, verbose)
@@ -70,8 +72,10 @@ def main():
     # For each matching SHUNT, generate the contingency case
     for shunt_name in dynawo_shunts:
 
-        # Uncomment this for generating just a few cases:
-        # if shunt_name not in [".AUBA6REAC.1"]: continue
+        # If the script was passed a list of shunts, filter for them here
+        # DEBUG: filter_list = [".AUBA6REAC.1", "ARGOE1REAC.1"]
+        if len(filter_list) != 0 and shunt_name not in filter_list:
+            continue
 
         print(
             "Generating contingency case for shunt %s (at bus: %s)"
