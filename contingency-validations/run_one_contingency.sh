@@ -18,7 +18,7 @@ usage()
 {
     cat <<EOF
 
-Usage: $0 [OPTIONS] BASE_CASE CONTINGENCY_CASE
+Usage: $0 [OPTIONS] BASECASE CONTINGENCY_CASE
   Options:
     -c | --cleanup  Delete the input case (both Astre & Dynawo) after getting the results
     -d | --debug    More debug messages
@@ -132,7 +132,8 @@ fi
 prefix=$(basename "$CONTG_CASE")
 
 # Create the output dirs if they don't exist
-mkdir -p "$outDir"/csv
+mkdir -p "$outDir"/crv
+mkdir -p "$outDir"/aut
 mkdir -p "$outDir"/xml
 mkdir -p "$outDir"/log
 mkdir -p "$outDir"/casediffs
@@ -186,11 +187,9 @@ if [ ! -f donneesModelesSortie.csv ]; then
    exit 1
 fi
 
-# TODO: launch here the extraction of EVENTS (from the xml to CSV)
-
 # Collect and compress all results
 cd "$OLD_PWD"
-xz -c9 "$CONTG_CASE"/Astre/donneesModelesSortie.csv > "$outDir"/csv/"$prefix"-AstreSortie.csv.xz
+xz -c9 "$CONTG_CASE"/Astre/donneesModelesSortie.csv > "$outDir"/crv/"$prefix"-AstreCurves.csv.xz
 xz -c9 "$CONTG_CASE"/Astre/donneesModelesSortie.xml > "$outDir"/xml/"$prefix"-AstreSortie.xml.xz
 xz -c9 "$CONTG_CASE"/Astre/donneesModelesLog.xml    > "$outDir"/log/"$prefix"-AstreLog.xml.xz
 xz -c9 "$CONTG_CASE"/Astre/"$RUNLOG"                > "$outDir"/log/"$prefix"-"$RUNLOG".xz
@@ -214,13 +213,32 @@ fi
 
 # Collect and compress all results
 cd "$OLD_PWD"
-xz -c9 "$CONTG_CASE"/tFin/outputs/curves/curves.csv           > "$outDir"/csv/"$prefix"-Dynawo.csv.xz
+xz -c9 "$CONTG_CASE"/tFin/outputs/curves/curves.csv           > "$outDir"/crv/"$prefix"-DynawoCurves.csv.xz
 xz -c9 "$CONTG_CASE"/tFin/outputs/constraints/constraints.xml > "$outDir"/xml/"$prefix"-DynawoConstraints.xml.xz
 xz -c9 "$CONTG_CASE"/tFin/outputs/finalState/outputIIDM.xml   > "$outDir"/xml/"$prefix"-DynawoOutputIIDM.xml.xz
 xz -c9 "$CONTG_CASE"/tFin/outputs/timeLine/timeline.xml       > "$outDir"/xml/"$prefix"-DynawoTimeLine.xml.xz
 xz -c9 "$CONTG_CASE"/tFin/outputs/logs/dynamo.log             > "$outDir"/log/"$prefix"-Dynawo.log.xz
 xz -c9 "$CONTG_CASE"/"$RUNLOG"                                > "$outDir"/log/"$prefix"-"$RUNLOG".xz
 
+
+
+########################################
+# Extract automata changes
+########################################
+# Extracts EVENTS from the xml output to CSV, using standardized
+# labels to allow comparison
+scripts_basedir=$(dirname "$0")/..
+"$scripts_basedir"/xml_utils/extract_automata_changes.py "$CONTG_CASE"
+
+# Collect and compress all results
+xz -c9 "$CONTG_CASE"/Astre/Astre_automata_changes.csv > "$outDir"/aut/"$prefix"-AstreAutomata.csv.xz
+xz -c9 "$CONTG_CASE"/Dynawo_automata_changes.csv      > "$outDir"/aut/"$prefix"-DynawoAutomata.csv.xz
+
+
+
+########################################
+# Clean up
+########################################
 # Delete input dir if cleanup was requested
 if [ $c = "y" ]; then
     rm -rf "$CONTG_CASE"
