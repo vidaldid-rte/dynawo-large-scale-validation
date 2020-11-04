@@ -50,31 +50,35 @@ IIDM_FILE = "/tFin/fic_IIDM.xml"
 
 def main():
 
-    if len(sys.argv) != 2:
-        print("\nUsage: %s input_case\n" % sys.argv[0])
+    if len(sys.argv) < 2:
+        print("\nUsage: %s base_case [element1 element2 element3 ...]\n" % sys.argv[0])
         return 2
-    input_case = sys.argv[1]
+    base_case = sys.argv[1]
+    filter_list = sys.argv[2:]
+
     verbose = False
 
     # Check all needed files are in place
-    input_case, basename, dirname = check_inputfiles(input_case, verbose)
+    base_case, basename, dirname = check_inputfiles(base_case, verbose)
 
     # Extract the list of all loads present in the Dynawo case (by staticID)
-    dynawo_loads = extract_dynawo_loads(input_case + DYD_FILE, verbose)
+    dynawo_loads = extract_dynawo_loads(base_case + DYD_FILE, verbose)
 
     # Reduce the list to those loads that are matched in Astre
-    dynawo_loads = matching_in_astre(input_case + ASTRE_FILE, dynawo_loads, verbose)
+    dynawo_loads = matching_in_astre(base_case + ASTRE_FILE, dynawo_loads, verbose)
 
     # For each matching load, generate the contingency cases
     for load_name in dynawo_loads:
 
-        # Uncomment this for generating just a few cases:
-        # if load_name not in [".ANDU7TR751", "AULNO1LMA1"]:  continue
+        # If the script was passed a list of loads, filter for them here
+        # DEBUG: filter_list = [".ANDU7TR751", "AULNO1LMA1"]
+        if len(filter_list) != 0 and load_name not in filter_list:
+            continue
 
         print("Generating contingency case for load: %s" % load_name)
         # Copy the whole input tree to a new path:
         dest_case = dirname + "/load_" + load_name
-        clone_input_case(input_case, dest_case)
+        clone_base_case(base_case, dest_case)
         # Modify Dynawo case
         config_dynawo_load_contingency(dest_case, load_name)
         # Modify Astre case
@@ -115,7 +119,7 @@ def check_inputfiles(input_case, verbose=False):
     return input_case, basename, dirname
 
 
-def clone_input_case(input_case, dest_case):
+def clone_base_case(base_case, dest_case):
     # If the destination exists, warn and rename it to OLD
     if os.path.exists(dest_case):
         print(
@@ -125,7 +129,7 @@ def clone_input_case(input_case, dest_case):
 
     try:
         retcode = subprocess.call(
-            "cp -a '%s' '%s'" % (input_case, dest_case), shell=True
+            "cp -a '%s' '%s'" % (base_case, dest_case), shell=True
         )
         if retcode < 0:
             raise ValueError("Copy operation was terminated by signal: %d" % -retcode)
