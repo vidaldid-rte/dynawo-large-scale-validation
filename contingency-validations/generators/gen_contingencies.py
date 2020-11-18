@@ -57,6 +57,7 @@ def main():
         return 2
     base_case = sys.argv[1]
     filter_list = sys.argv[2:]
+    # DEBUG: filter_list = ["CXSSEIN1", "BARNA7ANNEAU1PALU", "PENL57ANNEAU1PENL"]
 
     verbose = False
 
@@ -77,7 +78,6 @@ def main():
     for gen_name in dynawo_gens:
 
         # If the script was passed a list of generators, filter for them here
-        # DEBUG: filter_list = ["CXSSEIN1", "BARNA7ANNEAU1PALU", "PENL57ANNEAU1PENL"]
         if len(filter_list) != 0 and gen_name not in filter_list:
             continue
 
@@ -400,7 +400,6 @@ def config_dynawo_gen_contingency(casedir, gen_name, gen_info):
     print("   Editing file %s" % crv_file)
     tree = etree.parse(crv_file, etree.XMLParser(remove_blank_text=True))
     root = tree.getroot()
-    ns = etree.QName(root).namespace
     root.append(
         etree.Element("curve", model="NETWORK", variable=bus_label + "_Upu_value")
     )
@@ -440,6 +439,7 @@ def config_astre_gen_contingency(casedir, gen_name, gen_info):
         raise ValueError("Astre file %s does not contain any events!" % astre_file)
 
     # Find the gen in Astre
+    astre_gen = None
     for astre_gen in root.iter("{%s}groupe" % ns):
         if astre_gen.get("nom") == gen_name:
             break
@@ -498,7 +498,7 @@ def config_astre_gen_contingency(casedir, gen_name, gen_info):
         standalone=False,
     )
 
-    return (gen_P, gen_Q)
+    return gen_P, gen_Q
 
 
 def save_total_genPQ(dirname, dynawo_gens, astre_gens):
