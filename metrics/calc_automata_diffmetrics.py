@@ -87,6 +87,11 @@ def main():
     # Build a dict: load-->bus (needed for Load_Transformers)
     ld_bus = load2bus_dict(base_case)
 
+    # Get the normalization factors for each class of metric (shunt, xfmr, etc.)
+    norm_factor = get_norm_factor(base_case)
+    if verbose:
+        print("   Normalizing factors: ", norm_factor)
+
     # For each case, compute the metrics
     metrics_rowdata = []
     for case_label in file_list:
@@ -94,7 +99,7 @@ def main():
             print("   processing: " + prefix + case_label)
         ast_file = file_list[case_label].ast
         dwo_file = file_list[case_label].dwo
-        metrics = calc_metrics(ast_file, dwo_file, ld_bus)
+        metrics = calc_metrics(ast_file, dwo_file, ld_bus, norm_factor)
         if verbose:
             print("      ", metrics)
         metrics_rowdata.append({"contg_case": case_label, **metrics})
@@ -103,7 +108,9 @@ def main():
     df = pd.DataFrame(metrics_rowdata, columns=list(metrics_rowdata[0].keys()))
     metrics_dir = aut_dir + "/../metrics"
     Path(metrics_dir).mkdir(parents=False, exist_ok=True)
-    df.to_csv(metrics_dir + "/aut_diffmetrics.csv", sep=";", index=False)
+    df.to_csv(
+        metrics_dir + "/aut_diffmetrics.csv", sep=";", index=False, float_format="%.4f"
+    )
     print("Saved diffmetrics for automata changes in: %s" % metrics_dir)
 
     return 0
@@ -158,12 +165,12 @@ def check_inputfiles(aut_dir, prefix, base_case):
     return file_list
 
 
-def calc_metrics(ast_file, dwo_file, ld_bus):
+def calc_metrics(ast_file, dwo_file, ld_bus, norm_factor):
     ast_df = pd.read_csv(ast_file, sep=";")
     dwo_df = pd.read_csv(dwo_file, sep=";")
-    shunt_metrics = calc_shunt_metrics(ast_df, dwo_df, dwo_file)
-    xfmr_metrics = calc_xfmr_metrics(ast_df, dwo_df)
-    ldxfmr_metrics = calc_ldxfmr_metrics(ast_df, dwo_df, ld_bus)
+    shunt_metrics = calc_shunt_metrics(ast_df, dwo_df, dwo_file, norm_factor)
+    xfmr_metrics = calc_xfmr_metrics(ast_df, dwo_df, norm_factor)
+    ldxfmr_metrics = calc_ldxfmr_metrics(ast_df, dwo_df, ld_bus, norm_factor)
     return {**shunt_metrics, **xfmr_metrics, **ldxfmr_metrics}
 
 
@@ -178,7 +185,7 @@ def event_counts(df, event):
 #################################################
 # SHUNTS
 #################################################
-def calc_shunt_metrics(ast_df, dwo_df, dwo_file):
+def calc_shunt_metrics(ast_df, dwo_df, dwo_file, norm_factor):
     ast_df = ast_df.loc[ast_df["DEVICE_TYPE"] == "Shunt"]
     dwo_df = dwo_df.loc[dwo_df["DEVICE_TYPE"] == "Shunt"]
     # Shortcut: a vast majority of cases have no relevant events
@@ -214,8 +221,8 @@ def calc_shunt_metrics(ast_df, dwo_df, dwo_file):
         shunt_numchanges_metric += -1
 
     metrics = {
-        "shunt_netchanges": shunt_netchanges_metric,
-        "shunt_numchanges": shunt_numchanges_metric,
+        "shunt_netchanges": shunt_netchanges_metric / norm_factor.shunt,
+        "shunt_numchanges": shunt_numchanges_metric / norm_factor.shunt,
     }
 
     return metrics
@@ -224,7 +231,7 @@ def calc_shunt_metrics(ast_df, dwo_df, dwo_file):
 #################################################
 # TRANSFORMERS (only transmission transformers)
 #################################################
-def calc_xfmr_metrics(ast_df, dwo_df):
+def calc_xfmr_metrics(ast_df, dwo_df, norm_factor):
     ast_df = ast_df.loc[ast_df["DEVICE_TYPE"] == "Transformer"]
     dwo_df = dwo_df.loc[dwo_df["DEVICE_TYPE"] == "Transformer"]
     # Shortcut: a vast majority of cases have no relevant events
@@ -258,9 +265,9 @@ def calc_xfmr_metrics(ast_df, dwo_df):
     tap_p2pchanges_metric = p2pchange_diffs.abs().sum()  # L1 norm
 
     metrics = {
-        "tap_netchanges": tap_netchanges_metric,
-        "tap_p2pchanges": tap_p2pchanges_metric,
-        "tap_numchanges": tap_numchanges_metric,
+        "tap_netchanges": tap_netchanges_metric / norm_factor.xfmr,
+        "tap_p2pchanges": tap_p2pchanges_metric / norm_factor.xfmr,
+        "tap_numchanges": tap_numchanges_metric / norm_factor.xfmr,
     }
 
     return metrics
@@ -269,7 +276,7 @@ def calc_xfmr_metrics(ast_df, dwo_df):
 #################################################
 # LOAD TRANSFORMERS
 #################################################
-def calc_ldxfmr_metrics(ast_df, dwo_df, ld_bus):
+def calc_ldxfmr_metrics(ast_df, dwo_df, ld_bus, norm_factor):
     ast_df = ast_df.loc[ast_df["DEVICE_TYPE"] == "Load_Transformer"]
     dwo_df = dwo_df.loc[dwo_df["DEVICE_TYPE"] == "Load_Transformer"]
     # Shortcut: a vast majority of cases have no relevant events
@@ -314,9 +321,9 @@ def calc_ldxfmr_metrics(ast_df, dwo_df, ld_bus):
     ldtap_p2pchanges_metric = p2pchange_diffs.abs().sum()  # L1 norm
 
     metrics = {
-        "ldtap_netchanges": ldtap_netchanges_metric,
-        "ldtap_p2pchanges": ldtap_p2pchanges_metric,
-        "ldtap_numchanges": ldtap_numchanges_metric,
+        "ldtap_netchanges": ldtap_netchanges_metric / norm_factor.ldxfmr,
+        "ldtap_p2pchanges": ldtap_p2pchanges_metric / norm_factor.ldxfmr,
+        "ldtap_numchanges": ldtap_numchanges_metric / norm_factor.ldxfmr,
     }
 
     return metrics
@@ -467,6 +474,39 @@ def load2bus_dict(base_case):
     print("  (increased to %d after reading Astre file)" % len(ld_bus))
 
     return ld_bus
+
+
+def get_norm_factor(base_case):
+    # Calculate the normalization factors to use with each class of metric:
+    #
+    #    * shunts: the number of shunts
+    #    * xfmrs: the number of transformers
+    #    * ldxfmrs: the number of load-transformers
+    #
+    # We get these numbers from Dynawo's DYD (that is, the number of elements that
+    # could potentially leave events in the timeline).
+    #
+
+    dyd_file = base_case + "/tFin/fic_DYD.xml"
+    tree = etree.parse(dyd_file)
+    root = tree.getroot()
+    nshunts = 0
+    nldfxmrs = 0
+    for mc in root.iterfind(".//macroConnect", root.nsmap):
+        if mc.get("connector")[-16:] == "ControlledShunts":
+            nshunts += 1
+    for bbm in root.iterfind(".//blackBoxModel", root.nsmap):
+        if bbm.get("lib")[:4] == "Load":
+            nldfxmrs += 1
+
+    iidm_file = base_case + "/tFin/fic_IIDM.xml"
+    tree = etree.parse(iidm_file)
+    root = tree.getroot()
+    nxfmrs = len(tuple(root.iterfind(".//twoWindingsTransformer", root.nsmap)))
+
+    Norm_Factor = namedtuple("Norm_Factor", ["shunt", "xfmr", "ldxfmr"])
+    norm_factor = Norm_Factor(shunt=nshunts, xfmr=nxfmrs, ldxfmr=nldfxmrs)
+    return norm_factor
 
 
 if __name__ == "__main__":
