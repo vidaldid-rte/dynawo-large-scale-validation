@@ -190,7 +190,7 @@ def calc_shunt_metrics(ast_df, dwo_df, dwo_file, norm_factor):
     dwo_df = dwo_df.loc[dwo_df["DEVICE_TYPE"] == "Shunt"]
     # Shortcut: a vast majority of cases have no relevant events
     if ast_df.empty and dwo_df.empty:
-        return {"shunt_netchanges": 0, "shunt_numchanges": 0}
+        return {"shunt_netchanges": 0, "shunt_numchanges": 0, "any_shunt_evt": False}
 
     # Auxiliary counts of Shunt connection/disconnection events
     ast_shunts_on = event_counts(ast_df, "ShuntConnected")
@@ -223,6 +223,7 @@ def calc_shunt_metrics(ast_df, dwo_df, dwo_file, norm_factor):
     metrics = {
         "shunt_netchanges": shunt_netchanges_metric / norm_factor.shunt,
         "shunt_numchanges": shunt_numchanges_metric / norm_factor.shunt,
+        "any_shunt_evt": True,
     }
 
     return metrics
@@ -236,7 +237,12 @@ def calc_xfmr_metrics(ast_df, dwo_df, norm_factor):
     dwo_df = dwo_df.loc[dwo_df["DEVICE_TYPE"] == "Transformer"]
     # Shortcut: a vast majority of cases have no relevant events
     if ast_df.empty and dwo_df.empty:
-        return {"tap_netchanges": 0, "tap_p2pchanges": 0, "tap_numchanges": 0}
+        return {
+            "tap_netchanges": 0,
+            "tap_p2pchanges": 0,
+            "tap_numchanges": 0,
+            "any_xfmr_tap": False,
+        }
 
     # Auxiliary counts of Tap changer events
     ast_taps_up = event_counts(ast_df, "TapUp")
@@ -268,6 +274,7 @@ def calc_xfmr_metrics(ast_df, dwo_df, norm_factor):
         "tap_netchanges": tap_netchanges_metric / norm_factor.xfmr,
         "tap_p2pchanges": tap_p2pchanges_metric / norm_factor.xfmr,
         "tap_numchanges": tap_numchanges_metric / norm_factor.xfmr,
+        "any_xfmr_tap": True,
     }
 
     return metrics
@@ -281,7 +288,12 @@ def calc_ldxfmr_metrics(ast_df, dwo_df, ld_bus, norm_factor):
     dwo_df = dwo_df.loc[dwo_df["DEVICE_TYPE"] == "Load_Transformer"]
     # Shortcut: a vast majority of cases have no relevant events
     if ast_df.empty and dwo_df.empty:
-        return {"ldtap_netchanges": 0, "ldtap_p2pchanges": 0, "ldtap_numchanges": 0}
+        return {
+            "ldtap_netchanges": 0,
+            "ldtap_p2pchanges": 0,
+            "ldtap_numchanges": 0,
+            "any_ldxfmr_tap": False,
+        }
 
     # The process is very similar to xfmrs, except that the comparison is made by
     # bus, instead of element. We choose the worst (i.e. highest) metric among all
@@ -324,6 +336,7 @@ def calc_ldxfmr_metrics(ast_df, dwo_df, ld_bus, norm_factor):
         "ldtap_netchanges": ldtap_netchanges_metric / norm_factor.ldxfmr,
         "ldtap_p2pchanges": ldtap_p2pchanges_metric / norm_factor.ldxfmr,
         "ldtap_numchanges": ldtap_numchanges_metric / norm_factor.ldxfmr,
+        "any_ldxfmr_tap": True,
     }
 
     return metrics
