@@ -66,6 +66,9 @@ from lxml import etree
 
 AST_SUFFIX = "-AstreAutomata.csv.xz"
 DWO_SUFFIX = "-DynawoAutomata.csv.xz"
+T_OFFSET = 4000
+T_CONTING = 300
+T_END = 1200
 
 verbose = True
 pd.set_option("display.max_rows", 50)
@@ -82,7 +85,6 @@ def main():
 
     # Check all needed dirs are in place, and get the list of files to process
     file_list = check_inputfiles(aut_dir, prefix, base_case)
-    print("Calculating diffmetrics for automata changes in: %s" % aut_dir)
 
     # Build a dict: load-->bus (needed for Load_Transformers)
     ld_bus = load2bus_dict(base_case)
@@ -92,16 +94,20 @@ def main():
     if verbose:
         print("   Normalizing factors: ", norm_factor)
 
-    # For each case, compute the metrics
+    # We'll need this later on, for correcting Dynawo's shunt events count
+    is_shunt_contg = "shunt" == prefix[:5]
+
+    ############################################################################
+    # PART I : compute the metrics for all cases (at the end of the simulation)
+    ############################################################################
+    print("Calculating diffmetrics for automata changes in: %s" % aut_dir)
     metrics_rowdata = []
     for case_label in file_list:
         if verbose:
             print("   processing: " + prefix + case_label)
-        ast_file = file_list[case_label].ast
-        dwo_file = file_list[case_label].dwo
-        metrics = calc_metrics(ast_file, dwo_file, ld_bus, norm_factor)
-        if verbose:
-            print("      ", metrics)
+        ast_df = pd.read_csv(file_list[case_label].ast, sep=";")
+        dwo_df = pd.read_csv(file_list[case_label].dwo, sep=";")
+        metrics = calc_metrics(ast_df, dwo_df, ld_bus, norm_factor, is_shunt_contg)
         metrics_rowdata.append({"contg_case": case_label, **metrics})
 
     # Save the metrics to file
@@ -112,6 +118,38 @@ def main():
         metrics_dir + "/aut_diffmetrics.csv", sep=";", index=False, float_format="%.4f"
     )
     print("Saved diffmetrics for automata changes in: %s" % metrics_dir)
+
+    ###############################################################################
+    # PART II: compute how these same metrics evolve in time (only non-zero cases)
+    ###############################################################################
+    print("Calculating TIME WINDOWED diffmetrics for automata changes in: %s" % aut_dir)
+    metrics_rowdata = []
+    nz = df["any_shunt_evt"] | df["any_xfmr_tap"] | df["any_ldxfmr_tap"]
+    for case_label in df.loc[nz, "contg_case"]:
+        if verbose:
+            print("   TW processing: " + prefix + case_label)
+        ast_df = pd.read_csv(file_list[case_label].ast, sep=";")
+        dwo_df = pd.read_csv(file_list[case_label].dwo, sep=";")
+        dwo_df["TIME"] -= T_OFFSET
+        for tw in range(T_CONTING, T_END + 1, 30):
+            ast_tw = ast_df[ast_df["TIME"] <= tw]
+            dwo_tw = dwo_df[dwo_df["TIME"] <= tw]
+            metrics = calc_metrics(ast_tw, dwo_tw, ld_bus, norm_factor, is_shunt_contg)
+            metrics_rowdata.append({"contg_case": case_label, "time": tw, **metrics})
+
+    # Save the metrics to file
+    if 0 == len(metrics_rowdata):
+        print("No TIME-WINDOWED diffmetrics to save")
+        return 0
+    tw_df = pd.DataFrame(metrics_rowdata, columns=list(metrics_rowdata[0].keys()))
+    tw_df = tw_df.drop(columns=["any_shunt_evt", "any_xfmr_tap", "any_ldxfmr_tap"])
+    tw_df.to_csv(
+        metrics_dir + "/aut_tw_diffmetrics.csv",
+        sep=";",
+        index=False,
+        float_format="%.4f",
+    )
+    print("Saved TIME-WINDOWED diffmetrics for automata changes in: %s" % metrics_dir)
 
     return 0
 
@@ -165,12 +203,27 @@ def check_inputfiles(aut_dir, prefix, base_case):
     return file_list
 
 
-def calc_metrics(ast_file, dwo_file, ld_bus, norm_factor):
-    ast_df = pd.read_csv(ast_file, sep=";")
-    dwo_df = pd.read_csv(dwo_file, sep=";")
-    shunt_metrics = calc_shunt_metrics(ast_df, dwo_df, dwo_file, norm_factor)
-    xfmr_metrics = calc_xfmr_metrics(ast_df, dwo_df, norm_factor)
-    ldxfmr_metrics = calc_ldxfmr_metrics(ast_df, dwo_df, ld_bus, norm_factor)
+def calc_metrics(ast_df, dwo_df, ld_bus, norm_factor, is_shunt_contg):
+    # SHUNTS:
+    shunt_metrics = calc_shunt_metrics(ast_df, dwo_df)
+    if is_shunt_contg:  # because Dynawo shows the contingency itself as an event
+        shunt_metrics["shunt_netchanges"] += -1
+        shunt_metrics["shunt_numchanges"] += -1
+    shunt_metrics["shunt_netchanges"] /= norm_factor.shunt
+    shunt_metrics["shunt_numchanges"] /= norm_factor.shunt
+
+    # TRANSFORMERS:
+    xfmr_metrics = calc_xfmr_metrics(ast_df, dwo_df)
+    xfmr_metrics["tap_netchanges"] /= norm_factor.xfmr
+    xfmr_metrics["tap_p2pchanges"] /= norm_factor.xfmr
+    xfmr_metrics["tap_numchanges"] /= norm_factor.xfmr
+
+    # LOAD TRANSFORMERS:
+    ldxfmr_metrics = calc_ldxfmr_metrics(ast_df, dwo_df, ld_bus)
+    ldxfmr_metrics["ldtap_netchanges"] /= norm_factor.ldxfmr
+    ldxfmr_metrics["ldtap_p2pchanges"] /= norm_factor.ldxfmr
+    ldxfmr_metrics["ldtap_numchanges"] /= norm_factor.ldxfmr
+
     return {**shunt_metrics, **xfmr_metrics, **ldxfmr_metrics}
 
 
@@ -185,7 +238,7 @@ def event_counts(df, event):
 #################################################
 # SHUNTS
 #################################################
-def calc_shunt_metrics(ast_df, dwo_df, dwo_file, norm_factor):
+def calc_shunt_metrics(ast_df, dwo_df):
     ast_df = ast_df.loc[ast_df["DEVICE_TYPE"] == "Shunt"]
     dwo_df = dwo_df.loc[dwo_df["DEVICE_TYPE"] == "Shunt"]
     # Shortcut: a vast majority of cases have no relevant events
@@ -210,19 +263,9 @@ def calc_shunt_metrics(ast_df, dwo_df, dwo_file, norm_factor):
     numchange_diffs = ast_numchanges.sub(dwo_numchanges, fill_value=0)
     shunt_numchanges_metric = numchange_diffs.abs().sum()  # L1 norm
 
-    # We need to introduce a correction here: if the Dynawo case is a
-    # Shunt contingency, then there is a ShuntDisconnected event in
-    # the Dynawo timeline that does not have a counterpart in Astre
-    # (the contingency shunt itself!). We correct this by subtracting
-    # exactly 1 from each metric.
-    filename = os.path.basename(dwo_file)
-    if filename[:6] == "shunt_":
-        shunt_netchanges_metric += -1
-        shunt_numchanges_metric += -1
-
     metrics = {
-        "shunt_netchanges": shunt_netchanges_metric / norm_factor.shunt,
-        "shunt_numchanges": shunt_numchanges_metric / norm_factor.shunt,
+        "shunt_netchanges": shunt_netchanges_metric,
+        "shunt_numchanges": shunt_numchanges_metric,
         "any_shunt_evt": True,
     }
 
@@ -232,7 +275,7 @@ def calc_shunt_metrics(ast_df, dwo_df, dwo_file, norm_factor):
 #################################################
 # TRANSFORMERS (only transmission transformers)
 #################################################
-def calc_xfmr_metrics(ast_df, dwo_df, norm_factor):
+def calc_xfmr_metrics(ast_df, dwo_df):
     ast_df = ast_df.loc[ast_df["DEVICE_TYPE"] == "Transformer"]
     dwo_df = dwo_df.loc[dwo_df["DEVICE_TYPE"] == "Transformer"]
     # Shortcut: a vast majority of cases have no relevant events
@@ -271,9 +314,9 @@ def calc_xfmr_metrics(ast_df, dwo_df, norm_factor):
     tap_p2pchanges_metric = p2pchange_diffs.abs().sum()  # L1 norm
 
     metrics = {
-        "tap_netchanges": tap_netchanges_metric / norm_factor.xfmr,
-        "tap_p2pchanges": tap_p2pchanges_metric / norm_factor.xfmr,
-        "tap_numchanges": tap_numchanges_metric / norm_factor.xfmr,
+        "tap_netchanges": tap_netchanges_metric,
+        "tap_p2pchanges": tap_p2pchanges_metric,
+        "tap_numchanges": tap_numchanges_metric,
         "any_xfmr_tap": True,
     }
 
@@ -283,7 +326,7 @@ def calc_xfmr_metrics(ast_df, dwo_df, norm_factor):
 #################################################
 # LOAD TRANSFORMERS
 #################################################
-def calc_ldxfmr_metrics(ast_df, dwo_df, ld_bus, norm_factor):
+def calc_ldxfmr_metrics(ast_df, dwo_df, ld_bus):
     ast_df = ast_df.loc[ast_df["DEVICE_TYPE"] == "Load_Transformer"]
     dwo_df = dwo_df.loc[dwo_df["DEVICE_TYPE"] == "Load_Transformer"]
     # Shortcut: a vast majority of cases have no relevant events
@@ -295,8 +338,8 @@ def calc_ldxfmr_metrics(ast_df, dwo_df, ld_bus, norm_factor):
             "any_ldxfmr_tap": False,
         }
 
-    # The process is very similar to xfmrs, except that the comparison is made by
-    # bus, instead of element. We choose the worst (i.e. highest) metric among all
+    # The process is very similar to xfmrs, except that the comparison is made BY
+    # BUS, instead of element. We choose the worst (i.e. highest) metric among all
     # load-transformers found on the same bus. This is in order to cope with Dynawo's
     # merged loads, which prevent matching loads on an individual basis.
 
@@ -333,9 +376,9 @@ def calc_ldxfmr_metrics(ast_df, dwo_df, ld_bus, norm_factor):
     ldtap_p2pchanges_metric = p2pchange_diffs.abs().sum()  # L1 norm
 
     metrics = {
-        "ldtap_netchanges": ldtap_netchanges_metric / norm_factor.ldxfmr,
-        "ldtap_p2pchanges": ldtap_p2pchanges_metric / norm_factor.ldxfmr,
-        "ldtap_numchanges": ldtap_numchanges_metric / norm_factor.ldxfmr,
+        "ldtap_netchanges": ldtap_netchanges_metric,
+        "ldtap_p2pchanges": ldtap_p2pchanges_metric,
+        "ldtap_numchanges": ldtap_numchanges_metric,
         "any_ldxfmr_tap": True,
     }
 
