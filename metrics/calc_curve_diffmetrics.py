@@ -174,8 +174,7 @@ def analyze_crv(df, vv):
     xin = x[dd[0]]
     x0 = x[dd[0] + 1]
     ifin = dd[ll - 1] + 1
-    if ifin < 300:
-        ifin = 300
+
     xfin = x[ifin]
     ttran = t[ifin] - 300
     xmax = max(x[dd]) - x0
