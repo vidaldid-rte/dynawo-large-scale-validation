@@ -172,6 +172,6 @@ if [ $s = "y" ] || ! [ -x "$(type -p parallel)" ]; then
     done
 else
     echo "*** Running in parallel"
-    find_cmd | parallel -j 50% --eta "$run_case" "${OPTS[@]}" {}
+    find_cmd | parallel -j 25% --eta "$run_case" "${OPTS[@]}" {}
 fi
 
