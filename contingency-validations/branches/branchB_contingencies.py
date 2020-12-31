@@ -125,7 +125,10 @@ def main():
         )
 
         # Save the wole case using "deduplication"
-        deduped_case = dirname + "/branch" + disconn_mode[0] + "_" + branch_name
+        # Here we also fix any device names with slashes in them (illegal filenames)
+        deduped_case = (
+            dirname + "/branch" + disconn_mode[0] + "_" + branch_name.replace("/", "+")
+        )
         dedup_save(basename, edited_case, deduped_case)
 
     # Finally, save the (P,Q) values of disconnected branches in all processed cases
