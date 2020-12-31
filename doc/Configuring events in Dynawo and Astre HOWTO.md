@@ -87,11 +87,13 @@ syntax:
 <scenario nom="scenario" duree="{SimulationLengthInSeconds}">
    <evtouvrtopo instant="{DisconnectionTimeInSeconds}"
                 ouvrage="{'num' attribute of the network component to be disconnected}"
-                type="{2 if generator (declared as groupe element in the xml)
-                       3 if load (declared as conso element in the xml)
-                       4 if shunt (declared as shunt element in the xml)
-                       5 if switch/breaker (declared as couplage in the xml)???
-                       9 if line (declared as quadripole element in the xml)}"
+                type="{2 if generator (tag 'groupe' in the xml)
+                       3 if load (tag 'conso' in the xml)
+                       4 if shunt (tag 'shunt' in the xml)
+                       5 if switch/breaker (tag 'couplage' in the xml???)
+					   7 if bus (tag 'noeud' in the xml)
+                       9 if line (tag 'quadripole' in the xml)
+				      11 if K-level of RST control (tag 'zonerst' in the xml)}"
                 typeevt="{1 for disconnection}"
                 cote="{0 if generator, load, or shunt, or to disconnect a line on both sides
                        1 to disconnect a line's origin
@@ -166,6 +168,7 @@ curves:
       N_REGLEUR_TENS_SURV_TRANSPORT = 85,
       N_REGLEUR_LIMSUP_BANDEMORTE_TRANSPORT = 86,
       N_REGLEUR_LIMINF_BANDEMORTE_TRANSPORT = 87,
+
       // quadripoles
       Q_PUISS_ACT_OR              = 12,
       Q_PUISS_ACT_EX              = 13,
@@ -181,6 +184,7 @@ curves:
       Q_IMPEDANCE_OR              = 23,
       Q_IMPEDANCE_EX              = 24,
       Q_TD_POSITION               = 65,
+
       // groupes
       G_TENSION_STATOR            = 25,
       G_CONSIGNE_TENSION          = 26,
@@ -209,6 +213,7 @@ curves:
       GRST_SIGNAL_ERREUR_APR      = 35,
       GRST_LIMSUP_BANDEMORTE_APR  = 36,
       GRST_LIMINF_BANDEMORTE_APR  = 37,
+
       // regroupements
       REGR_CONSO_ACT              = 38,
       REGR_CONSO_REA              = 39,
@@ -226,32 +231,32 @@ curves:
       // lccs
       LCC_PUISS_ACT_OR            = 66,
       LCC_PUISS_ACT_EX            = 67,
-      LCC_PUISS_REA_OR              = 68,
-      LCC_PUISS_REA_EX              = 69,
+      LCC_PUISS_REA_OR            = 68,
+      LCC_PUISS_REA_EX            = 69,
       LCC_COURANT_DC              = 70,
-      LCC_TENSION_DC_OR              = 71,
-      LCC_TENSION_DC_EX              = 72,
+      LCC_TENSION_DC_OR           = 71,
+      LCC_TENSION_DC_EX           = 72,
       LCC_ANGLE_ALLUMAGE          = 73,
-      LCC_ANGLE_EXTINCTION          = 74,
-      LCC_PRISE_REGLEUR_OR          = 75,
-      LCC_PRISE_REGLEUR_EX          = 76,
+      LCC_ANGLE_EXTINCTION        = 74,
+      LCC_PRISE_REGLEUR_OR        = 75,
+      LCC_PRISE_REGLEUR_EX        = 76,
 
       // vscs
       VSC_PUISS_ACT_OR            = 77,
       VSC_PUISS_ACT_EX            = 78,
-      VSC_PUISS_REA_OR              = 79,
-      VSC_PUISS_REA_EX              = 80,
+      VSC_PUISS_REA_OR            = 79,
+      VSC_PUISS_REA_EX            = 80,
       VSC_COURANT_DC              = 81,
-      VSC_TENSION_DC_OR              = 82,
-      VSC_TENSION_DC_EX              = 83,
-      VSC_TENSION_REF_OR              = 90,
-      VSC_TENSION_REF_EX              = 91,
+      VSC_TENSION_DC_OR           = 82,
+      VSC_TENSION_DC_EX           = 83,
+      VSC_TENSION_REF_OR          = 90,
+      VSC_TENSION_REF_EX          = 91,
 
       // valeurs globales
       ALL_LOST_LOAD_LINE_TRIP     = 59,
       ALL_TOTAL_LOST_LOAD         = 60,
       ALL_TOTAL_SHED_LOAD         = 61,
-      ALL_LOST_GEN_TRIP     = 92
+      ALL_LOST_GEN_TRIP           = 92
       // max = 92
     };
 	```
@@ -758,23 +763,23 @@ Section above, _"Configuring Dynawo output variables"_.
 Detailed steps for tripping lines and transformers:
 ==================================================
 
-In dynawo, lines and transformers are contained in the IIDM file, They
-are represented by elements with XML tags "line", and "transformer",
-respectively.  They do not have a corresponding dynamic model in the
-DYD file. Phase-shifting transformers can be identified because they
-contain a child element with tag `phaseTapChanger` (standard
-transformers have a `ratioTapChanger` instead). 
+In Dynawo, lines and transformers are contained in the IIDM file, They
+are represented by elements with XML tags "line", and
+"twoWindingsTransformer", respectively.  They do not have a
+corresponding dynamic model in the DYD file. Phase-shifting
+transformers can be identified because they contain a child element
+with tag `phaseTapChanger` (standard transformers have a
+`ratioTapChanger` instead).
 
 Note: all transformers in all three Dynawo cases (Lille, Lyon,
 Marseille) seem to be **two-winding**. There are no three-winding
 tranformers (at least, not modeled as such).  Also, the high-voltage
 side is almost always the "TO" side (or bus2); there's only two
-exceptions in the Lyon case ( SIEREY764, SIEREY762) and another two in
+exceptions in the Lyon case (SIEREY764, SIEREY762) and another two in
 the Marseille case (G.ILEY761, G.ILEY762).
 
-
-In Astre, both lines ans transformers are described by elements with
-tag "quadripole", and they can be told apart by the value of the
+In Astre, both lines and transformers are described by elements with
+XML tag "quadripole", and they can be told apart by the value of the
 `type` attribute: 0--lines; 1--transformers; 2--phase shifting
 transformers. The "from" and "to" buses are described in the "nor"
 (noeud origine) an "nex" (noeud extreme) attributes, respectively.
