@@ -59,6 +59,10 @@ def main():
 
     if len(sys.argv) != 3:
         print("\nUsage: %s INPUT_CASE CASE_SVC_ZONE\n" % sys.argv[0])
+        print(
+            "(where CASE_SVC_ZONE is one of: 'Lille', 'Lyon', 'Marseille', "
+            "'Nancy', 'Nantes', 'Paris', 'Toulouse', 'Recollement'\n"
+        )
         return 2
     input_case = sys.argv[1]
     case_zone = sys.argv[2]
@@ -255,7 +259,14 @@ def edit_dwo_curves(edited_case, case_zone):
     for rst_id in rst_models:
         if rst_id == "RST_AVOI5P7_":  # avoid var mismatches with Astre (SPECIAL CASE)
             continue
-        root.append(etree.Comment(" === %s zone: %s === " % (case_zone, rst_id)))
+        if rst_id[4:] in zone_pilot_buses:
+            root.append(
+                etree.Comment(" === Inside %s zone: %s === " % (case_zone, rst_id))
+            )
+        else:
+            root.append(
+                etree.Comment(" === Outside %s zone: %s === " % (case_zone, rst_id))
+            )
         root.append(etree.Element("curve", model=rst_id, variable="U_IMPIN_value"))
         root.append(etree.Element("curve", model=rst_id, variable="levelK_value"))
         # Participating gens: only for SVC controls that belong to the Zone
@@ -316,9 +327,18 @@ def edit_ast_curves(edited_case, case_zone, dwo_rst_models, zone_pilot_buses):
     for dwo_zonerst in dwo_rst_models:
         if dwo_zonerst == "RST_AVOI5P7_":  # avoid mismatches (SPECIAL CASE)
             continue
-        ast_entrees.append(
-            etree.Comment(" === %s zone: %s === " % (case_zone, dwo_zonerst))
-        )
+        if dwo_zonerst[4:] in zone_pilot_buses:
+            ast_entrees.append(
+                etree.Comment(
+                    " === Inside %s zone: %s ===  " % (case_zone, dwo_zonerst)
+                )
+            )
+        else:
+            ast_entrees.append(
+                etree.Comment(
+                    " === Outside %s zone: %s === " % (case_zone, dwo_zonerst)
+                )
+            )
         zonerst_num = None
         pilot_busId = None
         for ast_zonerst in donnees_rsts.iterfind(".//{%s}zonerst" % ns):
@@ -371,6 +391,10 @@ def edit_ast_curves(edited_case, case_zone, dwo_rst_models, zone_pilot_buses):
                     type="2",
                 )
             )
+
+    ast_entrees.append(
+        etree.Comment(" === below, the contingency-specific curves === ")
+    )
 
     # Write out the CRV file, preserving the XML format
     tree.write(

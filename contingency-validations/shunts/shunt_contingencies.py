@@ -96,7 +96,8 @@ def main():
         )
 
         # Save the wole case using "deduplication"
-        deduped_case = dirname + "/shunt_" + shunt_name
+        # Here we also fix any device names with slashes in them (illegal filenames)
+        deduped_case = dirname + "/shunt_" + shunt_name.replace("/", "+")
         dedup_save(basename, edited_case, deduped_case)
 
     # Finally, save the values of disconnected shunts in all processed cases

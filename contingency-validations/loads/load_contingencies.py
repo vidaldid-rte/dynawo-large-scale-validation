@@ -77,7 +77,8 @@ def main():
 
         print("Generating contingency case for load: %s" % load_name)
         # Copy the whole input tree to a new path:
-        dest_case = dirname + "/load_" + load_name
+        # Here we also fix any device names with slashes in them (illegal filenames)
+        dest_case = dirname + "/load_" + load_name.replace("/", "+")
         clone_base_case(base_case, dest_case)
         # Modify Dynawo case
         config_dynawo_load_contingency(dest_case, load_name)

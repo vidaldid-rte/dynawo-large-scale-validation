@@ -98,7 +98,8 @@ def main():
         )
 
         # Save the wole case using "deduplication"
-        deduped_case = dirname + "/gen_" + gen_name
+        # Here we also fix any device names with slashes in them (illegal filenames)
+        deduped_case = dirname + "/gen_" + gen_name.replace("/", "+")
         dedup_save(basename, edited_case, deduped_case)
 
     # Finally, save the (P,Q) values of disconnected gens in all processed cases
@@ -440,8 +441,9 @@ def config_astre_gen_contingency(casedir, gen_name, gen_info):
 
     # Find the gen in Astre
     astre_gen = None
-    for astre_gen in root.iter("{%s}groupe" % ns):
-        if astre_gen.get("nom") == gen_name:
+    for g in root.iter("{%s}groupe" % ns):
+        if g.get("nom") == gen_name:
+            astre_gen = g
             break
     gen_id = astre_gen.get("num")
     bus_id = astre_gen.get("noeud")
