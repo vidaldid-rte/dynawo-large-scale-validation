@@ -39,8 +39,11 @@ import os
 import subprocess
 from lxml import etree
 from collections import namedtuple
+import random
 
 
+MAX_NCASES = 100
+RNG_SEED = 42
 ASTRE_FILE = "/Astre/donneesModelesEntree.xml"
 JOB_FILE = "/fic_JOB.xml"
 DYD_FILE = "/tFin/fic_DYD.xml"
@@ -56,6 +59,7 @@ def main():
         return 2
     base_case = sys.argv[1]
     filter_list = sys.argv[2:]
+    # DEBUG:(Lille) filter_list = [".AUBA6REAC.1", "ARGOE1REAC.1"]
 
     verbose = False
 
@@ -69,12 +73,24 @@ def main():
     # Reduce the list to those SHUNTS that are matched in Astre
     dynawo_shunts = matching_in_astre(base_case + ASTRE_FILE, dynawo_shunts, verbose)
 
+    # Prepare for random sampling if there's too many
+    sampling_ratio = MAX_NCASES / len(dynawo_shunts)
+    random.seed(RNG_SEED)
+    if len(filter_list) == 0 and sampling_ratio < 1:
+        print(
+            "LIMITING to a sample of about %d cases (%.2f%% of all cases)"
+            % (MAX_NCASES, 100 * sampling_ratio)
+        )
+
     # For each matching SHUNT, generate the contingency case
     for shunt_name in dynawo_shunts:
 
         # If the script was passed a list of shunts, filter for them here
-        # DEBUG: filter_list = [".AUBA6REAC.1", "ARGOE1REAC.1"]
         if len(filter_list) != 0 and shunt_name not in filter_list:
+            continue
+
+        # Limit the number of cases to approximately MAX_NCASES
+        if len(filter_list) == 0 and random.random() > sampling_ratio:
             continue
 
         print(

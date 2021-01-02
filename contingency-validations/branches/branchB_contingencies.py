@@ -49,8 +49,11 @@ import subprocess
 from lxml import etree
 from collections import namedtuple
 import pandas as pd
+import random
 
 
+MAX_NCASES = 100
+RNG_SEED = 42
 ASTRE_FILE = "/Astre/donneesModelesEntree.xml"
 JOB_FILE = "/fic_JOB.xml"
 DYD_FILE = "/tFin/fic_DYD.xml"
@@ -91,6 +94,15 @@ def main():
         base_case + ASTRE_FILE, dynawo_branches, verbose
     )
 
+    # Prepare for random sampling if there's too many
+    sampling_ratio = MAX_NCASES / len(dynawo_branches)
+    random.seed(RNG_SEED)
+    if len(filter_list) == 0 and sampling_ratio < 1:
+        print(
+            "LIMITING to a sample of about %d cases (%.2f%% of all cases)"
+            % (MAX_NCASES, 100 * sampling_ratio)
+        )
+
     # Initialize another dict to keep Astre's (P,Q)-flows of the disconnected branch
     astre_branches = dict()
 
@@ -99,6 +111,10 @@ def main():
 
         # If the script was passed a list of branches, filter for them here
         if len(filter_list) != 0 and branch_name not in filter_list:
+            continue
+
+        # Limit the number of cases to approximately MAX_NCASES
+        if len(filter_list) == 0 and random.random() > sampling_ratio:
             continue
 
         print(
