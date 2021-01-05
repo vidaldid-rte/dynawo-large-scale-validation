@@ -96,6 +96,10 @@ declare -A create_contg
 create_contg[shunt]="shunts/shunt_contingencies.py"
 create_contg[load]="loads/load_contingencies.py"
 create_contg[gen]="generators/gen_contingencies.py"
+create_contg[branchB]="branches/branchB_contingencies.py"
+create_contg[branchF]="branches/branchF_contingencies.py"
+create_contg[branchT]="branches/branchT_contingencies.py"
+#create_contg[bus]="buses/bus_contingencies.py"
 
 # Process all devices from the list
 for DEVICE in "${!create_contg[@]}"; do
