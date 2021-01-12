@@ -36,12 +36,24 @@ set -o nounset -o noclobber
 set -o errexit -o pipefail 
 
 
-# Config your particular installation path here:
-DWO_VALIDATION_SRC=$HOME/work/dynawo-validation-AIA
+# Configure what devices to process (using an associative array -- bash version >= 4)
+declare -A create_contg
+create_contg[shunt]="shunts/shunt_contingencies.py"
+create_contg[load]="loads/load_contingencies.py"
+create_contg[gen]="generators/gen_contingencies.py"
+create_contg[branchB]="branches/branchB_contingencies.py"
+create_contg[branchF]="branches/branchF_contingencies.py"
+create_contg[branchT]="branches/branchT_contingencies.py"
+#create_contg[bus]="buses/bus_contingencies.py"
+
+# Note this assumes all scripts are under the Github dir structure
+# (otherwise, you'll have to edit the correct paths below)
+DWO_VALIDATION_SRC=$(realpath $(dirname $0)/..)
 
 # Config your particular options to pass to run_all_contingencies.sh
 declare -a RUN_OPTS
 RUN_OPTS=("-v" "-c")
+
 
 # Nothing else to configure below this point
 CONTG_SRC=$DWO_VALIDATION_SRC/contingency-validations
@@ -90,16 +102,6 @@ fi
 echo "Generating results under directory: $RESULTS_BASEDIR"
 mkdir -p "$RESULTS_BASEDIR"
 
-
-# Configure what devices to process (using an associative array -- bash version >= 4)
-declare -A create_contg
-create_contg[shunt]="shunts/shunt_contingencies.py"
-create_contg[load]="loads/load_contingencies.py"
-create_contg[gen]="generators/gen_contingencies.py"
-create_contg[branchB]="branches/branchB_contingencies.py"
-create_contg[branchF]="branches/branchF_contingencies.py"
-create_contg[branchT]="branches/branchT_contingencies.py"
-#create_contg[bus]="buses/bus_contingencies.py"
 
 # Process all devices from the list
 for DEVICE in "${!create_contg[@]}"; do
