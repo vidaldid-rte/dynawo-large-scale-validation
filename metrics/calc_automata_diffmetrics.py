@@ -111,7 +111,8 @@ def main():
         metrics_rowdata.append({"contg_case": case_label, **metrics})
 
     # Save the metrics to file
-    df = pd.DataFrame(metrics_rowdata, columns=list(metrics_rowdata[0].keys()))
+    col_names = list(metrics_rowdata[0].keys())
+    df = pd.DataFrame(metrics_rowdata, columns=col_names)
     metrics_dir = aut_dir + "/../metrics"
     Path(metrics_dir).mkdir(parents=False, exist_ok=True)
     df.to_csv(
@@ -139,9 +140,9 @@ def main():
 
     # Save the metrics to file
     if 0 == len(metrics_rowdata):
-        print("No TIME-WINDOWED diffmetrics to save")
-        return 0
-    tw_df = pd.DataFrame(metrics_rowdata, columns=list(metrics_rowdata[0].keys()))
+        print("(no events found -- TIME-WINDOWED diffmetrics will be empty)")
+    col_names.insert(1, "time")
+    tw_df = pd.DataFrame(metrics_rowdata, columns=col_names)
     tw_df = tw_df.drop(columns=["any_shunt_evt", "any_xfmr_tap", "any_ldxfmr_tap"])
     tw_df.to_csv(
         metrics_dir + "/aut_tw_diffmetrics.csv",
