@@ -17,7 +17,14 @@ from pathlib import Path
 
 
 # Default list of contingency types
-DEV_PREFIXES = {"gens": "gen_", "loads": "load_", "shunts": "shunt_"}
+DEV_PREFIXES = {
+    "gens": "gen_",
+    "loads": "load_",
+    "shunts": "shunt_",
+    "branchBs": "branchB_",
+    "branchFs": "branchF_",
+    "branchTs": "branchT_",
+}
 
 
 def main():
