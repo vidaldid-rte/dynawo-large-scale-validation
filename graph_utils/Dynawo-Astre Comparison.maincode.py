@@ -12,7 +12,9 @@ T_sta = 870
 
 
 # Auxiliary function for calculating delta levelK at the auto_tw points
-def getDeltaLevelK(df_ast, df_dwo, df_m):
+def getDeltaLevelK(df_ast, df_dwo):
+    df_m = pd.DataFrame(np.arange(0, 1230, 30))
+    df_m.columns = ["time"]
     df_ast = df_ast.merge(df_m)
     cols = df_ast.columns
     colsk = cols.str.contains("_levelK_")
@@ -36,21 +38,18 @@ def getDeltaLevelK(df_ast, df_dwo, df_m):
 
 # Auxiliary function for reading curve data of each individual case
 def get_curve_dfs(crv_dir, prefix, contg_case):
-    TFIN_TIME_OFFSET = 4000  # Dynawo's time offset w.r.t. Astre
     ast_case = crv_dir + "/" + prefix + contg_case + "-AstreCurves.csv.xz"
     dwo_case = crv_dir + "/" + prefix + contg_case + "-DynawoCurves.csv.xz"
     df_ast = pd.read_csv(ast_case, sep=";", index_col=False, compression="infer")
     df_dwo = pd.read_csv(dwo_case, sep=";", index_col=False, compression="infer")
     df_dwo = df_dwo.iloc[:, :-1]  # because of extra ";" at end-of-lines
+    TFIN_TIME_OFFSET = df_dwo["time"][0]  # Dynawo's time offset w.r.t. Astre
     df_dwo["time"] = round(df_dwo.time - TFIN_TIME_OFFSET)
-
-    df_m = auto_tw[auto_tw.contg_case == contg_case].copy()
-    df_m.loc[len(df_m)] = [contg_case, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
     da = df_ast.copy()
     dd = df_dwo.copy()
 
-    df_lk = getDeltaLevelK(da, dd, df_m)
+    df_lk = getDeltaLevelK(da, dd)
 
     return df_ast, df_dwo, df_lk
 
@@ -81,15 +80,23 @@ def response(change):
 
 
 def response2(change):
-    df_ast, df_dwo, _ = get_curve_dfs(CRV_DIR, PREFIX, dev.value)
+    df_ast, df_dwo, df_lk = get_curve_dfs(CRV_DIR, PREFIX, dev.value)
     vars_ast = df_ast.columns[1:]
     var2.options = vars_ast
     var2.value = vars_ast[0]
+    df_m = auto_tw[auto_tw.contg_case == dev.value].copy()
+    df_m.loc[len(df_m)] = [dev.value, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     with g.batch_update():
-        g.data[1].x = df_ast["time"]
         g.data[1].y = df_ast[var2.value]
-        g.data[2].x = df_dwo["time"]
         g.data[2].y = df_dwo[var2.value] - df_dwo[var2.value][0] + df_ast[var2.value][1]
+        g.data[3].x = df_m["time"]
+        g.data[4].x = df_m["time"]
+        g.data[5].x = df_m["time"]
+        g.data[6].x = df_lk["time"]
+        g.data[3].y = df_m["ldtap_netchanges"]
+        g.data[4].y = df_m["tap_netchanges"]
+        g.data[5].y = df_m["shunt_netchanges"]
+        g.data[6].y = df_lk["deltaLevelK"]
         g.layout.yaxis2.title = var2.value
 
 
