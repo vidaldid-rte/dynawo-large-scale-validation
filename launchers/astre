@@ -1,0 +1,45 @@
+#!/bin/bash
+
+export THIRDPARTY_INSTALL_DIR=/opt/astre
+export MOD_INSTALL_DIR=$THIRDPARTY_INSTALL_DIR/modeles
+export GCC_VERSION=4.8.5
+export MODEL_VERSION=V6.6.0.3
+export ADN_VERSION=${MODEL_VERSION}
+export ASTRE2_VERSION=${MODEL_VERSION}
+export ADN_HOME="$MOD_INSTALL_DIR/$GCC_VERSION/adn/$ADN_VERSION"
+export ASTRE2_HOME="$MOD_INSTALL_DIR/$GCC_VERSION/astre2/$ASTRE2_VERSION"
+
+# Third Parties
+export COMMONTOOLS_VERSION=1.1.0
+export XERCES_VERSION=2_7_0
+export XALANC_VERSION=1_10_0
+export COMMONTOOLS_HOME="$THIRDPARTY_INSTALL_DIR/commontools-${COMMONTOOLS_VERSION}/${GCC_VERSION}"
+export XERCESC_HOME="$THIRDPARTY_INSTALL_DIR/xerces-c-${XERCES_VERSION}/${GCC_VERSION}"
+export XALANC_HOME="$THIRDPARTY_INSTALL_DIR/xalan-c-${XALANC_VERSION}/${GCC_VERSION}"
+
+# Traces for commontools
+[[ -z $GSR_TRACE_CONF ]] && export GSR_TRACE_CONF="$THIRDPARTY_INSTALL_DIR/Trace.conf"
+export GSR_DICO_LANGUE=GB
+export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$XERCESC_HOME/lib:$XALANC_HOME/lib"
+export PATH="$PATH:$ASTRE2_HOME/bin"
+export GSR_PATH="$COMMONTOOLS_HOME/etc:$ADN_HOME/etc:$ASTRE2_HOME/etc"
+
+
+# Launch Astre:
+adnAstre2_r -xml $1 \
+	    -xsd /opt/astre/modeles/4.8.5/adn/V6.6.0.3/etc/donneesModeles.xsd \
+	    -adnModifie ./donneesModelesSortie.xml \
+	    -trace ./donneesModelesLog.xml \
+	    -timeout 0 -cpus 1 \
+            $2 $3 $4 $5 $6 $7 $8 $9
+
+
+# If everything went well, convert the xml output to CSV format:
+if [ $? -eq 0 ]; then
+  echo -en "\nConverting output to CSV... "
+  astreToCSV.py donneesModelesSortie.xml donneesModelesSortie.csv
+  if [ $? -eq 0 ]; then
+    echo -e "Done.\n"
+  fi
+fi
+
