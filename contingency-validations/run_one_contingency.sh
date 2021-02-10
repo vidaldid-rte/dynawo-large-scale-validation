@@ -218,7 +218,6 @@ fi
 cd "$OLD_PWD"
 xz -c9 "$CONTG_CASE"/tFin/outputs/curves/curves.csv           > "$outDir"/crv/"$prefix"-DynawoCurves.csv.xz
 xz -c9 "$CONTG_CASE"/tFin/outputs/constraints/constraints.xml > "$outDir"/xml/"$prefix"-DynawoConstraints.xml.xz
-xz -c9 "$CONTG_CASE"/tFin/outputs/finalState/outputIIDM.xml   > "$outDir"/xml/"$prefix"-DynawoOutputIIDM.xml.xz
 xz -c9 "$CONTG_CASE"/tFin/outputs/timeLine/timeline.xml       > "$outDir"/xml/"$prefix"-DynawoTimeLine.xml.xz
 xz -c9 "$CONTG_CASE"/tFin/outputs/logs/dynamo.log             > "$outDir"/log/"$prefix"-Dynawo.log.xz
 xz -c9 "$CONTG_CASE"/"$RUNLOG"                                > "$outDir"/log/"$prefix"-"$RUNLOG".xz

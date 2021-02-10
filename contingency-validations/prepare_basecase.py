@@ -81,6 +81,21 @@ def main():
     rst_models, pilot_buses = edit_dwo_curves(edited_case, case_zone)
     edit_ast_curves(edited_case, case_zone, rst_models, pilot_buses)
 
+    # Show some reminders
+    msg = (
+        "\nThe BASECASE is almost ready, but not quite. Please do:\n"
+        "  * Run the Astre and Dynawo cases to verify they work\n"
+        "  * Delete the Astre output files\n"
+        "  * Delete the Dynawo tFin output, but keep the t0 files\n"
+        "  * Edit the JOB file to comment out the t0 job\n"
+        "  * Tweak the tFin job:\n"
+        "      - set INFO log level, remove the finalState IIDM, etc.\n"
+        "      - but MOST IMPORTANTLY, edit the initialState path that the\n"
+        "        contingency cases need to see when they're run. For instance:\n"
+        '           <initialState file="../20200527_1700.BASECASE/t0/...\n'
+    )
+    print(msg)
+
     return 0
 
 

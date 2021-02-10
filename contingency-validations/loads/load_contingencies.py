@@ -41,7 +41,7 @@ from lxml import etree
 import random
 
 
-MAX_NCASES = 100
+MAX_NCASES = 50000  # limits the no. of contingency cases (via random sampling)
 RNG_SEED = 42
 ASTRE_FILE = "/Astre/donneesModelesEntree.xml"
 JOB_FILE = "/fic_JOB.xml"
@@ -146,7 +146,7 @@ def clone_base_case(base_case, dest_case):
 
     try:
         retcode = subprocess.call(
-            "cp -a '%s' '%s'" % (base_case, dest_case), shell=True
+            "rsync -aq --exclude 't0/' '%s/' '%s'" % (base_case, dest_case), shell=True
         )
         if retcode < 0:
             raise ValueError("Copy operation was terminated by signal: %d" % -retcode)
