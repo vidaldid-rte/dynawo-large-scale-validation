@@ -59,6 +59,7 @@ import os
 import subprocess
 from lxml import etree
 import random
+import re
 
 
 MAX_NCASES = 50000  # limits the no. of contingency cases (via random sampling)
@@ -75,9 +76,15 @@ def main():
 
     if len(sys.argv) < 2:
         print("\nUsage: %s BASECASE [element1 element2 element3 ...]\n" % sys.argv[0])
+        print(
+            "\nThe optional list may include regular expressions. "
+            "If the list is empty, all possible contingencies will be generated "
+            "(if below MAX_NCASES=%d; otherwise a random sample is generated).\n"
+            % MAX_NCASES
+        )
         return 2
     base_case = sys.argv[1]
-    filter_list = sys.argv[2:]
+    filter_list = [re.compile(x) for x in sys.argv[2:]]
     # DEBUG:(Lyon) filter_list = ["BOLL5P61"]
 
     verbose = True
@@ -105,7 +112,8 @@ def main():
     for bus_name in dynawo_buses:
 
         # If the script was passed a list of buses, filter for them here
-        if len(filter_list) != 0 and bus_name not in filter_list:
+        bus_name_matches = [r.search(bus_name) for r in filter_list]
+        if len(filter_list) != 0 and not any(bus_name_matches):
             continue
 
         # Limit the number of cases to approximately MAX_NCASES
@@ -406,7 +414,6 @@ def config_dynawo_bus_contingency(casedir, bus_name, bus_neighbors):
     print("   Editing file %s" % crv_file)
     tree = etree.parse(crv_file, etree.XMLParser(remove_blank_text=True))
     root = tree.getroot()
-    ns = etree.QName(root).namespace
     for neighbor in bus_neighbors:
         root.append(
             etree.Element("curve", model="NETWORK", variable=neighbor + "_Upu_value")

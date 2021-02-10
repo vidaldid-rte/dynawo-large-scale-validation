@@ -50,6 +50,7 @@ from lxml import etree
 from collections import namedtuple
 import pandas as pd
 import random
+import re
 
 
 MAX_NCASES = 50000  # limits the no. of contingency cases (via random sampling)
@@ -66,9 +67,15 @@ def main():
 
     if len(sys.argv) < 2:
         print("\nUsage: %s BASECASE [element1 element2 element3 ...]\n" % sys.argv[0])
+        print(
+            "\nThe optional list may include regular expressions. "
+            "If the list is empty, all possible contingencies will be generated "
+            "(if below MAX_NCASES=%d; otherwise a random sample is generated).\n"
+            % MAX_NCASES
+        )
         return 2
     base_case = sys.argv[1]
-    filter_list = sys.argv[2:]
+    filter_list = [re.compile(x) for x in sys.argv[2:]]
     # DEBUG:(Lyon) filter_list = ["CHARPL31CIVRI", "CHARPY631",
     # ".CHAML61.CHTD", RULHAY711, "VALS L31ZP.VE"]
 
@@ -110,7 +117,8 @@ def main():
     for branch_name in dynawo_branches:
 
         # If the script was passed a list of branches, filter for them here
-        if len(filter_list) != 0 and branch_name not in filter_list:
+        branch_name_matches = [r.search(branch_name) for r in filter_list]
+        if len(filter_list) != 0 and not any(branch_name_matches):
             continue
 
         # Limit the number of cases to approximately MAX_NCASES
@@ -148,7 +156,7 @@ def main():
         dedup_save(basename, edited_case, deduped_case)
 
     # Finally, save the (P,Q) values of disconnected branches in all processed cases
-    save_total_branchPQ(dirname, dynawo_branches, astre_branches)
+    save_total_branchpq(dirname, dynawo_branches, astre_branches)
 
     return 0
 
@@ -490,7 +498,6 @@ def config_dynawo_branch_contingency(casedir, branch_name, branch_info, disc_mod
     print("   Editing file %s" % crv_file)
     tree = etree.parse(crv_file, etree.XMLParser(remove_blank_text=True))
     root = tree.getroot()
-    ns = etree.QName(root).namespace
     root.append(
         etree.Element("curve", model="NETWORK", variable=bus_from + "_Upu_value")
     )
@@ -531,6 +538,7 @@ def config_astre_branch_contingency(casedir, branch_name, branch_info, disc_mode
         raise ValueError("Astre file %s does not contain any events!" % astre_file)
 
     # Find the branch in Astre
+    astre_branch = None
     for astre_branch in root.iter("{%s}quadripole" % ns):
         if astre_branch.get("nom") == branch_name:
             break
@@ -608,10 +616,10 @@ def config_astre_branch_contingency(casedir, branch_name, branch_info, disc_mode
         standalone=False,
     )
 
-    return (branch_P, branch_Q)
+    return branch_P, branch_Q
 
 
-def save_total_branchPQ(dirname, dynawo_branches, astre_branches):
+def save_total_branchpq(dirname, dynawo_branches, astre_branches):
     file_name = dirname + "/total_PQ_per_branch.csv"
     # Using a dataframe for sorting
     column_list = [

@@ -39,6 +39,7 @@ import os
 import subprocess
 from lxml import etree
 import random
+import re
 
 
 MAX_NCASES = 50000  # limits the no. of contingency cases (via random sampling)
@@ -55,9 +56,15 @@ def main():
 
     if len(sys.argv) < 2:
         print("\nUsage: %s base_case [element1 element2 element3 ...]\n" % sys.argv[0])
+        print(
+            "\nThe optional list may include regular expressions. "
+            "If the list is empty, all possible contingencies will be generated "
+            "(if below MAX_NCASES=%d; otherwise a random sample is generated).\n"
+            % MAX_NCASES
+        )
         return 2
     base_case = sys.argv[1]
-    filter_list = sys.argv[2:]
+    filter_list = [re.compile(x) for x in sys.argv[2:]]
     # DEBUG: filter_list = [".ANDU7TR751", "AULNO1LMA1"]
 
     verbose = False
@@ -84,7 +91,8 @@ def main():
     for load_name in dynawo_loads:
 
         # If the script was passed a list of loads, filter for them here
-        if len(filter_list) != 0 and load_name not in filter_list:
+        load_name_matches = [r.search(load_name) for r in filter_list]
+        if len(filter_list) != 0 and not any(load_name_matches):
             continue
 
         # Limit the number of cases to approximately MAX_NCASES
@@ -225,6 +233,8 @@ def config_dynawo_load_contingency(casedir, load_name):
 
     # Declare a model `EventSetPointBoolean` (in place of the existing Event).
     # We assume there is only one event. Warn if there's more.
+    old_eventId = None
+    old_parId = None
     nevents = 0
     for element in root.iter("{%s}blackBoxModel" % ns):
         if element.get("lib")[0:5] == "Event":
@@ -239,6 +249,7 @@ def config_dynawo_load_contingency(casedir, load_name):
             nevents += 1
 
     # Get the load id using its staticId
+    load_id = None
     for element in root.iter("{%s}blackBoxModel" % ns):
         if element.get("staticId") == load_name:
             load_id = element.get("id")
@@ -280,6 +291,8 @@ def config_dynawo_load_contingency(casedir, load_name):
 
     # Find old parset by parId, and keep the event time
     # Then erase the parset and create a new one with the params we need
+    parset = None
+    event_time = None
     for parset in root.iter("{%s}set" % ns):
         if parset.get("id") == old_parId:
             for param in parset:
@@ -362,6 +375,7 @@ def config_dynawo_load_contingency(casedir, load_name):
     root = tree.getroot()
     ns = etree.QName(root).namespace
     # Find out if it's BUS_BREAKER or NODE_BREAKER
+    iidm_load = None
     for iidm_load in root.iter("{%s}load" % ns):
         if iidm_load.get("id") == load_name:
             break
@@ -378,7 +392,7 @@ def config_dynawo_load_contingency(casedir, load_name):
                 bus_name = node.get("id")
                 break
         if bus_name is None:
-            raise ValueError("No busbar found for load %" % load_name)
+            raise ValueError("No busbar found for load %s" % load_name)
     else:
         raise ValueError("Load % in a substation with unknown topology!" % load_name)
 
@@ -387,7 +401,6 @@ def config_dynawo_load_contingency(casedir, load_name):
     print("   Editing file %s" % crv_file)
     tree = etree.parse(crv_file, etree.XMLParser(remove_blank_text=True))
     curves_input = tree.getroot()
-    ns = etree.QName(curves_input).namespace
     curves_input.append(
         etree.Element("curve", model="NETWORK", variable=bus_name + "_Upu_value")
     )
@@ -411,6 +424,7 @@ def config_astre_load_contingency(casedir, load_name):
 
     # Find the load in Astre (elements with tag "conso"; load name is atttribute "nom")
     # Keep its load id ("num") and its bus id ("noeud")
+    astre_load = None
     for astre_load in root.iter("{%s}conso" % ns):
         if astre_load.get("nom") == load_name:
             break
@@ -450,6 +464,7 @@ def config_astre_load_contingency(casedir, load_name):
     #
     # Here we use variable names that are as close as possible to
     # those used in Dynawo.
+    load_bus = None
     for load_bus in root.iter("{%s}noeud" % ns):
         if load_bus.get("num") == bus_id:
             break

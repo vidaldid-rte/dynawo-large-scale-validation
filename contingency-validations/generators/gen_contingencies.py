@@ -41,6 +41,7 @@ from lxml import etree
 from collections import namedtuple
 import pandas as pd
 import random
+import re
 
 
 MAX_NCASES = 50000  # limits the no. of contingency cases (via random sampling)
@@ -57,9 +58,15 @@ def main():
 
     if len(sys.argv) < 2:
         print("\nUsage: %s base_case [element1 element2 element3 ...]\n" % sys.argv[0])
+        print(
+            "\nThe optional list may include regular expressions. "
+            "If the list is empty, all possible contingencies will be generated "
+            "(if below MAX_NCASES=%d; otherwise a random sample is generated).\n"
+            % MAX_NCASES
+        )
         return 2
     base_case = sys.argv[1]
-    filter_list = sys.argv[2:]
+    filter_list = [re.compile(x) for x in sys.argv[2:]]
     # DEBUG:(Lille) filter_list = ["CXSSEIN1", "BARNA7ANNEAU1PALU", "PENL57ANNEAU1PENL"]
 
     verbose = False
@@ -90,7 +97,8 @@ def main():
     for gen_name in dynawo_gens:
 
         # If the script was passed a list of generators, filter for them here
-        if len(filter_list) != 0 and gen_name not in filter_list:
+        gen_name_matches = [r.search(gen_name) for r in filter_list]
+        if len(filter_list) != 0 and not any(gen_name_matches):
             continue
 
         # Limit the number of cases to approximately MAX_NCASES
@@ -119,7 +127,7 @@ def main():
         dedup_save(basename, edited_case, deduped_case)
 
     # Finally, save the (P,Q) values of disconnected gens in all processed cases
-    save_total_genPQ(dirname, dynawo_gens, astre_gens)
+    save_total_genpq(dirname, dynawo_gens, astre_gens)
 
     return 0
 
@@ -519,7 +527,7 @@ def config_astre_gen_contingency(casedir, gen_name, gen_info):
     return gen_P, gen_Q
 
 
-def save_total_genPQ(dirname, dynawo_gens, astre_gens):
+def save_total_genpq(dirname, dynawo_gens, astre_gens):
     file_name = dirname + "/total_PQ_per_generator.csv"
     # Using a dataframe for sorting
     column_list = [

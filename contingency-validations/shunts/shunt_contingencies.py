@@ -40,6 +40,7 @@ import subprocess
 from lxml import etree
 from collections import namedtuple
 import random
+import re
 
 
 MAX_NCASES = 50000  # limits the no. of contingency cases (via random sampling)
@@ -56,9 +57,15 @@ def main():
 
     if len(sys.argv) < 2:
         print("\nUsage: %s base_case [element1 element2 element3 ...]\n" % sys.argv[0])
+        print(
+            "\nThe optional list may include regular expressions. "
+            "If the list is empty, all possible contingencies will be generated "
+            "(if below MAX_NCASES=%d; otherwise a random sample is generated).\n"
+            % MAX_NCASES
+        )
         return 2
     base_case = sys.argv[1]
-    filter_list = sys.argv[2:]
+    filter_list = [re.compile(x) for x in sys.argv[2:]]
     # DEBUG:(Lille) filter_list = [".AUBA6REAC.1", "ARGOE1REAC.1"]
 
     verbose = False
@@ -86,7 +93,8 @@ def main():
     for shunt_name in dynawo_shunts:
 
         # If the script was passed a list of shunts, filter for them here
-        if len(filter_list) != 0 and shunt_name not in filter_list:
+        shunt_name_matches = [r.search(shunt_name) for r in filter_list]
+        if len(filter_list) != 0 and not any(shunt_name_matches):
             continue
 
         # Limit the number of cases to approximately MAX_NCASES
@@ -117,7 +125,7 @@ def main():
         dedup_save(basename, edited_case, deduped_case)
 
     # Finally, save the values of disconnected shunts in all processed cases
-    save_total_shuntQ(dirname, dynawo_shunts)
+    save_total_shuntq(dirname, dynawo_shunts)
 
     return 0
 
@@ -385,7 +393,6 @@ def config_dynawo_shunt_contingency(casedir, shunt_name, shunt_info):
     print("   Editing file %s" % crv_file)
     tree = etree.parse(crv_file, etree.XMLParser(remove_blank_text=True))
     root = tree.getroot()
-    ns = etree.QName(root).namespace
     root.append(
         etree.Element("curve", model="NETWORK", variable=bus_label + "_Upu_value")
     )
@@ -425,6 +432,7 @@ def config_astre_shunt_contingency(casedir, shunt_name, shunt_info):
         raise ValueError("Astre file %s does not contain any events!" % astre_file)
 
     # Find the shunt in Astre
+    astre_shunt = None
     for astre_shunt in root.iter("{%s}shunt" % ns):
         if astre_shunt.get("nom") == shunt_name:
             break
@@ -483,7 +491,7 @@ def config_astre_shunt_contingency(casedir, shunt_name, shunt_info):
     return 0
 
 
-def save_total_shuntQ(dirname, dynawo_shunts):
+def save_total_shuntq(dirname, dynawo_shunts):
     f = open(dirname + "/total_shuntQ_per_bus.csv", "w")
     f.write("# BUS; Q_dwo\n")
     for shunt_name in dynawo_shunts:
