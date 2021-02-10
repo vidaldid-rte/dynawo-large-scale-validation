@@ -8,12 +8,10 @@ from ipywidgets import widgets
 from IPython.display import display, HTML
 from IPython.display import Markdown as md
 
-T_sta = 870
 
-
-# Auxiliary function for calculating delta levelK at the auto_tw points
-def getDeltaLevelK(df_ast, df_dwo):
-    df_m = pd.DataFrame(np.arange(0, 1230, 30))
+# Auxiliary function for calculating delta levelK at the aut_tw_metrics points
+def getDeltaLevelK(df_ast, df_dwo, t_end):
+    df_m = pd.DataFrame(np.linspace(0, t_end, 41))  # same no. of points as aut_tw
     df_m.columns = ["time"]
     df_ast = df_ast.merge(df_m)
     cols = df_ast.columns
@@ -49,30 +47,35 @@ def get_curve_dfs(crv_dir, prefix, contg_case):
     da = df_ast.copy()
     dd = df_dwo.copy()
 
-    df_lk = getDeltaLevelK(da, dd)
+    t_end = df_dwo["time"].iat[-1]
+    df_lk = getDeltaLevelK(da, dd, t_end)
 
-    return df_ast, df_dwo, df_lk
+    return df_ast, df_dwo, df_lk, t_end
 
 
 # Callbacks
 def response(change):
     df = delta
-
     if check.value:
-        stable = np.where((df.TT_ast < T_sta) & (df.TT_dwo < T_sta))
+        stable = np.where(
+            df.is_preStab_ast
+            & df.is_preStab_dwo
+            & df.is_postStab_ast
+            & df.is_postStab_dwo
+        )
         df = df.iloc[stable]
     mask_ = [mask.value in x for x in df.vars]
     df = df[mask_]
-
     with g.batch_update():
         g.data[0].x = df[var.value + "_ast"]
         g.data[0].y = df[var.value + "_dwo"]
         g.data[6].x = df[var.value + "_ast"]
         g.data[6].y = df[var.value + "_ast"]
-
         g.data[0].marker.color = df.TT_ast
         g.data[0].marker.size = (
-            (df.dPP_ast - min(df.dPP_ast)) / (max(df.dPP_ast) - min(df.dPP_ast)) * 50
+            50
+            * (df.dPP_ast - min(df.dPP_ast))
+            / max(1.0e-6, max(df.dPP_ast) - min(df.dPP_ast))
         )
         g.data[0].text = df["dev"] + "<br>" + df["vars"]
         g.layout.xaxis.title = var.value + " Astre"
@@ -80,11 +83,11 @@ def response(change):
 
 
 def response2(change):
-    df_ast, df_dwo, df_lk = get_curve_dfs(CRV_DIR, PREFIX, dev.value)
+    df_ast, df_dwo, df_lk, _ = get_curve_dfs(CRV_DIR, PREFIX, dev.value)
     vars_ast = df_ast.columns[1:]
     var2.options = vars_ast
     var2.value = vars_ast[0]
-    df_m = auto_tw[auto_tw.contg_case == dev.value].copy()
+    df_m = aut_tw_metrics[aut_tw_metrics.Contg_case == dev.value].copy()
     df_m.loc[len(df_m)] = [dev.value, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     with g.batch_update():
         g.data[1].y = df_ast[var2.value]
@@ -101,8 +104,8 @@ def response2(change):
 
 
 def response3(change):
-    df_ast, df_dwo, df_lk = get_curve_dfs(CRV_DIR, PREFIX, dev.value)
-    df_m = auto_tw[auto_tw.contg_case == dev.value].copy()
+    df_ast, df_dwo, df_lk, _ = get_curve_dfs(CRV_DIR, PREFIX, dev.value)
+    df_m = aut_tw_metrics[aut_tw_metrics.Contg_case == dev.value].copy()
     df_m.loc[len(df_m)] = [dev.value, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     with g.batch_update():
         g.data[1].y = df_ast[var2.value]
@@ -132,8 +135,28 @@ def update_serie(trace, points, selector):
 def calc_scores_bycasevar(delta):
     # The scores consist in relative change in metrics (keeping the sign).
     # The global one consists in the (weighted) abs-sum of all the others.
-    scores = delta[["dev", "vars", "dSS_pass", "dPP_pass"]].copy()
-    scores.columns = ["contg_case", "Variable", "dSS_pass", "dPP_pass"]
+    scores = delta[
+        [
+            "dev",
+            "vars",
+            "is_preStab_ast",
+            "is_preStab_dwo",
+            "is_postStab_ast",
+            "is_postStab_dwo",
+            "dSS_pass",
+            "dPP_pass",
+        ]
+    ].copy()
+    scores.columns = [
+        "Contg_case",
+        "Variable",
+        "pre_ast",
+        "pre_dwo",
+        "post_ast",
+        "post_dwo",
+        "dSS_pass",
+        "dPP_pass",
+    ]
     scores["global_crv"] = 0
     metrics = ["dSS", "dPP", "TT", "period", "damp"]
     wmetric = [0.6, 0.2, 0.1, 0.05, 0.05]
@@ -145,13 +168,7 @@ def calc_scores_bycasevar(delta):
     for i, metr in enumerate(metrics):
         scores["global_crv"] += abs(scores[metr]) * wmetric[i]
 
-    scores["pre_ast"] = delta.TT_ast >= 0
-    scores["pre_dwo"] = delta.TT_dwo >= 0
-
-    scores["post_ast"] = delta.TT_ast < T_sta
-    scores["post_dwo"] = delta.TT_dwo < T_sta
-
-    scores = scores.set_index(["contg_case", "Variable"])
+    scores = scores.set_index(["Contg_case", "Variable"])
     return scores
 
 
@@ -160,22 +177,22 @@ def calc_scores_bycase(scores):
     scores[["dSS", "dPP", "TT", "period", "damp"]] = scores[
         ["dSS", "dPP", "TT", "period", "damp"]
     ].abs()
-    scores_mean = scores.groupby(["contg_case"]).mean()
-    scores_sum = scores[["dSS_pass", "dPP_pass"]].groupby(["contg_case"]).sum()
-    scores_count = scores[["dSS_pass", "dPP_pass"]].groupby(["contg_case"]).count()
+    scores_mean = scores.groupby(["Contg_case"]).mean()
+    scores_sum = scores[["dSS_pass", "dPP_pass"]].groupby(["Contg_case"]).sum()
+    scores_count = scores[["dSS_pass", "dPP_pass"]].groupby(["Contg_case"]).count()
     scores_mean["dSS_viol"] = scores_count.dSS_pass - scores_sum.dSS_pass
     scores_mean["dPP_viol"] = scores_count.dPP_pass - scores_sum.dPP_pass
     scores_mean["dSS_pass_"] = scores_mean.dSS_pass > 0.999
     scores_mean["dPP_pass_"] = scores_mean.dPP_pass > 0.999
 
-    scores_mean["Stable_ini"] = np.where(
-        ((scores_mean.pre_ast > 0.999) & ((scores_mean.pre_dwo > 0.999))), True, False
+    scores_mean["Stable_pre"] = np.where(
+        ((scores_mean.pre_ast > 0.999) & (scores_mean.pre_dwo > 0.999)), True, False
     )
-    scores_mean["Stable_fin"] = np.where(
-        ((scores_mean.post_ast > 0.999) & ((scores_mean.post_dwo > 0.999))), True, False
+    scores_mean["Stable_post"] = np.where(
+        ((scores_mean.post_ast > 0.999) & (scores_mean.post_dwo > 0.999)), True, False
     )
 
-    scores_mean = scores_mean.merge(auto, on="contg_case")
+    scores_mean = scores_mean.merge(aut_metrics, on="Contg_case")
     alpha = 0.5
     scores_mean["global"] = (
         alpha * scores_mean["global_crv"] + (1 - alpha) * scores_mean["global_aut"]
@@ -185,9 +202,9 @@ def calc_scores_bycase(scores):
 
 def get_grid_bycase(scores_mean):
     cols = [
-        "contg_case",
-        "Stable_ini",
-        "Stable_fin",
+        "Contg_case",
+        "Stable_pre",
+        "Stable_post",
         "dSS_pass_",
         "dSS_viol",
         "dPP_pass_",
@@ -207,7 +224,7 @@ def get_grid_bycase(scores_mean):
         "ldtap_netchanges",
         "any_ldxfmr_tap",
     ]
-    scores_mean_g = scores_mean[cols].set_index(["contg_case"])
+    scores_mean_g = scores_mean[cols].set_index(["Contg_case"])
     grid_bycase = qgrid.show_grid(scores_mean_g.sort_values("global", ascending=False))
     return grid_bycase
 
@@ -233,7 +250,7 @@ def plot_heatmap(scores_mean):
         "ldtap_p2pchanges",
         "ldtap_numchanges",
     ]
-    scores_mean = scores_mean.set_index(["contg_case"])
+    scores_mean = scores_mean.set_index(["Contg_case"])
     return sns.heatmap(scores_mean[cols].sort_values(["global"], ascending=False))
 
 
@@ -290,37 +307,40 @@ do_displaybutton()
 try:
     CRV_DIR
 except NameError:
-    CRV_DIR = None
+    CRV_DIR = "/dummy/path"
 
 try:
     PREFIX
 except NameError:
-    PREFIX = None
+    PREFIX = "dummy_prefix_"
 
 # Read the metrics
 metrics_dir = CRV_DIR + "/../metrics"
-ast_metrics = metrics_dir + "/curve_metrics_ast.csv"
-dwo_metrics = metrics_dir + "/curve_metrics_dwo.csv"
-diff_metrics = metrics_dir + "/curve_diffmetrics.csv"
-auto_metrics = metrics_dir + "/aut_diffmetrics.csv"
-auto_tw_metrics = metrics_dir + "/aut_tw_diffmetrics.csv"
+crv_reducedparams_file = metrics_dir + "/crv_reducedparams.csv"
+aut_metrics_file = metrics_dir + "/aut_diffmetrics.csv"
+aut_tw_metrics_file = metrics_dir + "/aut_tw_diffmetrics.csv"
 
 if not (
     os.path.isdir(metrics_dir)
-    and os.path.isfile(ast_metrics)
-    and os.path.isfile(dwo_metrics)
-    and os.path.isfile(diff_metrics)
+    and os.path.isfile(crv_reducedparams_file)
+    and os.path.isfile(aut_metrics_file)
+    and os.path.isfile(aut_tw_metrics_file)
 ):
     raise ValueError("Input datafiles (metrics) not found for %s" % CRV_DIR)
 
-all_ast = pd.read_csv(ast_metrics, sep=";", index_col=False, compression="infer")
-all_dwo = pd.read_csv(dwo_metrics, sep=";", index_col=False, compression="infer")
-delta = pd.read_csv(diff_metrics, sep=";", index_col=False, compression="infer")
+delta = pd.read_csv(
+    crv_reducedparams_file, sep=";", index_col=False, compression="infer"
+)
 delta.fillna(-1, inplace=True)
 
-auto = pd.read_csv(auto_metrics, sep=";", index_col=False, compression="infer")
-auto["global_aut"] = auto[auto.columns[1:]].mean(axis=1)
-auto_tw = pd.read_csv(auto_tw_metrics, sep=";", index_col=False, compression="infer")
+aut_metrics = pd.read_csv(
+    aut_metrics_file, sep=";", index_col=False, compression="infer"
+)
+aut_metrics["global_aut"] = aut_metrics[aut_metrics.columns[1:]].mean(axis=1)
+
+aut_tw_metrics = pd.read_csv(
+    aut_tw_metrics_file, sep=";", index_col=False, compression="infer"
+)
 
 # Calculate pass/fail type of measurements for threshold
 delta["typevar"] = ""
@@ -342,7 +362,7 @@ check = widgets.Checkbox(
     value=False, description="Only Stable contingencies", disabled=False, indent=False
 )
 
-mask_n = ["NETWORK" in x for x in all_dwo.vars]
+mask_n = ["NETWORK" in x for x in delta.vars]
 df = delta[mask_n]
 var = widgets.Dropdown(
     options=list(["dSS", "dPP", "TT", "period", "damp"]),
@@ -362,12 +382,12 @@ dev = widgets.Dropdown(
 
 
 # Load the curve data for the first case
-df_ast, df_dwo, df_lk = get_curve_dfs(CRV_DIR, PREFIX, contg_case0)
+df_ast, df_dwo, df_lk, T_END = get_curve_dfs(CRV_DIR, PREFIX, contg_case0)
 vars_ast = df_ast.columns[1:]
 vars_dwo = df_dwo.columns[1:]
 var0 = vars_ast[0]
 var2 = widgets.Dropdown(options=vars_ast, value=var0, description="Variable: ")
-df_m = auto_tw[auto_tw.contg_case == dev.value].copy()
+df_m = aut_tw_metrics[aut_tw_metrics.Contg_case == dev.value].copy()
 df_m.loc[len(df_m)] = [dev.value, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
 
@@ -378,9 +398,9 @@ trace = go.Scatter(
     y=df["dSS_dwo"],
     mode="markers",
     marker_color=df["TT_ast"],
-    marker_size=(df.dPP_ast - min(df.dPP_ast))
-    / (max(df.dPP_ast) - min(df.dPP_ast))
-    * 100,
+    marker_size=50
+    * (df.dPP_ast - min(df.dPP_ast))
+    / max(1.0e-6, max(df.dPP_ast) - min(df.dPP_ast)),
     text=df["dev"] + "<br>" + df["vars"],
     xaxis="x1",
     yaxis="y1",
@@ -454,9 +474,9 @@ layout = go.Layout(
     title=dict(text="Astre vs Dynawo"),
     xaxis=dict(title="dSS Astre", domain=[0, aspect_ratio - 0.05]),
     yaxis=dict(title="dSS Dynawo", scaleanchor="x", scaleratio=1),
-    xaxis2=dict(title="t", domain=[aspect_ratio + 0.05, 1], range=[0, 1200]),
+    xaxis2=dict(title="t", domain=[aspect_ratio + 0.05, 1], range=[0, T_END]),
     yaxis2=dict(title=var0, anchor="x2", domain=[0, 0.7]),
-    xaxis3=dict(title="t", domain=[aspect_ratio + 0.05, 1], range=[0, 1200]),
+    xaxis3=dict(title="t", domain=[aspect_ratio + 0.05, 1], range=[0, T_END]),
     yaxis3=dict(title="% changes", anchor="x3", domain=[0.8, 1]),
     height=HEIGHT,
     width=WIDTH,
@@ -493,7 +513,7 @@ ln = len(name)
 filename = name[ln - 3] + "_" + PREFIX + ".csv"
 scores_mean.to_csv(filename)
 
-stable = np.where(scores_mean.Stable_ini & scores_mean.Stable_fin)
+stable = np.where(scores_mean.Stable_pre & scores_mean.Stable_post)
 per_ss = round(scores_mean.dSS_pass_.mean() * 100, 1)
 per_pp = round(scores_mean.dPP_pass_.mean() * 100, 1)
 per1_ss = round(scores_mean.iloc[stable].dSS_pass_.mean() * 100, 1)

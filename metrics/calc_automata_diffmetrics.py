@@ -61,15 +61,14 @@ import glob
 from collections import namedtuple
 from pathlib import Path
 import pandas as pd
+import numpy as np
 from lxml import etree
+from calc_diffmetrics_common import get_time_params
 
 
+N_TWPOINTS = 41  # 41 TW data points results in 30s timesteps when Tsim is 1200s
 AST_SUFFIX = "-AstreAutomata.csv.xz"
 DWO_SUFFIX = "-DynawoAutomata.csv.xz"
-T_OFFSET = 4000
-T_CONTING = 300
-T_END = 1200
-
 verbose = True
 pd.set_option("display.max_rows", 50)
 
@@ -86,13 +85,14 @@ def main():
     # Check all needed dirs are in place, and get the list of files to process
     file_list = check_inputfiles(aut_dir, prefix, base_case)
 
+    # Get the simulation time parameters (from Dynawo's case)
+    START_TIME, STOP_TIME, T_EVENT = get_time_params(base_case, verbose)
+
     # Build a dict: load-->bus (needed for Load_Transformers)
     ld_bus = load2bus_dict(base_case)
 
     # Get the normalization factors for each class of metric (shunt, xfmr, etc.)
     norm_factor = get_norm_factor(base_case)
-    if verbose:
-        print("   Normalizing factors: ", norm_factor)
 
     # We'll need this later on, for correcting Dynawo's shunt events count
     is_shunt_contg = "shunt" == prefix[:5]
@@ -107,8 +107,8 @@ def main():
             print("   processing: " + prefix + case_label)
         ast_df = pd.read_csv(file_list[case_label].ast, sep=";")
         dwo_df = pd.read_csv(file_list[case_label].dwo, sep=";")
-        metrics = calc_metrics(ast_df, dwo_df, ld_bus, norm_factor, is_shunt_contg)
-        metrics_rowdata.append({"contg_case": case_label, **metrics})
+        metrics = calc_metrics(ast_df, dwo_df, ld_bus, norm_factor)
+        metrics_rowdata.append({"Contg_case": case_label, **metrics})
 
     # Save the metrics to file
     col_names = list(metrics_rowdata[0].keys())
@@ -126,17 +126,21 @@ def main():
     print("Calculating TIME WINDOWED diffmetrics for automata changes in: %s" % aut_dir)
     metrics_rowdata = []
     nz = df["any_shunt_evt"] | df["any_xfmr_tap"] | df["any_ldxfmr_tap"]
-    for case_label in df.loc[nz, "contg_case"]:
+    for case_label in df.loc[nz, "Contg_case"]:
         if verbose:
             print("   TW processing: " + prefix + case_label)
         ast_df = pd.read_csv(file_list[case_label].ast, sep=";")
         dwo_df = pd.read_csv(file_list[case_label].dwo, sep=";")
-        dwo_df["TIME"] -= T_OFFSET
-        for tw in range(T_CONTING, T_END + 1, 30):
+        dwo_df["TIME"] -= START_TIME  # undo the time offset in Dynawo
+        for tw in np.linspace(0, STOP_TIME - START_TIME, N_TWPOINTS):
             ast_tw = ast_df[ast_df["TIME"] <= tw]
             dwo_tw = dwo_df[dwo_df["TIME"] <= tw]
-            metrics = calc_metrics(ast_tw, dwo_tw, ld_bus, norm_factor, is_shunt_contg)
-            metrics_rowdata.append({"contg_case": case_label, "time": tw, **metrics})
+            if is_shunt_contg and tw >= (T_EVENT - START_TIME):
+                shunt_corr = True
+            else:
+                shunt_corr = False
+            metrics = calc_metrics(ast_tw, dwo_tw, ld_bus, norm_factor, shunt_corr)
+            metrics_rowdata.append({"Contg_case": case_label, "time": tw, **metrics})
 
     # Save the metrics to file
     if 0 == len(metrics_rowdata):
@@ -199,15 +203,14 @@ def check_inputfiles(aut_dir, prefix, base_case):
             print(case_list)
         else:
             print(case_list[:5] + ["..."] + case_list[-5:])
-        print()
 
     return file_list
 
 
-def calc_metrics(ast_df, dwo_df, ld_bus, norm_factor, is_shunt_contg):
+def calc_metrics(ast_df, dwo_df, ld_bus, norm_factor, shunt_correction=False):
     # SHUNTS:
     shunt_metrics = calc_shunt_metrics(ast_df, dwo_df)
-    if is_shunt_contg:  # because Dynawo shows the contingency itself as an event
+    if shunt_correction:  # because Dynawo shows the contingency itself as an event
         shunt_metrics["shunt_netchanges"] += -1
         shunt_metrics["shunt_numchanges"] += -1
     shunt_metrics["shunt_netchanges"] /= norm_factor.shunt
@@ -429,25 +432,29 @@ def worst_netchange_bybus(nc, ld_bus):
     if nc.empty:  # because adding the MAX column below would fail
         return nc
     df = pd.DataFrame(nc).assign(BUS=nc.index)
-    df = df.replace({"BUS": ld_bus})
+    df["BUS"] = df["BUS"].map(ld_bus)  # fast replacement of load --> bus
+    # Obtain min & max at each bus; then keep the largest of the two in abs value:
     reduced_nc = df.groupby(by="BUS", as_index=True).min()
     reduced_nc["MAX"] = df.groupby(by="BUS", as_index=True).max()
-    return reduced_nc.apply(max, axis=1, key=abs)
+    reduced_nc = reduced_nc.apply(max, axis=1, key=abs)
+    return reduced_nc
 
 
 def worst_numchange_bybus(nc, ld_bus):
     # Reduce the metrics by bus, keeping the worst (i.e. largest) one.
     df = pd.DataFrame(nc).assign(BUS=nc.index)
-    df = df.replace({"BUS": ld_bus})
+    df["BUS"] = df["BUS"].map(ld_bus)  # fast replacement of load --> bus
     reduced_nc = df.groupby(by="BUS", as_index=True).max()
+    # returned object must be a Series, not a DataFrame:
     return reduced_nc["EVENT"]
 
 
 def worst_p2pchange_bybus(nc, ld_bus):
     # Reduce the metrics by bus, keeping the worst (i.e. largest) one.
     df = pd.DataFrame(nc).assign(BUS=nc.index)
-    df = df.replace({"BUS": ld_bus})
+    df["BUS"] = df["BUS"].map(ld_bus)  # fast replacement of load --> bus
     reduced_nc = df.groupby(by="BUS", as_index=True).max()
+    # returned object must be a Series, not a DataFrame
     return reduced_nc["P2PCHANGE"]
 
 
@@ -456,7 +463,7 @@ def load2bus_dict(base_case):
     # and Dynawo.
     #
     # On buses whose topology is NODE-BREAKER, bus_labels may not match
-    # between Astre and Dynawo. So strategy we follow is:
+    # between Astre and Dynawo. So the strategy we follow is:
     #
     #    * Build the dictionary first by using Dynawo's case. If the
     #      load is on a BUS_BREAKER bus, keep the bus name (they
@@ -474,7 +481,7 @@ def load2bus_dict(base_case):
     astre_file = base_case + "/Astre/donneesModelesEntree.xml"
     iidm_file = base_case + "/tFin/fic_IIDM.xml"
 
-    # Initial build, using Dynawo
+    # Initial build, enumerating loads in Dynawo
     tree = etree.parse(iidm_file)
     root = tree.getroot()
     buses_with_bad_topo = False
@@ -495,7 +502,7 @@ def load2bus_dict(base_case):
         print("WARNING: found loads at Voltage Levels with bad topology!!!")
 
     print(
-        "   Building ld_bus dict from BASECASE: found %d active loads in Dynawo file"
+        "Building ld_bus dict from BASECASE: found %d active loads in Dynawo file"
         % len(ld_bus),
         end="",
     )
@@ -504,28 +511,32 @@ def load2bus_dict(base_case):
     # Now complete the dict with Astre's loads
     tree = etree.parse(astre_file)
     root = tree.getroot()
-    ns = etree.QName(root).namespace
-    for load in root.iterfind(".//conso", root.nsmap):
+    # first we'll need two auxiliary dicts to speed up Astre bus & vl lookups
+    bus_nom = dict()
+    reseau = root.find("./reseau", root.nsmap)
+    donneesNoeuds = reseau.find("./donneesNoeuds", root.nsmap)
+    for bus in donneesNoeuds.iterfind("./noeud", root.nsmap):
+        bus_nom[bus.get("num")] = bus.get("nom")
+    vl_nom = dict()
+    postes = reseau.find("./postes", root.nsmap)
+    for vl in postes.iterfind("./poste", root.nsmap):
+        vl_nom[vl.get("num")] = vl.get("nom")
+    # now enumerate all loads
+    donneesConsos = reseau.find("./donneesConsos", root.nsmap)
+    for load in donneesConsos.iterfind("./conso", root.nsmap):
         load_label = load.get("nom")
         noeud_id = load.get("noeud")
         vl_id = load.get("poste")
+        if noeud_id == "-1":  # skip disconnected loads
+            continue
         # If load name matches in Dynawo, just keep Dynawo's bus name
         if load_label in ld_bus:
             continue
-        # If not, add it to the dict. First find its bus name.
-        bus_label = None
-        for bus in root.iter("{%s}noeud" % ns):
-            if bus.get("num") == noeud_id:
-                bus_label = bus.get("nom")
-                break
+        # If not, add it to the dict. First get its Astre bus name:
+        bus_label = bus_nom[noeud_id]
         # If this bus name is not in Dynawo, use the voltage level name
         if bus_label not in dwo_loadbuses:
-            bus_label = None
-            for vl in root.iter("{%s}poste" % ns):
-                if vl.get("num") == vl_id:
-                    bus_label = vl.get("nom") + "*"
-                    break
-
+            bus_label = vl_nom[vl_id] + "*"
         ld_bus[load_label] = bus_label
 
     print("  (increased to %d after reading Astre file)" % len(ld_bus))
@@ -543,16 +554,15 @@ def get_norm_factor(base_case):
     # We get these numbers from Dynawo's DYD (that is, the number of elements that
     # could potentially leave events in the timeline).
     #
-
     dyd_file = base_case + "/tFin/fic_DYD.xml"
     tree = etree.parse(dyd_file)
     root = tree.getroot()
     nshunts = 0
     nldfxmrs = 0
-    for mc in root.iterfind(".//macroConnect", root.nsmap):
+    for mc in root.iterfind("./macroConnect", root.nsmap):
         if mc.get("connector")[-16:] == "ControlledShunts":
             nshunts += 1
-    for bbm in root.iterfind(".//blackBoxModel", root.nsmap):
+    for bbm in root.iterfind("./blackBoxModel", root.nsmap):
         if bbm.get("lib")[:4] == "Load":
             nldfxmrs += 1
 
@@ -563,6 +573,10 @@ def get_norm_factor(base_case):
 
     Norm_Factor = namedtuple("Norm_Factor", ["shunt", "xfmr", "ldxfmr"])
     norm_factor = Norm_Factor(shunt=nshunts, xfmr=nxfmrs, ldxfmr=nldfxmrs)
+
+    if verbose:
+        print("Normalizing factors: ", norm_factor)
+
     return norm_factor
 
 

@@ -15,14 +15,14 @@
 # So, for example, instead of running these commands:
 #
 #    $ cd ~/work/PtFige-Lille
-#    $ rm -rf RESULTS gen_*
-#    $ gen_contingencies.py 20190410_1200.BASECASE
-#    $ run_all_contingencies.sh -v -c -o MyResults/Generators . 20190410_1200.BASECASE gen_
+#    $ rm -rf gen_* MyResults/gens/
+#    $ gen_contingencies.py 20190410_1350.BASECASE
+#    $ run_all_contingencies.sh -v -c -o MyResults/gens . 20190410_1350.BASECASE gen_
 #
-# and having to repeat this for loads, branches, etc., invoke this
+# and having to repeat this for loads, branches, etc.; invoke this
 # script as follows, to obtain the same result:
 #
-#    $ create_and_process_all.sh 20190410_1200.BASECASE MyResults
+#    $ create_and_process_all.sh 20190410_1350.BASECASE MyResults
 #
 # You may use either relative or absolute paths.
 #
@@ -42,8 +42,8 @@ create_contg[shunt]="shunts/shunt_contingencies.py"
 create_contg[load]="loads/load_contingencies.py"
 create_contg[gen]="generators/gen_contingencies.py"
 create_contg[branchB]="branches/branchB_contingencies.py"
-create_contg[branchF]="branches/branchF_contingencies.py"
-create_contg[branchT]="branches/branchT_contingencies.py"
+#create_contg[branchF]="branches/branchF_contingencies.py"
+#create_contg[branchT]="branches/branchT_contingencies.py"
 #create_contg[bus]="buses/bus_contingencies.py"
 
 # Note this assumes all scripts are under the Github dir structure
@@ -124,7 +124,7 @@ for DEVICE in "${!create_contg[@]}"; do
     echo
 
     colormsg "*** COMPUTING CURVE METRICS:"
-    "$METRICS_SRC"/calc_curve_diffmetrics.py "$RESULTS_DIR"/crv "$DEVICE"_
+    "$METRICS_SRC"/calc_curve_diffmetrics.py "$RESULTS_DIR"/crv "$DEVICE"_ "$BASECASE"
     echo
     
     colormsg "*** COMPUTING AUTOMATA EVENT METRICS:"
