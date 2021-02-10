@@ -208,6 +208,9 @@ RUNLOG=Dynawo.runStdout
 dynawo-RTE jobs fic_JOB.xml > "$RUNLOG" 2>&1 || true  # allow it to fail while using errexit flag
 if [ ! -f ./tFin/outputs/curves/curves.csv ]; then
    echo "Dynawo run failed. Check Dynawo's log and the run-log: $CONTG_CASE/$RUNLOG"
+   if [ -f ./tFin/outputs/curves/curves.xml ]; then
+   echo "Output curves file found in XML format. Required format is CSV: please check the jobs file"
+   fi
    exit 1
 fi
 
