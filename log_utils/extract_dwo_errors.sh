@@ -10,7 +10,7 @@ set -o nounset -o noclobber
 set -o errexit -o pipefail 
 
 OUTPUT_FILE="error_summary.txt"
-EXTRACT_FROM="INFO |     4299.000 |"
+MATCH_TO_EXTRACT_FROM="starting simulation"
 
 
 usage()
@@ -27,6 +27,13 @@ Usage: $0 LOG__DIR
 EOF
 }
 
+xztrim()
+{
+    xzcat "$1" | awk  "/$MATCH_TO_EXTRACT_FROM/ {print_line=1} print_line"
+}
+
+
+
 
 if [[ $# -ne 1 ]]; then
     usage
@@ -37,15 +44,15 @@ LOG_DIR="$1"
 rm -rf $OUTPUT_FILE
 echo "Cases containing ERRORS:"
 echo "========================"
-for FI in "$LOG_DIR"/*-Dynawo.log.xz; do
-    if xzgrep -q "ERROR" "$FI"; then
-	echo "$FI"
-	echo "$FI" >> $OUTPUT_FILE
-	# shunts, gens, branches: "state of X change"
-	# loads: "change for model"
-	xzgrep --max-count=1 -B2 -A5000 "$EXTRACT_FROM" "$FI" >> $OUTPUT_FILE
-	echo >> $OUTPUT_FILE
+find "$LOG_DIR" -maxdepth 1 -name '*-Dynawo.log.xz' | while read -r LOG_FILE; do
+    if xztrim "$LOG_FILE" | grep -F -q "ERROR"; then
+        echo "$LOG_FILE"
+        {
+            echo "$LOG_FILE"
+            echo "==============================================================="
+            xztrim "$LOG_FILE"
+            echo -e "[***END OF LOG***]\\n\\n"
+        } >> $OUTPUT_FILE
     fi
 done
-
 
