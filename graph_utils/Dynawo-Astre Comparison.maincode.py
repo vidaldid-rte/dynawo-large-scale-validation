@@ -66,16 +66,17 @@ def response(change):
         df = df.iloc[stable]
     mask_ = [mask.value in x for x in df.vars]
     df = df[mask_]
+    # PERF: Plotly starts showing horrible performance with more than 5,000 points
+    if df.shape[0] > 5000:
+        df = df.sample(5000)
     with g.batch_update():
         g.data[0].x = df[var.value + "_ast"]
         g.data[0].y = df[var.value + "_dwo"]
         g.data[6].x = df[var.value + "_ast"]
         g.data[6].y = df[var.value + "_ast"]
         g.data[0].marker.color = df.TT_ast
-        g.data[0].marker.size = (
-            50
-            * (df.dPP_ast - min(df.dPP_ast))
-            / max(1.0e-6, max(df.dPP_ast) - min(df.dPP_ast))
+        g.data[0].marker.size = 5 + 45 * (df.dPP_ast - min(df.dPP_ast)) / max(
+            1.0e-6, max(df.dPP_ast) - min(df.dPP_ast)
         )
         g.data[0].text = df["dev"] + "<br>" + df["vars"]
         g.layout.xaxis.title = var.value + " Astre"
@@ -89,9 +90,15 @@ def response2(change):
     var2.value = vars_ast[0]
     df_m = aut_tw_metrics[aut_tw_metrics.Contg_case == dev.value].copy()
     df_m.loc[len(df_m)] = [dev.value, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    if MATCH_CRV_AT_PRECONTG_TIME:
+        idx_match_ast = abs(df_ast["time"] - MATCH_CRV_AT_PRECONTG_TIME).idxmin()
+        idx_match_dwo = abs(df_dwo["time"] - MATCH_CRV_AT_PRECONTG_TIME).idxmin()
+        yoffset = df_ast[var2.value][idx_match_ast] - df_dwo[var2.value][idx_match_dwo]
+    else:
+        yoffset = 0
     with g.batch_update():
         g.data[1].y = df_ast[var2.value]
-        g.data[2].y = df_dwo[var2.value] - df_dwo[var2.value][0] + df_ast[var2.value][1]
+        g.data[2].y = df_dwo[var2.value] + yoffset
         g.data[3].x = df_m["time"]
         g.data[4].x = df_m["time"]
         g.data[5].x = df_m["time"]
@@ -107,9 +114,15 @@ def response3(change):
     df_ast, df_dwo, df_lk, _ = get_curve_dfs(CRV_DIR, PREFIX, dev.value)
     df_m = aut_tw_metrics[aut_tw_metrics.Contg_case == dev.value].copy()
     df_m.loc[len(df_m)] = [dev.value, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    if MATCH_CRV_AT_PRECONTG_TIME:
+        idx_match_ast = abs(df_ast["time"] - MATCH_CRV_AT_PRECONTG_TIME).idxmin()
+        idx_match_dwo = abs(df_dwo["time"] - MATCH_CRV_AT_PRECONTG_TIME).idxmin()
+        yoffset = df_ast[var2.value][idx_match_ast] - df_dwo[var2.value][idx_match_dwo]
+    else:
+        yoffset = 0
     with g.batch_update():
         g.data[1].y = df_ast[var2.value]
-        g.data[2].y = df_dwo[var2.value] - df_dwo[var2.value][0] + df_ast[var2.value][1]
+        g.data[2].y = df_dwo[var2.value] + yoffset
         g.data[3].x = df_m["time"]
         g.data[4].x = df_m["time"]
         g.data[5].x = df_m["time"]
@@ -303,7 +316,7 @@ display(
 
 do_displaybutton()
 
-# This is just to stop flake8 complaining
+# These are needed just to stop flake8 complaining
 try:
     CRV_DIR
 except NameError:
@@ -313,6 +326,32 @@ try:
     PREFIX
 except NameError:
     PREFIX = "dummy_prefix_"
+
+try:
+    MATCH_CRV_AT_PRECONTG_TIME
+except NameError:
+    MATCH_CRV_AT_PRECONTG_TIME = None
+
+try:
+    V_THRESH
+except NameError:
+    V_THRESH = 0.01
+
+try:
+    K_THRESH
+except NameError:
+    K_THRESH = 0.1
+
+try:
+    P_THRESH
+except NameError:
+    P_THRESH = 5
+
+try:
+    Q_THRESH
+except NameError:
+    Q_THRESH = 10
+
 
 # Read the metrics
 metrics_dir = CRV_DIR + "/../metrics"
@@ -342,14 +381,14 @@ aut_tw_metrics = pd.read_csv(
     aut_tw_metrics_file, sep=";", index_col=False, compression="infer"
 )
 
-# Calculate pass/fail type of measurements for threshold
+# Determine pass/fail for each type of magnitude, according to thresholds
 delta["typevar"] = ""
 delta.loc[delta.vars.str.contains("_U_IMPIN"), "typevar"] = "V"
 delta.loc[delta.vars.str.contains("_Upu_"), "typevar"] = "V"
 delta.loc[delta.vars.str.contains("_levelK_"), "typevar"] = "K"
 delta.loc[delta.vars.str.contains("_PGen"), "typevar"] = "P"
 delta.loc[delta.vars.str.contains("_QGen"), "typevar"] = "Q"
-d_threshold = {"V": 0.01, "K": 0.1, "P": 5, "Q": 10}
+d_threshold = {"V": V_THRESH, "K": K_THRESH, "P": P_THRESH, "Q": Q_THRESH}
 delta["threshold"] = delta.typevar.replace(d_threshold)
 delta["delta_dSS"] = delta["dSS_ast"] - delta["dSS_dwo"]
 delta["dSS_pass"] = delta.delta_dSS.abs() < delta.threshold
@@ -357,11 +396,28 @@ delta["delta_dPP"] = delta["dPP_ast"] - delta["dPP_dwo"]
 delta["dPP_pass"] = delta.delta_dPP.abs() < delta.threshold
 
 
-# Combo Boxes
+# Load the curve data for the first case
+contg_cases = list(delta["dev"].unique())
+contg_case0 = contg_cases[0]
+df_ast, df_dwo, df_lk, T_END = get_curve_dfs(CRV_DIR, PREFIX, contg_case0)
+vars_ast = df_ast.columns[1:]
+vars_dwo = df_dwo.columns[1:]
+var0 = vars_ast[0]
+var2 = widgets.Dropdown(options=vars_ast, value=var0, description="Variable: ")
+df_m = aut_tw_metrics[aut_tw_metrics.Contg_case == contg_case0].copy()
+df_m.loc[len(df_m)] = [contg_case0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+if MATCH_CRV_AT_PRECONTG_TIME:
+    idx_match_ast = abs(df_ast["time"] - MATCH_CRV_AT_PRECONTG_TIME).idxmin()
+    idx_match_dwo = abs(df_dwo["time"] - MATCH_CRV_AT_PRECONTG_TIME).idxmin()
+    yoffset = df_ast[var2.value][idx_match_ast] - df_dwo[var2.value][idx_match_dwo]
+else:
+    yoffset = 0
+
+
+# Initialize Combo Boxes
 check = widgets.Checkbox(
     value=False, description="Only Stable contingencies", disabled=False, indent=False
 )
-
 mask_n = ["NETWORK" in x for x in delta.vars]
 df = delta[mask_n]
 var = widgets.Dropdown(
@@ -374,31 +430,21 @@ mask = widgets.Dropdown(
     value="NETWORK",
     description="Var. group: ",
 )
-contg_cases = list(delta["dev"].unique())
-contg_case0 = contg_cases[0]
 dev = widgets.Dropdown(
     options=contg_cases, value=contg_case0, description="Contg. case: "
 )
+container = widgets.HBox([check, mask, var, dev, var2])
 
 
-# Load the curve data for the first case
-df_ast, df_dwo, df_lk, T_END = get_curve_dfs(CRV_DIR, PREFIX, contg_case0)
-vars_ast = df_ast.columns[1:]
-vars_dwo = df_dwo.columns[1:]
-var0 = vars_ast[0]
-var2 = widgets.Dropdown(options=vars_ast, value=var0, description="Variable: ")
-df_m = aut_tw_metrics[aut_tw_metrics.Contg_case == dev.value].copy()
-df_m.loc[len(df_m)] = [dev.value, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-
-
-# Traces
+# Initialize Plot Traces
 trace = go.Scatter(
     name="Dynawo vs Astre",
     x=df["dSS_ast"],
     y=df["dSS_dwo"],
     mode="markers",
     marker_color=df["TT_ast"],
-    marker_size=50
+    marker_size=5
+    + 45
     * (df.dPP_ast - min(df.dPP_ast))
     / max(1.0e-6, max(df.dPP_ast) - min(df.dPP_ast)),
     text=df["dev"] + "<br>" + df["vars"],
@@ -427,7 +473,7 @@ trace1 = go.Scatter(
 trace2 = go.Scatter(
     name="Dynawo",
     x=df_dwo["time"],
-    y=df_dwo[var0] - df_dwo[var0][0] + df_ast[var0][1],
+    y=df_dwo[var0] + yoffset,
     mode="lines",
     marker_color="red",
     xaxis="x2",
@@ -481,16 +527,19 @@ layout = go.Layout(
     height=HEIGHT,
     width=WIDTH,
 )
+
+# Main plot
 g = go.FigureWidget(
     data=[trace, trace1, trace2, trace3, trace4, trace5, trace6, tracel], layout=layout
 )
-scatter = g.data[0]
+
 # Wire-in the plot callbacks
 var.observe(response, names="value")
 mask.observe(response, names="value")
 dev.observe(response2, names="value")
 var2.observe(response3, names="value")
 check.observe(response, names="value")
+scatter = g.data[0]
 scatter.on_click(update_serie)
 
 
@@ -501,9 +550,6 @@ scatter.on_click(update_serie)
 # Calculate scores by contingency case and and variable.
 scores = calc_scores_bycasevar(delta)
 grid_bycasevar = qgrid.show_grid(scores)
-
-# Main plot
-container = widgets.HBox([check, mask, var, dev, var2])
 
 # Calculate scores by contingency case, and save to file
 scores_mean = calc_scores_bycase(scores)
@@ -519,11 +565,33 @@ per_pp = round(scores_mean.dPP_pass_.mean() * 100, 1)
 per1_ss = round(scores_mean.iloc[stable].dSS_pass_.mean() * 100, 1)
 per1_pp = round(scores_mean.iloc[stable].dPP_pass_.mean() * 100, 1)
 
-text = "# Percentage of all contingency passing: \n \
-## Steady State Thresholds: %.1f%% \n \
-## Peak to Peak Thresholds: %.1f%% \n \
-# Percentage of stable  contingency passing: \n \
-## Steady State Thresholds: %.1f%% \n \
-## Peak to Peak Thresholds: %.1f%% \n"
+text = (
+    "# Reading %s data from: %s\n"
+    "## Percentage of contingency cases where all variables pass: \n"
+    "  * Steady State diff thresholds: %.1f%% \n"
+    "  * Peak to Peak diff thresholds: %.1f%% \n\n"
+    "## Percentage of *stable* contingency cases where all variables pass: \n"
+    "  * Steady State Thresholds: %.1f%% \n"
+    "  * Peak to Peak Thresholds: %.1f%% \n\n"
+    "Using threshold parameters:\n"
+    "  * V_THRESH: %.2f\n"
+    "  * K_THRESH: %.2f\n"
+    "  * P_THRESH: %.2f\n"
+    "  * Q_THRESH: %.2f\n"
+)
 
-md(text % (per_ss, per_pp, per1_ss, per1_pp))
+md(
+    text
+    % (
+        PREFIX,
+        CRV_DIR,
+        per_ss,
+        per_pp,
+        per1_ss,
+        per1_pp,
+        V_THRESH,
+        K_THRESH,
+        P_THRESH,
+        Q_THRESH,
+    )
+)
