@@ -125,7 +125,7 @@ def process_all_curves(crv_dir, file_list, startTime, t_event):
         # Check for simulations that stopped before the end
         if crv_ast["time"].iloc[-1] != crv_dwo["time"].iloc[-1]:
             print(
-                "   WARNING: Dynawo and Astre curves stop at differet times (case %s)\n"
+                "  WARNING: Dynawo and Astre curves stop at different times (case %s)\n"
                 % case_label
             )
 
@@ -205,10 +205,11 @@ def extract_crv_reduced_params(df, var, t_event):
     dSS = x[idx_SSpost] - x[idx_SSpre]
 
     # Peak-to-peak amplitude (sPP):
-    dPP = np.max(x[t >= t_event]) - np.min(x[t >= t_event])
+    dPP = np.max(x[idx_SSpre:]) - np.min(x[idx_SSpre:])
 
     # Transient time (TT):
     tol = max(abs(x[idx_SSpost]) * REL_TOL, REL_TOL)
+    # this assumes datapoints at least until t=t_event; otherwise it will give error:
     idx_transientEnd = np.nonzero((t >= t_event) & (np.abs(x - x[idx_SSpost]) < tol))[
         0
     ][0]
@@ -232,7 +233,11 @@ def extract_crv_reduced_params(df, var, t_event):
 
     # Period and damping of the transient (via Prony analysis):
     # first, trim the signal to the transient window
-    idx_transientStart = np.nonzero(t > t_event)[0][0]
+    idxs_postEvent = np.nonzero(t > t_event)[0]
+    if idxs_postEvent.size == 0:
+        # no data: simulation bombed out right at t = t_event!
+        return [dSS, dPP, TT, 0, 0, is_preStab, is_postStab]
+    idx_transientStart = idxs_postEvent[0]
     if (
         TT < TT_MIN_FOR_PRONY
         or (idx_transientEnd - idx_transientStart) < 2 * PRONY_ORDER
