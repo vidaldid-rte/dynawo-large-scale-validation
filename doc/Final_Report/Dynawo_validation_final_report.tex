@@ -104,12 +104,45 @@
 \hypersetup{pageanchor=true}
 
 \begin{abstract}
-  [TODO: brief Abstract / Exec Summary]
+  This report documents the work carried out by Grupo AIA in the
+  Project \emph{``Validation de Dynawo estabilité en tension''} for
+  RTE. The goal of this project is to quantitatively assess Dynawo for
+  long-term stability simulations (\emph{``DynaWaltz''}), using RTE's
+  models and cases. The overall approach to this project, as suggested
+  by RTE, has been the use of another well-established simulator,
+  \emph{Astre}, as the reference for comparison and assessment.  This
+  is a practical starting point for validation that can later be
+  incrementally augmented with comparisons to real field data (which
+  are typically harder to get). More specifically, the validation
+  efforts have been focused on the results obtained for the behavior of
+  the coordinated Secondary Voltage Control systems.
+
+  The work obviously has \emph{not} been a one-off, pass/not-pass
+  validation study; instead, we developed a software tool for the
+  rapid preparation, simulation, and analysis of multiple
+  (contingency) test cases, usable for any forthcoming versions of
+  DynaWaltz and for any changes in the grid cases. As it is, the tool
+  has been built to compare Dynawo vs.\ Astre, but with suitable
+  modifications it could be used to compare Dynawo version A
+  vs.\ Dynawo version B, which will certainly be useful for the
+  ongoing development of Dynawo and RTE models.
+
+  After presenting a description of the general approach, the bulk of
+  this report is dedicated to: (a) specifying the validation criteria,
+  i.e. the definition of \emph{characterizing measures} and the
+  associated \emph{metrics} with which the results are compared, which
+  is at the heart of the methodology; (b) providing a detailed manual
+  with technical requirements, installation, and operating instructions
+  for using the software tools.
+  
+  The report also contains some notes for developers, with pointers to
+  the specific parts of the code on the GitHub repository, where all
+  the code and documentation is kept.
 \end{abstract}
 
+
+
 \tableofcontents
-
-
 
 \section{Introduction}
 
@@ -184,19 +217,85 @@ in more detail.
 
 \section{Approach: Dynawo vs.\ Astre}
 \label{sec:approach}
-[TODO: quick overview of the approach, consisting in comparing Astre
-  and Dynawo over single-element contingencies.  Then focus on the
-  INPUT and OUTPUT files.]
 
-[TODO: In collaboration with RTE... Emphasis on voltage stability
-  analysis test cases (SVC systems; and RTE's 7 RST zones). Leverage
-  existing tool, Astre: use it for comparing results, instead of
-  (harder to get) experimental data, or just trying to assess whether
-  the results are correct just by examination.]
+As suggested by RTE, the overall approach to this project is based on
+the use of another well-established simulator, \emph{Astre}, as the
+reference for comparison and assessment. Although, ideally, one would
+like to compare simulation results against real field data, these are
+typically harder to get. Therefore, comparing against Astre is a
+pragmatic and effective starting point for validation. Additionally,
+using a second simulator allows testing extensively many cases, far
+more than those available in the experimental data---for instance,
+running an exhaustive list of contingencies.
 
-[TODO: Based on testing the response to contingency events (as this is
-  how RTE intends to use DynaWaltz for, mainly).]
+This validation against Astre has not been performed as a one-off
+study with a given list of test cases. Instead, we developed a
+complete system that automates almost all of the steps involved in
+performing a comparison of results: the preparation of cases, running
+the simulations, extracting the relevant data from the output, and
+analyzing the results.  The software is usable for any forthcoming
+versions of DynaWaltz and for any changes in the grid test cases.
+Another way in which the software may be used is by analyzing how two
+different versions of Dynawo compare against Astre (which is no longer
+being developed and therefore static).  Future developments of this
+software may be aimed in the direction of directly comparing Dynawo
+version A vs.\ Dynawo version B, which could be useful for the ongoing
+development of Dynawo and RTE models.
 
+The test cases are constructed as all possible single-element
+\emph{contingency} cases, which is actually one of the main use cases
+that RTE has in mind for deploying DynaWaltz in production. The
+software provides a mechanism to limit the amount of contingency cases
+via random sampling, if CPU/storage resources were limited (or if
+someone simply wants to run a non-exhaustive check).
+
+The validation criteria have been focused on the results obtained for
+the behavior of the coordinated Secondary Voltage Control
+systems. This means that, among the huge number of all possible
+signals (network variables) available from the simulation, the
+comparison looks only at these:
+\begin{itemize}
+\item the pilot voltages, K-levels, and (P,Q) of generators
+  participating in SVC controls
+\item the bus voltage(s) of bus(es) involved in the particular
+  contingency
+\end{itemize}
+However, the criteria also contemplate certain automata events
+(transformer tap changers, shunts connections/disconnections), with no
+restriction on which part of the network they come from.  The base
+test cases correspond to the seven SVC zones in RTE's network (Lille,
+Lyon, Marseille, Paris, Nancy, Nantes, and Toulouse), plus an
+additional case for the whole of France.
+
+The data from all of these signals, both continuous and discrete, are
+then ``distilled'' into a handful of reduced magnitudes (such as
+peak-to-peak, period, etc.). This way the full time-dependent curve
+(or the sequence of events, in the case of automata) gets reduced into
+a few values that characterize the signal. It is then on these
+magnitudes that we define certain metrics, in order to quantify the
+comparison between Astre and Dynawo results. These multiple metrics
+are in turn combined into one or more compound scores, which can be
+used to rank the contingency cases.  For the full details about the
+definition of these metrics and compound scores, see
+Section~\ref{sec:metrics} below.
+
+To recapitulate, the approach can be briefly summarized as:
+\begin{itemize}
+\item validating DynaWaltz by comparison against Astre
+\item by running over all single-element contingency cases
+\item focusing on SVC, by selecting all SVC-related variables (pilot
+  V, K-levels, P\&G of participating gens)
+\item and also considering the bus V at contingency points
+\item extracting relevant magnitudes from these particular curve
+  signals (steady-state net change, peak-to-peak amplitude, etc.)
+\item and extracting relevant events from \emph{all} automata actions
+  (transformer taps, shunts)
+\item defining \emph{metrics} on all those extracted data (curves and
+  automata events) and \emph{compound scores} for ranking cases
+\item and finally, materializing all this in the construction of an
+  automated tool (processing pipeline) and a quick analysis \&
+  assessment tool (notebook).
+\end{itemize}
 
 
 
@@ -204,33 +303,35 @@ in more detail.
 \section{The design of metrics and thresholds for validation}
 \label{sec:metrics}
 
-The overall aim of this project is to extensively compare Astre and
-Dynawo in medium to long-term stability simulations
-(a.k.a.\ \emph{``DynaWaltz''}), in order to validate Dynawo models and
-Dynawo itself. The approach we used consists in constructing all
-possible single-element contingency cases from a series of RTE cases,
-and focusing especially on the coordinated Secondary Voltage Control
-systems (RST, in French).
-
-We therefore wish to quantitatively compare the results from Astre and Dynawo
-and then establish validation criteria. To understand the process, it is useful
-to adopt the following conceptual path:
+Since the approach of this project is based on extensive
+\emph{quantitative} comparison between Astre and Dynawo in medium to
+long-term stability simulations of contingency cases, we need to lay
+down the comparison criteria with precision. To break down the
+complexity of the whole process, it is useful to adopt the following
+conceptual itinerary:
 \begin{enumerate}
-  \item Select the \emph{``signals''} to monitor: which output variables and
-    events to consider--it's simply not manageable nor practical to compare all
-    of them.
-  \item Generate a suitable \emph{reduced set of parameters} that characterize
-    each type of signal--because one is not interested in perfect waveform
-    accuracy (in the case of curves), or in perfect event timings (in the case
-    of automata events).
-  \item Design \emph{metrics} for measuring the differences between Astre and
-    Dynawo results in the space of those reduced parameters.
-  \item And finally, \emph{compound scoring}: since the reduced parameters are
-    of very disparate classes (say, for instance, bus voltage steady state
-    change, versus Mvar peak-to-peak amplitude, versus number of tap changer
-    events), solve the problem of having multiple criteria. With two goals in
-    mind: (a) ranking and sifting the worst cases that need our attention; and
-    (b) establishing pass / not-pass criteria for validating DynaWaltz.
+  \item One should begin by selecting the \emph{``signals''} to be
+    used for the comparison. Which output variables and events should
+    be considered and which should be discarded? --- Because it's simply
+    not manageable nor practical to compare all of them.
+  \item Then generate a suitable \emph{reduced set of parameters} that
+    characterize each type of signal.  Because one is not interested
+    in perfect waveform accuracy (in the case of curves), or in
+    perfect event timings (in the case of automata events).
+  \item Then design the \emph{metrics} for measuring the distance
+    between Astre and Dynawo results in the space of those reduced
+    parameters.
+  \item And finally, define validation \emph{thresholds} for each
+    class of such metrics, and possibly one or more \emph{compound
+      scoring} schemes for ranking cases. The thresholds are useful in
+    order to estabish hard pass / not-pass criteria for validating
+    DynaWaltz. And compound scores are needed because the reduced
+    parameters are of very disparate classes (say, for instance,
+    change in bus voltage steady state versus Mvar peak-to-peak
+    amplitude, versus number of tap changer events); therefore we need
+    to decide how to combine these into a single figure of merit, for
+    the purposes of ranking and sifting the worst cases that need our
+    attention.
 \end{enumerate}
 
 We now go over each one of these in more detail.
@@ -244,7 +345,9 @@ first kind as \emph{``curves''}, since this is the terminology used for the
 output in both Astre and Dynawo. For signals of the second kind, we will simply
 call them \emph{``automata events''} or simply automata.
 
-By common agreement with RTE we have selected the following signals:
+By common agreement with RTE, and because the validation needs to
+focus especially on the coordinated Secondary Voltage Control systems
+(RST, in French), we have selected the following signals:
 \begin{itemize}
 \item Curve magnitudes:
   \begin{itemize}
@@ -256,9 +359,9 @@ By common agreement with RTE we have selected the following signals:
   \end{itemize}
 \item Automata events:
   \begin{itemize}
-  \item Shunt connections / disconnections
-  \item Transformer taps (up / down)
-  \item Load-transformer taps (up / down)
+  \item Shunt connections / disconnections --- anywhere
+  \item Transformer taps (up / down) --- anywhere
+  \item Load-transformer taps (up / down) --- anywhere
   \end{itemize}  
 \end{itemize}
 
@@ -323,18 +426,18 @@ all these parameters graphically.
 
 \subsection{Metrics}
 
-[Here a description of how a metric is defined for each combination category of
-  ``magnitude + reduced-parameter''. Essentially: do we use mean(abs(diffs)), or
-  max(abs(diffs))?]
+%% [Here a description of how a metric is defined for each combination category of
+%%   ``magnitude + reduced-parameter''. Essentially: do we use mean(abs(diffs)), or
+%%   max(abs(diffs))?]
 
-For curves, there's 25 categories (5 magnitudes x 5 parameters). In each
-category, there's usually more than one data point. For instance, if there are 4
-SVC controls in the case file, there will be 4 pilot voltages. We have to choose
-a metric in order to reduce the distances to a single number. One possible
-choice is using max(abs(diffs)), which is the max-norm (also called the
-l-infinity norm).  A different choice could be using mean(abs(diffs)), which is
-like the l-1 norm divided by the number of variables.
-
+For curves, there's 25 categories (5 magnitudes x 5 parameters). In
+each category, there's usually more than one data point. For instance,
+if there are 4 SVC controls in the case file, there will be 4 pilot
+voltages. We have to choose a metric in order to reduce the distances
+to a single number. One possible choice is using max(abs(diffs)),
+which is the max-norm (also called the l-infinity norm).  A different
+choice could be using mean(abs(diffs)), which is like the l-1 norm
+divided by the number of variables.
 
 For automata events, there is 8 categories:
 \begin{itemize}
@@ -499,7 +602,7 @@ technical requirements:
   \begin{itemize}
   \item a PC / laptop with 8 GB of RAM or more, running either Linux or
     Windows.
-  \item a Python environment geared towards data-science (NumPy,
+  \item a Python environment geared towards data science (NumPy,
     Pandas) and Jupyter notebook.
   \end{itemize}
 \end{description}
@@ -1014,6 +1117,25 @@ defining the pass/not-pass criteria.
 
 
 \end{document}
+
+
+
+
+%%% Example snapshot of Dynawo under iotop:
+%% \begin{console}
+%% Total DISK READ:         0.00 B/s | Total DISK WRITE:      1615.07 K/s
+%% Current DISK READ:       0.00 B/s | Current DISK WRITE:    1301.64 K/s
+%%   TID  PRIO  USER     DISK READ  DISK WRITE  SWAPIN     IO>    COMMAND
+%% 23046 be/4 marinjl     0.00 B/s  173.31 K/s  0.00 % 95.32 % dynawo fic_JOB.xml
+%% 22780 be/4 marinjl     0.00 B/s  180.68 K/s  0.00 % 95.31 % dynawo fic_JOB.xml
+%% 23069 be/4 marinjl     0.00 B/s  176.99 K/s  0.00 % 94.40 % dynawo fic_JOB.xml
+%% 22707 be/4 marinjl     0.00 B/s  176.99 K/s  0.00 % 94.18 % dynawo fic_JOB.xml
+%% 23056 be/4 marinjl     0.00 B/s  176.99 K/s  0.00 % 92.25 % dynawo fic_JOB.xml
+%% 23076 be/4 marinjl     0.00 B/s  176.99 K/s  0.00 % 91.83 % dynawo fic_JOB.xml
+%% 22616 be/4 marinjl     0.00 B/s  221.24 K/s  0.00 % 97.43 % dynawo fic_JOB.xml
+%% 22623 be/4 marinjl     0.00 B/s  188.06 K/s  0.00 % 92.98 % dynawo fic_JOB.xml
+%% \end{console}
+
 
 
 %% \begin{figure}
