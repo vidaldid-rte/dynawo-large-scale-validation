@@ -7,7 +7,7 @@
 
 # For saner programming:
 set -o nounset -o noclobber
-set -o errexit -o pipefail 
+###set -o errexit -o pipefail 
 
 OUTPUT_FILE="error_summary.txt"
 MATCH_TO_EXTRACT_FROM="starting simulation"
@@ -45,6 +45,7 @@ rm -rf $OUTPUT_FILE
 echo "Cases containing ERRORS:"
 echo "========================"
 find "$LOG_DIR" -maxdepth 1 -name '*-Dynawo.log.xz' | while read -r LOG_FILE; do
+    # echo "Searching $LOG_FILE"
     if xztrim "$LOG_FILE" | grep -F -q "ERROR"; then
         echo "$LOG_FILE"
         {
