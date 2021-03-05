@@ -100,14 +100,17 @@ def main():
             continue
 
         print("Generating contingency case for load: %s" % load_name)
+
         # Copy the whole input tree to a new path:
         # Here we also fix any device names with slashes in them (illegal filenames)
         dest_case = dirname + "/load_" + load_name.replace("/", "+")
         clone_base_case(base_case, dest_case)
+
         # Modify Dynawo case
-        config_dynawo_load_contingency(dest_case, load_name)
+        load_busname = config_dynawo_load_contingency(dest_case, load_name)
+
         # Modify Astre case
-        config_astre_load_contingency(dest_case, load_name)
+        config_astre_load_contingency(dest_case, load_name, load_busname)
 
     return 0
 
@@ -227,50 +230,47 @@ def config_dynawo_load_contingency(casedir, load_name):
     ###########################################################
     dyd_file = casedir + DYD_FILE
     print("   Editing file %s" % dyd_file)
-    tree = etree.parse(dyd_file)
+    tree = etree.parse(dyd_file, etree.XMLParser(remove_blank_text=True))
     root = tree.getroot()
     ns = etree.QName(root).namespace
 
-    # Declare a model `EventSetPointBoolean` (in place of the existing Event).
-    # We assume there is only one event. Warn if there's more.
-    old_eventId = None
-    old_parId = None
-    nevents = 0
-    for element in root.iter("{%s}blackBoxModel" % ns):
-        if element.get("lib")[0:5] == "Event":
-            if nevents >= 1:
-                print("WARNING: multiple Event models found in DYD file!")
-                break
-            old_eventId = element.get("id")
-            old_parId = element.get("parId")
-            element.set("id", "Disconnect my load")
-            element.set("lib", "EventSetPointBoolean")
-            element.set("parId", "99991234")
-            nevents += 1
+    # Erase all existing Event models (keep the IDs to remove their
+    # connections later below)
+    old_eventIds = []
+    old_parIds = []
+    for event in root.iter("{%s}blackBoxModel" % ns):
+        if event.get("lib")[0:5] == "Event":
+            old_eventIds.append(event.get("id"))
+            old_parIds.append(event.get("parId"))
+            event.getparent().remove(event)
 
-    # Get the load id using its staticId
+    # Declare a new Event
+    event_id = "Disconnect my load"
+    event = etree.SubElement(root, "blackBoxModel")
+    event.set("id", event_id)
+    event.set("lib", "EventSetPointBoolean")
+    event.set("parFile", "tFin/fic_PAR.xml")
+    event.set("parId", "99991234")
+
+    # Erase all connections of the previous Events we removed above
+    for cnx in root.iter("{%s}connect" % ns):
+        if cnx.get("id1") in old_eventIds or cnx.get("id2") in old_eventIds:
+            cnx.getparent().remove(cnx)
+
+    # Declare a new Connect between the Event model and the load model
     load_id = None
-    for element in root.iter("{%s}blackBoxModel" % ns):
-        if element.get("staticId") == load_name:
-            load_id = element.get("id")
+    for dyn_load in root.iter("{%s}blackBoxModel" % ns):
+        if dyn_load.get("lib")[0:4] == "Load" and dyn_load.get("staticId") == load_name:
+            load_id = dyn_load.get("id")
             break
-
-    # Connect the Event model with the load model (we reuse the existing connection)
-    connected_ok = False
-    for element in root.iter("{%s}connect" % ns):
-        if element.get("id1") == old_eventId:
-            element.set("id1", "Disconnect my load")
-            element.set("var1", "event_state1_value")
-            element.set("id2", load_id)
-            element.set("var2", "load_switchOffSignal2_value")
-            connected_ok = True
-            break
-    if not connected_ok:
-        print(
-            "WARNING: configuring the connection of "
-            "the Event model and load model failed!!!"
-        )
-        return -1
+    if not load_id:
+        print("      *** ERROR: load_id of load % not found in DYD file" % load_name)
+        raise ValueError("Error found while trying to edit the DYD file")
+    cnx = etree.SubElement(root, "connect")
+    cnx.set("id1", event_id)
+    cnx.set("var1", "event_state1_value")
+    cnx.set("id2", load_id)
+    cnx.set("var2", "load_switchOffSignal2_value")
 
     # Write out the DYD file, preserving the XML format
     tree.write(
@@ -285,24 +285,27 @@ def config_dynawo_load_contingency(casedir, load_name):
     ###########################################################
     par_file = casedir + PAR_FILE
     print("   Editing file %s" % par_file)
-    tree = etree.parse(par_file)  # TODO: why doesn't remove_blank_text work here?
+    tree = etree.parse(par_file, etree.XMLParser(remove_blank_text=True))
     root = tree.getroot()
     ns = etree.QName(root).namespace
 
-    # Find old parset by parId, and keep the event time
-    # Then erase the parset and create a new one with the params we need
-    parset = None
+    # Erase all existing parsets used by the Events removed above
+    # But keep the event time (read from the first one)
     event_time = None
     for parset in root.iter("{%s}set" % ns):
-        if parset.get("id") == old_parId:
+        if parset.get("id") == old_parIds[0]:
             for param in parset:
                 if param.get("name") == "event_tEvent":
                     event_time = param.get("value")
                     break
-            break
+        if parset.get("id") in old_parIds:
+            parset.getparent().remove(parset)
 
-    parent = parset.getparent()
-    parent.remove(parset)
+    if not event_time:
+        print("      *** No event_tEvent found to be used for the Event")
+        raise ValueError("Error found while trying to edit the PAR file")
+
+    # Insert the new parset with the params we need
     new_parset = etree.Element("set", id="99991234")
     new_parset.append(
         etree.Element("par", type="DOUBLE", name="event_tEvent", value=event_time)
@@ -310,9 +313,7 @@ def config_dynawo_load_contingency(casedir, load_name):
     new_parset.append(
         etree.Element("par", type="BOOL", name="event_stateEvent1", value="true")
     )
-    # NOTE: if using lxml v4.5 or higher, you may try
-    # using etree.indent(new_parset) for better formatting
-    parent.append(new_parset)
+    root.append(new_parset)
 
     # Write out the PAR file, preserving the XML format
     tree.write(
@@ -412,10 +413,10 @@ def config_dynawo_load_contingency(casedir, load_name):
         encoding="UTF-8",
     )
 
-    return 0
+    return bus_name
 
 
-def config_astre_load_contingency(casedir, load_name):
+def config_astre_load_contingency(casedir, load_name, load_dwo_busname):
     astre_file = casedir + ASTRE_FILE
     print("   Editing file %s" % astre_file)
     tree = etree.parse(astre_file, etree.XMLParser(remove_blank_text=True))
@@ -455,27 +456,23 @@ def config_astre_load_contingency(casedir, load_name):
     # keep these, and add new ones.
     #
     # For now we'll just add the voltage at the contingency bus. To do
-    # this, we get the name of the bus that the load is attached to
-    # and add an element as in the example:
+    # this, we add an element as in the example:
     #
-    #     ```
-    #       <courbe nom="BUSNAME_Upu_value" typecourbe="63" ouvrage="BUSID" type="7"/>
-    #     ```
+    #  ```
+    #    <courbe nom="DWOBUSNAME_Upu_value" typecourbe="63" ouvrage="BUSID" type="7"/>
+    #  ```
     #
-    # Here we use variable names that are as close as possible to
-    # those used in Dynawo.
-    load_bus = None
-    for load_bus in root.iter("{%s}noeud" % ns):
-        if load_bus.get("num") == bus_id:
-            break
-    load_bus_name = load_bus.get("nom")
-
+    # Here we want to use variable names that match those used in
+    # Dynawo. That's why here below we use the Dynawo bus name
+    # (load_dwo_busname), because in cases where the substation is
+    # NODE_BREAKER the names of the busbarSections and noeud names do
+    # not match exactly.
     first_astre_curve = root.find(".//{%s}courbe" % ns)
     astre_entrees = first_astre_curve.getparent()
     astre_entrees.append(
         etree.Element(
             "courbe",
-            nom="NETWORK_" + load_bus_name + "_Upu_value",
+            nom="NETWORK_" + load_dwo_busname + "_Upu_value",
             typecourbe="63",
             ouvrage=bus_id,
             type="7",
