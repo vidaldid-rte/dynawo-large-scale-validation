@@ -13,7 +13,7 @@
 #
 #   * On input: you have to provide the directory that contains the curve files (e.g.
 #     "*-AstreCurves.csv.xz", etc.), a filename prefix for them (e.g. "shunt_"), and the
-#     time at which the contingency takes place (e.g. 300).
+#     common BASECASE from which the cases were derived.
 #
 #   * On output: a file "crv_reducedparams.csv" containing dSS, dPP, etc. for all cases
 #     and all variables, for Dynawo and Astre values.
@@ -27,7 +27,14 @@ from collections import namedtuple
 import pandas as pd
 import numpy as np
 from scipy.interpolate import interp1d
-from calc_diffmetrics_common import get_time_params
+
+# Relative imports only work for proper Python packages, but we do not want to
+# structure all these as a package; we'd like to keep them as a collection of loose
+# Python scripts, at least for now (because this is not really a Python library). So
+# the following hack is ugly, but needed:
+sys.path.insert(1, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Alternatively, you could set PYTHONPATH to PYTHONPATH="/<dir>/dynawo-validation-AIA"
+from xml_utils.dwo_jobinfo import get_dwo_tparams  # noqa: E402
 
 
 REL_TOL = 1.0e-5  # when testing for the SS, relative tolerance in signal
@@ -53,10 +60,13 @@ def main():
     print("Calculating diffmetrics for curve data in: %s" % crv_dir)
 
     # Obtain the time at which the contingency takes place
-    startTime, _, t_event = get_time_params(base_case, verbose)
+    dwo_tparams = get_dwo_tparams(base_case)
+    print(dwo_tparams)
+    startTime = dwo_tparams.startTime
+    tEvent = dwo_tparams.event_tEvent
 
     # Calculate all diffmetrics and output the results to file
-    process_all_curves(crv_dir, file_list, startTime, t_event)
+    process_all_curves(crv_dir, file_list, startTime, tEvent)
 
     return 0
 
@@ -95,12 +105,12 @@ def check_inputfiles(crv_dir, prefix):
     return file_list
 
 
-def process_all_curves(crv_dir, file_list, startTime, t_event):
+def process_all_curves(crv_dir, file_list, start_time, t_event):
 
     all_ast = pd.DataFrame()
     all_dwo = pd.DataFrame()
     cnames = ["dSS", "dPP", "TT", "period", "damping", "is_preStab", "is_postStab"]
-    t0_event = t_event - startTime
+    t0_event = t_event - start_time
 
     print("Processing ", end="")
     for case_label in file_list:
@@ -116,18 +126,21 @@ def process_all_curves(crv_dir, file_list, startTime, t_event):
         # Check that Dynawo's simulation startTime is consistent, and
         # adjust the time offset w.r.t. Astre
         dwo_crv_startTime = crv_dwo["time"].iloc[0]
-        if dwo_crv_startTime != startTime:
+        if dwo_crv_startTime != start_time:
             raise ValueError(
                 "The startTime in Dynawo curve file (case %s) differs from BASECASE!\n"
                 % case_label
             )
-        crv_dwo["time"] = crv_dwo["time"] - startTime
+        crv_dwo["time"] = crv_dwo["time"] - start_time
         # Check for simulations that stopped before the end
         if crv_ast["time"].iloc[-1] != crv_dwo["time"].iloc[-1]:
+            is_crv_time_matching = False
             print(
                 "  WARNING: Dynawo and Astre curves stop at different times (case %s)\n"
                 % case_label
             )
+        else:
+            is_crv_time_matching = True
 
         # Process all variables for this case
         var_list = list(crv_dwo.columns)[1:]
@@ -141,6 +154,7 @@ def process_all_curves(crv_dir, file_list, startTime, t_event):
         case_dwo["dev"] = case_label
         case_ast["vars"] = var_list
         case_dwo["vars"] = var_list
+        case_dwo["is_crv_time_matching"] = is_crv_time_matching
 
         # Collect results for all cases
         all_ast = all_ast.append(case_ast)
@@ -165,6 +179,7 @@ def process_all_curves(crv_dir, file_list, startTime, t_event):
     reduced_params["is_preStab_dwo"] = all_dwo.is_preStab
     reduced_params["is_postStab_ast"] = all_ast.is_postStab
     reduced_params["is_postStab_dwo"] = all_dwo.is_postStab
+    reduced_params["is_crv_time_matching"] = all_dwo.is_crv_time_matching
 
     # Output to file
     metrics_dir = crv_dir + "/../metrics"
@@ -176,6 +191,17 @@ def process_all_curves(crv_dir, file_list, startTime, t_event):
         float_format="%.6f",
     )
     print("Saved reduced parameters for curve data under: %s" % metrics_dir)
+    bad_cases = (
+        reduced_params["dev"].loc[~reduced_params["is_crv_time_matching"]].unique()
+    )
+    np.savetxt(
+        metrics_dir + "/bad_cases.csv",
+        bad_cases,
+        fmt="%s",
+        header="Cases where the simulation time span doesn't match "
+        "(probably because of integration error)",
+    )
+    print("Bad cases (early stopped simulations) will be listed in 'bad_cases.csv'")
 
 
 #################################################################################
