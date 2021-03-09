@@ -18,15 +18,16 @@
 #     files that have the extracted automata events
 #     (e.g. "*-AstreAutomata.csv.xz", etc.), plus a filename prefix
 #     for them (e.g. "shunt_"). Additionally, you have to provide the
-#     original BASECASE from which all those cases were derived. This
-#     is needed for querying the network model.
+#     original BASECASE from which all those cases were derived (this
+#     is needed for querying the network model, and also for getting the
+#     time parameters of the simulation).
 #
 #   * On output, the script generates a file "aut_diffmetrics.csv"
 #     with the calculated metrics for each case. The file is left in
 #     a "metrics" subdirectory, sibling to the "aut" dir.
 #
 #
-# NOTES: Here are the metrics that are calculated. STRICT means the
+# NOTES: The metrics we calculate here are as follows. STRICT means the
 # differences are calculated by matching individual devices. RELAXED
 # means it is calculated at the level of the whole bus, using some
 # grouping heuristic (this is the case of Load-Transformers, because
@@ -54,16 +55,23 @@
 # In all cases, the final figure is the L1 norm of diffs.
 #
 
-
-import sys
-import os
 import glob
+import os
+import sys
 from collections import namedtuple
 from pathlib import Path
-import pandas as pd
 import numpy as np
+import pandas as pd
 from lxml import etree
-from calc_diffmetrics_common import get_time_params
+
+# Relative imports only work for proper Python packages, but we do not want to
+# structure all these as a package; we'd like to keep them as a collection of loose
+# Python scripts, at least for now (because this is not really a Python library). So
+# the following hack is ugly, but needed:
+sys.path.insert(1, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Alternatively, you could set PYTHONPATH to PYTHONPATH="/<dir>/dynawo-validation-AIA"
+from xml_utils.dwo_jobinfo import get_dwo_tparams  # noqa: E402
+from xml_utils.dwo_jobinfo import get_dwo_jobpaths  # noqa: E402
 
 
 N_TWPOINTS = 41  # 41 TW data points results in 30s timesteps when Tsim is 1200s
@@ -86,13 +94,19 @@ def main():
     file_list = check_inputfiles(aut_dir, prefix, base_case)
 
     # Get the simulation time parameters (from Dynawo's case)
-    START_TIME, STOP_TIME, T_EVENT = get_time_params(base_case, verbose)
+    dwo_tparams = get_dwo_tparams(base_case)
+    startTime = dwo_tparams.startTime
+    stopTime = dwo_tparams.stopTime
+    tEvent = dwo_tparams.event_tEvent
+
+    # Get some Dynawo paths from the JOB file
+    dwo_paths = get_dwo_jobpaths(base_case)
 
     # Build a dict: load-->bus (needed for Load_Transformers)
-    ld_bus = load2bus_dict(base_case)
+    ld_bus = load2bus_dict(base_case, dwo_paths)
 
     # Get the normalization factors for each class of metric (shunt, xfmr, etc.)
-    norm_factor = get_norm_factor(base_case)
+    norm_factor = get_norm_factor(base_case, dwo_paths)
 
     # We'll need this later on, for correcting Dynawo's shunt events count
     is_shunt_contg = "shunt" == prefix[:5]
@@ -131,11 +145,11 @@ def main():
             print("   TW processing: " + prefix + case_label)
         ast_df = pd.read_csv(file_list[case_label].ast, sep=";")
         dwo_df = pd.read_csv(file_list[case_label].dwo, sep=";")
-        dwo_df["TIME"] -= START_TIME  # undo the time offset in Dynawo
-        for tw in np.linspace(0, STOP_TIME - START_TIME, N_TWPOINTS):
+        dwo_df["TIME"] -= startTime  # undo the time offset in Dynawo
+        for tw in np.linspace(0, stopTime - startTime, N_TWPOINTS):
             ast_tw = ast_df[ast_df["TIME"] <= tw]
             dwo_tw = dwo_df[dwo_df["TIME"] <= tw]
-            if is_shunt_contg and tw >= (T_EVENT - START_TIME):
+            if is_shunt_contg and tw >= (tEvent - startTime):
                 shunt_corr = True
             else:
                 shunt_corr = False
@@ -458,7 +472,7 @@ def worst_p2pchange_bybus(nc, ld_bus):
     return reduced_nc["P2PCHANGE"]
 
 
-def load2bus_dict(base_case):
+def load2bus_dict(base_case, dwo_paths):
     # Build a dictionary load_label-->bus_label, common to both Astre
     # and Dynawo.
     #
@@ -479,7 +493,7 @@ def load2bus_dict(base_case):
     #
     ld_bus = dict()
     astre_file = base_case + "/Astre/donneesModelesEntree.xml"
-    iidm_file = base_case + "/tFin/fic_IIDM.xml"
+    iidm_file = base_case + "/" + dwo_paths.iidmFile
 
     # Initial build, enumerating loads in Dynawo
     tree = etree.parse(iidm_file)
@@ -544,7 +558,7 @@ def load2bus_dict(base_case):
     return ld_bus
 
 
-def get_norm_factor(base_case):
+def get_norm_factor(base_case, dwo_paths):
     # Calculate the normalization factors to use with each class of metric:
     #
     #    * shunts: the number of shunts
@@ -554,7 +568,7 @@ def get_norm_factor(base_case):
     # We get these numbers from Dynawo's DYD (that is, the number of elements that
     # could potentially leave events in the timeline).
     #
-    dyd_file = base_case + "/tFin/fic_DYD.xml"
+    dyd_file = base_case + "/" + dwo_paths.dydFile
     tree = etree.parse(dyd_file)
     root = tree.getroot()
     nshunts = 0
@@ -566,7 +580,7 @@ def get_norm_factor(base_case):
         if bbm.get("lib")[:4] == "Load":
             nldfxmrs += 1
 
-    iidm_file = base_case + "/tFin/fic_IIDM.xml"
+    iidm_file = base_case + "/" + dwo_paths.iidmFile
     tree = etree.parse(iidm_file)
     root = tree.getroot()
     nxfmrs = len(tuple(root.iterfind(".//twoWindingsTransformer", root.nsmap)))
