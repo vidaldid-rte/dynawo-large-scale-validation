@@ -11,8 +11,9 @@
 # files and prepares a BASECASE for contingency analysis, configuring
 # a standard set of CURVES for it.
 #
-# On input, the files are expected to be FORMATTED with xmllint (see
-# xml_format_dir.sh) and have this structure:
+# On input, the case files are expected to be FORMATTED with xmllint (see
+# xml_format_dir.sh). As for the directory structure, this is an example
+# (not strict, read below):
 #
 # INPUT_CASE/
 # ├── Astre
@@ -29,12 +30,16 @@
 #    ├── fic_IIDM.xml
 #    └── fic_PAR.xml
 #
-# You also have to provide the SVC Zone (e.g. Lille, Marseille, Nancy,
-# Recollement, etc.). This allows us to choose which SVC variables to
-# have as curves output.
+# For Astre, the structure should be strictly as the above example.  However,
+# for Dynawo we read the actual paths from the existing JOB file, and we prepare the
+# curves for the last job defined inside the JOB file (see module dwo_jobpaths).
 #
-# On output, the script generates a new dir "inputcase.BASECASE",
-# parallel to inputcase.
+# You also have to provide the name of the SVC Zone (e.g. Lille, Marseille, Nancy,
+# Recollement, etc.) that the case belongs to. This allows us to choose which SVC
+# variables to have as curves in the output.
+#
+# On output, the script generates a new dir "INPUT_CASE.BASECASE",
+# parallel to the input case.
 #
 
 
@@ -44,14 +49,16 @@ import subprocess
 from lxml import etree
 from collections import namedtuple
 
+# Relative imports only work for proper Python packages, but we do not want to
+# structure all these as a package; we'd like to keep them as a collection of loose
+# Python scripts, at least for now (because this is not really a Python library). So
+# the following hack is ugly, but needed:
+sys.path.insert(1, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Alternatively, you could set PYTHONPATH to PYTHONPATH="/<dir>/dynawo-validation-AIA"
+from xml_utils.dwo_jobinfo import get_dwo_jobpaths  # noqa: E402
+
 
 ASTRE_FILE = "/Astre/donneesModelesEntree.xml"
-JOB_FILE = "/fic_JOB.xml"
-DYD_FILE = "/tFin/fic_DYD.xml"
-PAR_FILE = "/tFin/fic_PAR.xml"
-CRV_FILE = "/tFin/fic_CRV.xml"
-IIDM_FILE = "/tFin/fic_IIDM.xml"
-
 verbose = False
 
 
@@ -67,8 +74,11 @@ def main():
     input_case = sys.argv[1]
     case_zone = sys.argv[2]
 
+    # Get some Dynawo paths from the JOB file
+    dwo_paths = get_dwo_jobpaths(input_case)
+
     # Check all needed files are in place (and sanitize names)
-    input_case = check_inputfiles(input_case)
+    input_case = check_inputfiles(input_case, dwo_paths)
     if input_case[-10:] == ".FORMATTED":
         edited_case = input_case[:-10] + ".BASECASE"
     else:
@@ -78,7 +88,7 @@ def main():
     clone_input_case(input_case, edited_case)
 
     # And now edit the curve files in place
-    rst_models, pilot_buses = edit_dwo_curves(edited_case, case_zone)
+    rst_models, pilot_buses = edit_dwo_curves(edited_case, case_zone, dwo_paths)
     edit_ast_curves(edited_case, case_zone, rst_models, pilot_buses)
 
     # Show some reminders
@@ -87,8 +97,8 @@ def main():
         "  * Run the Astre and Dynawo cases to verify they work\n"
         "  * Delete the Astre output files\n"
         "  * Delete the Dynawo tFin output, but keep the t0 files\n"
-        "  * Edit the JOB file to comment out the t0 job\n"
-        "  * Tweak the tFin job:\n"
+        "  * Edit the JOB file to comment out the first job (the pre-contingency)\n"
+        "  * And tweak the second job (the one containing the contingency):\n"
         "      - set INFO log level, remove the finalState IIDM, etc.\n"
         "      - but MOST IMPORTANTLY, edit the initialState path that the\n"
         "        contingency cases need to see when they're run. For instance:\n"
@@ -99,7 +109,7 @@ def main():
     return 0
 
 
-def check_inputfiles(input_case):
+def check_inputfiles(input_case, dwo_paths):
     if not os.path.isdir(input_case):
         raise ValueError("source directory %s not found" % input_case)
 
@@ -117,10 +127,8 @@ def check_inputfiles(input_case):
 
     if not (
         os.path.isfile(input_case + ASTRE_FILE)
-        and os.path.isfile(input_case + JOB_FILE)
-        and os.path.isfile(input_case + DYD_FILE)
-        and os.path.isfile(input_case + PAR_FILE)
-        and os.path.isfile(input_case + CRV_FILE)
+        and os.path.isfile(input_case + "/" + dwo_paths.dydFile)
+        and os.path.isfile(input_case + "/" + dwo_paths.curves_inputFile)
     ):
         raise ValueError("some expected files are missing in %s\n" % input_case)
 
@@ -224,7 +232,7 @@ def get_rst_table():
     return rst_zones
 
 
-def edit_dwo_curves(edited_case, case_zone):
+def edit_dwo_curves(edited_case, case_zone, dwo_paths):
     # We prepare the `curvesInput` section in Dynawo's CRV input file with the
     # variables that monitor the behavior of the SVC (pilot point voltage, K level,
     # and P,Q of participating generators).  Also the K levels of all other SVC
@@ -237,7 +245,7 @@ def edit_dwo_curves(edited_case, case_zone):
         all_pilot_buses.update(rst_table[zone])
 
     # Get the SVC controls actually available in the DYD file
-    dyd_file = edited_case + DYD_FILE
+    dyd_file = edited_case + "/" + dwo_paths.dydFile
     tree = etree.parse(dyd_file, etree.XMLParser(remove_blank_text=True))
     root = tree.getroot()
     ns = etree.QName(root).namespace
@@ -262,7 +270,7 @@ def edit_dwo_curves(edited_case, case_zone):
                     break
 
     # Prepare the curves in the CRV file
-    crv_file = edited_case + CRV_FILE
+    crv_file = edited_case + "/" + dwo_paths.curves_inputFile
     print("   Editing file %s" % crv_file)
     tree = etree.parse(crv_file, etree.XMLParser(remove_blank_text=True))
     root = tree.getroot()
