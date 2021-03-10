@@ -48,7 +48,8 @@ create_contg[branchB]="branches/branchB_contingencies.py"
 
 # Note this assumes all scripts are under the Github dir structure
 # (otherwise, you'll have to edit the correct paths below)
-DWO_VALIDATION_SRC=$(realpath $(dirname $0)/..)
+DWO_VALIDATION_SRC=$(dirname "$0")/..
+DWO_VALIDATION_SRC=$(realpath "$DWO_VALIDATION_SRC")
 
 # Config your particular options to pass to run_all_contingencies.sh
 declare -a RUN_OPTS
