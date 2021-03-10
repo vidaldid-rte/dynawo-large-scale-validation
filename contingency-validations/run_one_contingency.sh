@@ -131,6 +131,11 @@ if [ ! -d "$CONTG_CASE" ]; then
 fi
 prefix=$(basename "$CONTG_CASE")
 
+DWO_JOBINFO_SCRIPT=$(dirname "$0")/../xml_utils/dwo_jobinfo.py
+DWO_JOBFILE=$("$DWO_JOBINFO_SCRIPT" "$CONTG_CASE" | grep -F job_file | cut -d'=' -f2)
+DWO_JOBFILE=$(basename "$DWO_JOBFILE")
+DWO_OUTPUT_DIR=$("$DWO_JOBINFO_SCRIPT" "$CONTG_CASE" | grep -F outputs_directory | cut -d'=' -f2)
+
 # Create the output dirs if they don't exist
 mkdir -p "$outDir"/crv
 mkdir -p "$outDir"/aut
@@ -199,28 +204,28 @@ xz -c9 "$CONTG_CASE"/Astre/"$RUNLOG"                > "$outDir"/log/"$prefix"-"$
 ########################################
 # Run Dynawo
 ########################################
-if [ ! -f "$CONTG_CASE"/fic_JOB.xml ] || [ ! -d "$CONTG_CASE"/tFin ]; then
-   echo "Dynawo input files not found under $CONTG_CASE/."
+if [ ! -f "$CONTG_CASE"/"$DWO_JOBFILE" ]; then
+   echo "Dynawo JOB file not found under $CONTG_CASE/."
    exit 1
 fi
 cd "$CONTG_CASE"
 RUNLOG=Dynawo.runStdout
-dynawo-RTE jobs fic_JOB.xml > "$RUNLOG" 2>&1 || true  # allow it to fail while using errexit flag
-if [ ! -f ./tFin/outputs/curves/curves.csv ]; then
+dynawo-RTE jobs "$DWO_JOBFILE" > "$RUNLOG" 2>&1 || true  # allow it to fail while using errexit flag
+if [ ! -f ./"$DWO_OUTPUT_DIR"/curves/curves.csv ]; then
    echo "Dynawo run failed. Check Dynawo's log and the run-log: $CONTG_CASE/$RUNLOG"
-   if [ -f ./tFin/outputs/curves/curves.xml ]; then
-   echo "Output curves file found in XML format. Required format is CSV: please check the jobs file"
+   if [ -f ./"$DWO_OUTPUT_DIR"/curves/curves.xml ]; then
+       echo "Output curves file found in XML format. Required format is CSV: please check the jobs file"
    fi
    exit 1
 fi
 
 # Collect and compress all results
 cd "$OLD_PWD"
-xz -c9 "$CONTG_CASE"/tFin/outputs/curves/curves.csv           > "$outDir"/crv/"$prefix"-DynawoCurves.csv.xz
-xz -c9 "$CONTG_CASE"/tFin/outputs/constraints/constraints.xml > "$outDir"/xml/"$prefix"-DynawoConstraints.xml.xz
-xz -c9 "$CONTG_CASE"/tFin/outputs/timeLine/timeline.xml       > "$outDir"/xml/"$prefix"-DynawoTimeLine.xml.xz
-xz -c9 "$CONTG_CASE"/tFin/outputs/logs/dynamo.log             > "$outDir"/log/"$prefix"-Dynawo.log.xz
-xz -c9 "$CONTG_CASE"/"$RUNLOG"                                > "$outDir"/log/"$prefix"-"$RUNLOG".xz
+xz -c9 "$CONTG_CASE"/"$DWO_OUTPUT_DIR"/curves/curves.csv           > "$outDir"/crv/"$prefix"-DynawoCurves.csv.xz
+xz -c9 "$CONTG_CASE"/"$DWO_OUTPUT_DIR"/constraints/constraints.xml > "$outDir"/xml/"$prefix"-DynawoConstraints.xml.xz
+xz -c9 "$CONTG_CASE"/"$DWO_OUTPUT_DIR"/timeLine/timeline.xml       > "$outDir"/xml/"$prefix"-DynawoTimeLine.xml.xz
+xz -c9 "$CONTG_CASE"/"$DWO_OUTPUT_DIR"/logs/dynamo.log             > "$outDir"/log/"$prefix"-Dynawo.log.xz
+xz -c9 "$CONTG_CASE"/"$RUNLOG"                                     > "$outDir"/log/"$prefix"-"$RUNLOG".xz
 
 
 

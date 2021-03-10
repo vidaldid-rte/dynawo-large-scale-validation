@@ -140,8 +140,20 @@ def main():
         )
         return 2
     dwo_case = sys.argv[1]
-    print("\nget_dwo_jobpaths(dwo_case): ", get_dwo_jobpaths(dwo_case))
-    print("\nget_dwo_tparams(dwo_case): ", get_dwo_tparams(dwo_case))
+
+    jobpaths = get_dwo_jobpaths(dwo_case)
+    print("job_file=%s" % jobpaths.job_file)
+    print("iidmFile=%s" % jobpaths.iidmFile)
+    print("parFile=%s" % jobpaths.parFile)
+    print("dydFile=%s" % jobpaths.dydFile)
+    print("curves_inputFile=%s" % jobpaths.curves_inputFile)
+    print("outputs_directory=%s" % jobpaths.outputs_directory)
+
+    tparams = get_dwo_tparams(dwo_case)
+    print("startTime=%s" % tparams.startTime)
+    print("stopTime=%s" % tparams.stopTime)
+    print("event_tEvent=%s" % tparams.event_tEvent)
+
     return 0
 
 

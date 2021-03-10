@@ -56,7 +56,7 @@ import os
 from lxml import etree
 import pandas as pd
 from collections import namedtuple
-from get_dwo_jobinfo import get_dwo_jobpaths
+from dwo_jobinfo import get_dwo_jobpaths
 
 ASTRE_EVENTS_IN = "/Astre/donneesModelesSortie.xml"
 ASTRE_EVENTS_OUT = "/Astre/Astre_automata_changes.csv"
