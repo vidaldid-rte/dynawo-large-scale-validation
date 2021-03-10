@@ -90,9 +90,6 @@ def main():
     prefix = sys.argv[2]
     base_case = sys.argv[3]
 
-    # Check all needed dirs are in place, and get the list of files to process
-    file_list = check_inputfiles(aut_dir, prefix, base_case)
-
     # Get the simulation time parameters (from Dynawo's case)
     dwo_tparams = get_dwo_tparams(base_case)
     startTime = dwo_tparams.startTime
@@ -101,6 +98,9 @@ def main():
 
     # Get some Dynawo paths from the JOB file
     dwo_paths = get_dwo_jobpaths(base_case)
+
+    # Check all needed dirs are in place, and get the list of files to process
+    file_list = check_inputfiles(aut_dir, prefix, base_case, dwo_paths)
 
     # Build a dict: load-->bus (needed for Load_Transformers)
     ld_bus = load2bus_dict(base_case, dwo_paths)
@@ -173,19 +173,16 @@ def main():
     return 0
 
 
-def check_inputfiles(aut_dir, prefix, base_case):
+def check_inputfiles(aut_dir, prefix, base_case, dwo_paths):
     if not os.path.isdir(aut_dir):
-        raise ValueError("input directory %s not found" % aut_dir)
-
-    if not os.path.isdir(base_case):
-        raise ValueError("basecase directory %s not found" % base_case)
+        raise ValueError("Automata data input directory %s not found" % aut_dir)
 
     if not (
         os.path.isfile(base_case + "/Astre/donneesModelesEntree.xml")
-        and os.path.isfile(base_case + "/tFin/fic_IIDM.xml")
-        and os.path.isfile(base_case + "/tFin/fic_DYD.xml")
-        and os.path.isfile(base_case + "/tFin/fic_PAR.xml")
-        and os.path.isfile(base_case + "/tFin/fic_CRV.xml")
+        and os.path.isfile(base_case + "/" + dwo_paths.iidmFile)
+        and os.path.isfile(base_case + "/" + dwo_paths.dydFile)
+        and os.path.isfile(base_case + "/" + dwo_paths.parFile)
+        and os.path.isfile(base_case + "/" + dwo_paths.curves_inputFile)
     ):
         raise ValueError(
             "some expected files are missing in BASECASE dir %s\n" % base_case
