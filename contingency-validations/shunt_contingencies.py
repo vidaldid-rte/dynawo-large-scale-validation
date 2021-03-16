@@ -12,9 +12,10 @@
 # generates the files for running a single-shunt contingency for each
 # device.
 #
-# On input, the files are expected to have this structure:
+# On input, the files are expected to have a structure similar to this
+# (not strict, see below):
 #
-# basedir/
+# basecase/
 # ├── Astre
 # │   └── donneesModelesEntree.xml
 # ├── fic_JOB.xml
@@ -29,32 +30,39 @@
 #    ├── fic_IIDM.xml
 #    └── fic_PAR.xml
 #
-# On output, the script generates new dirs parallel to basedir:
+# For Astre, the structure should be strictly as the above example.  However,
+# for Dynawo we read the actual paths from the existing JOB file, and we configure the
+# contingency in the last job defined inside the JOB file (see module dwo_jobinfo).
+#
+# On output, the script generates new dirs sibling to basecase:
 # shunt_LABEL1, shunt_LABEL2, etc.
 #
 
-
-import sys
 import os
-import subprocess
-from lxml import etree
-from collections import namedtuple
 import random
 import re
+import sys
+from collections import namedtuple
+from common_funcs import check_inputfiles, copy_basecase, parse_basecase
+from lxml import etree
+
+# Relative imports only work for proper Python packages, but we do not want to
+# structure all these as a package; we'd like to keep them as a collection of loose
+# Python scripts, at least for now (because this is not really a Python library). So
+# the following hack is ugly, but needed:
+sys.path.insert(1, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Alternatively, you could set PYTHONPATH to PYTHONPATH="/<dir>/dynawo-validation-AIA"
+from xml_utils.dwo_jobinfo import get_dwo_jobpaths  # noqa: E402
+from xml_utils.dwo_jobinfo import get_dwo_tparams  # noqa: E402
 
 
-MAX_NCASES = 50000  # limits the no. of contingency cases (via random sampling)
+MAX_NCASES = 5  # limits the no. of contingency cases (via random sampling)
 RNG_SEED = 42
-ASTRE_FILE = "/Astre/donneesModelesEntree.xml"
-JOB_FILE = "/fic_JOB.xml"
-DYD_FILE = "/tFin/fic_DYD.xml"
-PAR_FILE = "/tFin/fic_PAR.xml"
-CRV_FILE = "/tFin/fic_CRV.xml"
-IIDM_FILE = "/tFin/fic_IIDM.xml"
+ASTRE_PATH = "/Astre/donneesModelesEntree.xml"
 
 
 def main():
-
+    verbose = False
     if len(sys.argv) < 2:
         print("\nUsage: %s base_case [element1 element2 element3 ...]\n" % sys.argv[0])
         print(
@@ -68,17 +76,23 @@ def main():
     filter_list = [re.compile(x) for x in sys.argv[2:]]
     # DEBUG:(Lille) filter_list = [".AUBA6REAC.1", "ARGOE1REAC.1"]
 
-    verbose = False
+    # Get Dynawo paths from the JOB file
+    dwo_paths = get_dwo_jobpaths(base_case)
 
-    # Check all needed files are in place
-    base_case, basename, dirname = check_inputfiles(base_case, verbose)
-    edited_case = dirname + "/TMP_CONTINGENCYCASE"
+    # Get the simulation time parameters (from Dynawo's case)
+    dwo_tparams = get_dwo_tparams(base_case)
+
+    # Check that all needed files are in place
+    base_case, basename, dirname = check_inputfiles(base_case, dwo_paths, verbose)
+
+    # Parse all XML files in the basecase
+    parsed_case = parse_basecase(base_case, dwo_paths, ASTRE_PATH)
 
     # Extract the list of all (active) SHUNTS in the Dynawo case
-    dynawo_shunts = extract_dynawo_shunts(base_case + IIDM_FILE, verbose)
+    dynawo_shunts = extract_dynawo_shunts(parsed_case.iidmTree, verbose)
 
     # Reduce the list to those SHUNTS that are matched in Astre
-    dynawo_shunts = matching_in_astre(base_case + ASTRE_FILE, dynawo_shunts, verbose)
+    dynawo_shunts = matching_in_astre(parsed_case.astreTree, dynawo_shunts, verbose)
 
     # Prepare for random sampling if there's too many
     sampling_ratio = MAX_NCASES / len(dynawo_shunts)
@@ -106,23 +120,25 @@ def main():
             % (shunt_name, dynawo_shunts[shunt_name].bus)
         )
 
-        # Copy the whole input tree to a new path:
-        clone_base_case(base_case, edited_case)
+        # Copy the basecase (unchanged files and dir structure)
+        # Note we fix any device names with slashes in them (illegal filenames)
+        contg_casedir = dirname + "/shunt_" + shunt_name.replace("/", "+")
+        copy_basecase(base_case, dwo_paths, contg_casedir)
 
         # Modify the Dynawo case (DYD,PAR,CRV)
         config_dynawo_shunt_contingency(
-            edited_case, shunt_name, dynawo_shunts[shunt_name]
+            contg_casedir,
+            parsed_case,
+            dwo_paths,
+            dwo_tparams,
+            shunt_name,
+            dynawo_shunts[shunt_name],
         )
 
         # Modify the Astre case
         config_astre_shunt_contingency(
-            edited_case, shunt_name, dynawo_shunts[shunt_name]
+            contg_casedir, parsed_case.astreTree, shunt_name, dynawo_shunts[shunt_name]
         )
-
-        # Save the wole case using "deduplication"
-        # Here we also fix any device names with slashes in them (illegal filenames)
-        deduped_case = dirname + "/shunt_" + shunt_name.replace("/", "+")
-        dedup_save(basename, edited_case, deduped_case)
 
     # Finally, save the values of disconnected shunts in all processed cases
     save_total_shuntq(dirname, dynawo_shunts)
@@ -130,97 +146,8 @@ def main():
     return 0
 
 
-def check_inputfiles(input_case, verbose=False):
-    if not os.path.isdir(input_case):
-        raise ValueError("source directory %s not found" % input_case)
-
-    # remove trailing slash so that basename/dirname below behave consistently:
-    if input_case[-1] == "/":
-        input_case = input_case[:-1]
-    basename = os.path.basename(input_case)
-    dirname = os.path.dirname(input_case)
-    # corner case: if called from the parent dir, dirname is empty
-    if dirname == "":
-        dirname = "."
-
-    print("\nUsing input_case: %s" % input_case)
-    print("New cases will be generated under: %s" % dirname)
-    if verbose:
-        print("input_case: %s" % input_case)
-        print("basename: %s" % basename)
-        print("dirname:  %s" % dirname)
-
-    if not (
-        os.path.isfile(input_case + "/Astre/donneesModelesEntree.xml")
-        and os.path.isfile(input_case + "/fic_JOB.xml")
-        and os.path.isfile(input_case + "/tFin/fic_DYD.xml")
-        and os.path.isfile(input_case + "/tFin/fic_PAR.xml")
-        and os.path.isfile(input_case + "/tFin/fic_CRV.xml")
-    ):
-        raise ValueError("some expected files are missing in %s\n" % input_case)
-
-    return input_case, basename, dirname
-
-
-def clone_base_case(input_case, dest_case):
-    # If the destination exists, remove it (it's temporary anyway)
-    if os.path.exists(dest_case):
-        remove_case(dest_case)
-
-    try:
-        retcode = subprocess.call(
-            "rsync -aq --exclude 't0/' '%s/' '%s'" % (input_case, dest_case), shell=True
-        )
-        if retcode < 0:
-            raise ValueError("Copy operation was terminated by signal: %d" % -retcode)
-        elif retcode > 0:
-            raise ValueError("Copy operation returned error code: %d" % retcode)
-    except OSError as e:
-        print("Copy operation failed: ", e, file=sys.stderr)
-        raise
-
-
-def remove_case(dest_case):
-    try:
-        retcode = subprocess.call("rm -rf '%s'" % dest_case, shell=True)
-        if retcode < 0:
-            raise ValueError("rm of bad case was terminated by signal: %d" % -retcode)
-        elif retcode > 0:
-            raise ValueError("rm of bad case returned error code: %d" % retcode)
-    except OSError as e:
-        print("call to rm failed: ", e, file=sys.stderr)
-        raise
-
-
-def dedup_save(basename, edited_case, deduped_case):
-    # If the destination exists, warn and rename it to OLD
-    if os.path.exists(deduped_case):
-        print(
-            "   WARNING: destination %s exists! -- renaming it to *__OLD__"
-            % deduped_case
-        )
-        os.rename(deduped_case, deduped_case + "__OLD__")
-
-    # Save it using "deduplication" (actually, hard links)
-    dedup_cmd = "rsync -a --delete --link-dest='../%s' '%s/' '%s'" % (
-        basename,
-        edited_case,
-        deduped_case,
-    )
-    try:
-        retcode = subprocess.call(dedup_cmd, shell=True)
-        if retcode < 0:
-            raise ValueError("Copy operation was terminated by signal: %d" % -retcode)
-        elif retcode > 0:
-            raise ValueError("Copy operation returned error code: %d" % retcode)
-    except OSError as e:
-        print("Copy operation failed: ", e, file=sys.stderr)
-        raise
-
-
-def extract_dynawo_shunts(iidm_file, verbose=False):
-    tree = etree.parse(iidm_file)
-    root = tree.getroot()
+def extract_dynawo_shunts(iidm_tree, verbose=False):
+    root = iidm_tree.getroot()
     ns = etree.QName(root).namespace
     shunts = dict()
     Shunt_info = namedtuple("Shunt_info", "Q bus busTopology")
@@ -251,13 +178,15 @@ def extract_dynawo_shunts(iidm_file, verbose=False):
     return shunts
 
 
-def matching_in_astre(astre_file, dynawo_shunts, verbose=False):
-    tree = etree.parse(astre_file)
-    root = tree.getroot()
-    astre_shunts = set()  # for faster matching below
+def matching_in_astre(astre_tree, dynawo_shunts, verbose=False):
+    root = astre_tree.getroot()
 
-    for shunt in root.iterfind(".//shunt", root.nsmap):
-        # Discard shunts having noeud="-1"
+    # Retrieve the list of Astre shunts
+    astre_shunts = set()  # for faster matching below
+    reseau = root.find("./reseau", root.nsmap)
+    donneesShunts = reseau.find("./donneesShunts", root.nsmap)
+    for shunt in donneesShunts.iterfind("./shunt", root.nsmap):
+        # Discard disconnected shunts
         if shunt.get("noeud") != "-1":
             astre_shunts.add(shunt.get("nom"))
 
@@ -280,48 +209,50 @@ def matching_in_astre(astre_file, dynawo_shunts, verbose=False):
     return dict(new_list)
 
 
-def config_dynawo_shunt_contingency(casedir, shunt_name, shunt_info):
+def config_dynawo_shunt_contingency(
+    casedir, case_trees, dwo_paths, dwo_tparams, shunt_name, shunt_info
+):
     ###########################################################
     # DYD file: configure an event model for the disconnection
     ###########################################################
-    dyd_file = casedir + DYD_FILE
-    print("   Editing file %s" % dyd_file)
-    tree = etree.parse(dyd_file, etree.XMLParser(remove_blank_text=True))
-    root = tree.getroot()
-    ns = etree.QName(root).namespace
+    dyd_file = casedir + "/" + dwo_paths.dydFile
+    print("   Configuring file %s" % dyd_file)
+    dyd_tree = case_trees.dydTree
+    root = dyd_tree.getroot()
 
     # Erase all existing Event models (keep the IDs to remove their
     # connections later below)
     old_eventIds = []
     old_parIds = []
-    for event in root.iter("{%s}blackBoxModel" % ns):
+    for event in root.iterfind("./blackBoxModel", root.nsmap):
         if event.get("lib")[0:5] == "Event":
             old_eventIds.append(event.get("id"))
             old_parIds.append(event.get("parId"))
             event.getparent().remove(event)
 
     # Declare a new Event
+    ns = etree.QName(root).namespace
+    event = etree.SubElement(root, "{%s}blackBoxModel" % ns)
     event_id = "Disconnect my shunt"
-    event = etree.SubElement(root, "blackBoxModel")
     event.set("id", event_id)
     event.set("lib", "EventConnectedStatus")
     event.set("parFile", "tFin/fic_PAR.xml")
     event.set("parId", "99991234")
 
     # Erase all connections of the previous Events we removed above
-    for cnx in root.iter("{%s}connect" % ns):
+    for cnx in root.iterfind("./connect", root.nsmap):
         if cnx.get("id1") in old_eventIds or cnx.get("id2") in old_eventIds:
             cnx.getparent().remove(cnx)
 
     # Declare a new Connect between the Event model and the shunt
-    cnx = etree.SubElement(root, "connect")
+    cnx = etree.SubElement(root, "{%s}connect" % ns)
     cnx.set("id1", event_id)
     cnx.set("var1", "event_state1_value")
     cnx.set("id2", "NETWORK")
     cnx.set("var2", shunt_name + "_state_value")
 
     # Write out the DYD file, preserving the XML format
-    tree.write(
+    dyd_tree.write(
         dyd_file,
         pretty_print=True,
         xml_declaration='<?xml version="1.0" encoding="UTF-8"?>',
@@ -331,40 +262,34 @@ def config_dynawo_shunt_contingency(casedir, shunt_name, shunt_info):
     ###########################################################
     # PAR file: add a section with the disconnecton parameters
     ###########################################################
-    par_file = casedir + PAR_FILE
-    print("   Editing file %s" % par_file)
-    tree = etree.parse(par_file, etree.XMLParser(remove_blank_text=True))
-    root = tree.getroot()
-    ns = etree.QName(root).namespace
+    par_file = casedir + "/" + dwo_paths.parFile
+    print("   Configuring file %s" % par_file)
+    par_tree = case_trees.parTree
+    root = par_tree.getroot()
 
     # Erase all existing parsets used by the Events removed above
-    # But keep the event time (read from the first one)
-    event_time = None
-    for parset in root.iter("{%s}set" % ns):
-        if parset.get("id") == old_parIds[0]:
-            for param in parset:
-                if param.get("name") == "event_tEvent":
-                    event_time = param.get("value")
-                    break
+    for parset in root.iterfind("./set", root.nsmap):
         if parset.get("id") in old_parIds:
             parset.getparent().remove(parset)
 
-    if not event_time:
-        print("Error found while processing the PAR file!!!")
-        raise ValueError("No event_tEvent found to use for the Event")
+    # The event time was already read from the BASECASE (taken from the first event)
+    event_tEvent = str(round(dwo_tparams.event_tEvent))
 
     # Insert the new parset with the params we need
-    new_parset = etree.Element("set", id="99991234")
+    ns = etree.QName(root).namespace
+    new_parset = etree.Element("{%s}set" % ns, id="99991234")
     new_parset.append(
-        etree.Element("par", type="DOUBLE", name="event_tEvent", value=event_time)
+        etree.Element(
+            "{%s}par" % ns, type="DOUBLE", name="event_tEvent", value=event_tEvent
+        )
     )
     new_parset.append(
-        etree.Element("par", type="BOOL", name="event_open", value="true")
+        etree.Element("{%s}par" % ns, type="BOOL", name="event_open", value="true")
     )
     root.append(new_parset)
 
     # Write out the PAR file, preserving the XML format
-    tree.write(
+    par_tree.write(
         par_file,
         pretty_print=True,
         xml_declaration='<?xml version="1.0" encoding="UTF-8"?>',
@@ -389,42 +314,46 @@ def config_dynawo_shunt_contingency(casedir, shunt_name, shunt_info):
     bus_label = shunt_info.bus
 
     # Add the corresponding curve to the CRV file
-    crv_file = casedir + CRV_FILE
-    print("   Editing file %s" % crv_file)
-    tree = etree.parse(crv_file, etree.XMLParser(remove_blank_text=True))
-    root = tree.getroot()
-    root.append(
-        etree.Element("curve", model="NETWORK", variable=bus_label + "_Upu_value")
+    crv_file = casedir + "/" + dwo_paths.curves_inputFile
+    print("   Configuring file %s" % crv_file)
+    crv_tree = case_trees.crvTree
+    root = crv_tree.getroot()
+    ns = etree.QName(root).namespace
+    new_crv1 = etree.Element(
+        "{%s}curve" % ns, model="NETWORK", variable=bus_label + "_Upu_value"
     )
+    root.append(new_crv1)
     # Write out the CRV file, preserving the XML format
-    tree.write(
+    crv_tree.write(
         crv_file,
         pretty_print=True,
         xml_declaration='<?xml version="1.0" encoding="UTF-8"?>',
         encoding="UTF-8",
     )
+    # And erase the curve we've just added, because we'll be reusing the parsed tree
+    root.remove(new_crv1)
 
     return 0
 
 
-def config_astre_shunt_contingency(casedir, shunt_name, shunt_info):
-    astre_file = casedir + ASTRE_FILE
-    print("   Editing file %s" % astre_file)
-    tree = etree.parse(astre_file, etree.XMLParser(remove_blank_text=True))
-    root = tree.getroot()
-    ns = etree.QName(root).namespace
+def config_astre_shunt_contingency(casedir, astre_tree, shunt_name, shunt_info):
+    astre_file = casedir + ASTRE_PATH
+    print("   Configuring file %s" % astre_file)
+    root = astre_tree.getroot()
 
     # Configure the event by means of the `evtouvrtopo` element.  We
     # first remove all existing events (keeping the event time from
     # the first one).
     event_time = None
-    scenario = None
     nevents = 0
-    for astre_event in root.iter("{%s}evtouvrtopo" % ns):
+    modele = root.find("./modele", root.nsmap)
+    entrees = modele.find("./entrees", root.nsmap)
+    entreesAstre = entrees.find("./entreesAstre", root.nsmap)
+    scenario = entreesAstre.find("./scenario", root.nsmap)
+    for astre_event in scenario.iterfind("./evtouvrtopo", root.nsmap):
         if nevents == 0:
             event_time = astre_event.get("instant")
-            scenario = astre_event.getparent()
-            astre_event.getparent().remove(astre_event)
+            scenario.remove(astre_event)
             nevents = 1
         else:
             astre_event.getparent().remove(astre_event)
@@ -433,7 +362,9 @@ def config_astre_shunt_contingency(casedir, shunt_name, shunt_info):
 
     # Find the shunt in Astre
     astre_shunt = None
-    for astre_shunt in root.iter("{%s}shunt" % ns):
+    reseau = root.find("./reseau", root.nsmap)
+    donneesShunts = reseau.find("./donneesShunts", root.nsmap)
+    for astre_shunt in donneesShunts.iterfind("./shunt", root.nsmap):
         if astre_shunt.get("nom") == shunt_name:
             break
     shunt_id = astre_shunt.get("num")
@@ -443,7 +374,8 @@ def config_astre_shunt_contingency(casedir, shunt_name, shunt_info):
     # We now insert our own events. We link to the shunt id using the
     # `ouvrage` attribute.  The event type for shunts is "4", and
     # typeevt for disconnections is "1").
-    event = etree.SubElement(scenario, "evtouvrtopo")
+    ns = etree.QName(root).namespace
+    event = etree.SubElement(scenario, "{%s}evtouvrtopo" % ns)
     event.set("instant", event_time)
     event.set("ouvrage", shunt_id)
     event.set("type", "4")
@@ -467,26 +399,26 @@ def config_astre_shunt_contingency(casedir, shunt_name, shunt_info):
     #
     # Since the name of the curve variable is free, we'll use names
     # that match Dynawo.
-    first_astre_curve = root.find(".//{%s}courbe" % ns)
-    astre_entrees = first_astre_curve.getparent()
-    astre_entrees.append(
-        etree.Element(
-            "courbe",
-            nom="NETWORK_" + bus_name + "_Upu_value",
-            typecourbe="63",
-            ouvrage=bus_id,
-            type="7",
-        )
+    new_crv1 = etree.Element(
+        "{%s}courbe" % ns,
+        nom="NETWORK_" + bus_name + "_Upu_value",
+        typecourbe="63",
+        ouvrage=bus_id,
+        type="7",
     )
+    entreesAstre.append(new_crv1)
 
     # Write out the Astre file, preserving the XML format
-    tree.write(
+    astre_tree.write(
         astre_file,
         pretty_print=True,
         xml_declaration='<?xml version="1.0" encoding="ISO-8859-1"?>',
         encoding="ISO-8859-1",
         standalone=False,
     )
+
+    # Erase the curve we've just added, because we'll be reusing the parsed tree
+    entreesAstre.remove(new_crv1)
 
     return 0
 
@@ -496,7 +428,7 @@ def save_total_shuntq(dirname, dynawo_shunts):
     f.write("# BUS; Q_dwo\n")
     for shunt_name in dynawo_shunts:
         Q_dwo = dynawo_shunts[shunt_name].Q
-        f.write("{}; {:.3f}\n".format(shunt_name, Q_dwo))
+        f.write(f"{shunt_name}; {Q_dwo:.3f}\n")
     f.close()
     return 0
 
