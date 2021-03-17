@@ -12,9 +12,10 @@
 # can be matched in the two, generates the files for running a
 # single-branch contingency for each device.
 #
-# On input, the files are expected to have this structure:
+# On input, the files are expected to have a structure similar to this
+# (not strict, see below):
 #
-# basedir/
+# basecase/
 # ├── Astre
 # │   └── donneesModelesEntree.xml
 # ├── fic_JOB.xml
@@ -29,42 +30,46 @@
 #    ├── fic_IIDM.xml
 #    └── fic_PAR.xml
 #
-# On output, the script generates new dirs parallel to basedir, with
+# For Astre, the structure should be strictly as the above example.  However,
+# for Dynawo we read the actual paths from the existing JOB file, and we configure the
+# contingency in the last job defined inside the JOB file (see module dwo_jobinfo).
+#
+# On output, the script generates new dirs sibling to basecase, with
 # prefixes that depend on the type of branch disconnection:
-#
 #   * Both ends: branchB_LABEL1, branchB_LABEL2, etc.
-#
 #   * FROM end: branchF_LABEL1, branchF_LABEL2, etc.
-#
 #   * TO end: branchT_LABEL1, branchT_LABEL2, etc.
 #
 # The type of disconnection is selected by means of the name with
 # which this script is invoked ("branchF_contingencies.py", etc.).
 #
 
-
-import sys
 import os
-import subprocess
-from lxml import etree
-from collections import namedtuple
-import pandas as pd
 import random
 import re
+import sys
+from collections import namedtuple
+from common_funcs import check_inputfiles, copy_basecase, parse_basecase
+from lxml import etree
+import pandas as pd
+
+# Relative imports only work for proper Python packages, but we do not want to
+# structure all these as a package; we'd like to keep them as a collection of loose
+# Python scripts, at least for now (because this is not really a Python library). So
+# the following hack is ugly, but needed:
+sys.path.insert(1, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Alternatively, you could set PYTHONPATH to PYTHONPATH="/<dir>/dynawo-validation-AIA"
+from xml_utils.dwo_jobinfo import get_dwo_jobpaths  # noqa: E402
+from xml_utils.dwo_jobinfo import get_dwo_tparams  # noqa: E402
 
 
-MAX_NCASES = 50000  # limits the no. of contingency cases (via random sampling)
+MAX_NCASES = 5  # limits the no. of contingency cases (via random sampling)
 RNG_SEED = 42
-ASTRE_FILE = "/Astre/donneesModelesEntree.xml"
-JOB_FILE = "/fic_JOB.xml"
-DYD_FILE = "/tFin/fic_DYD.xml"
-PAR_FILE = "/tFin/fic_PAR.xml"
-CRV_FILE = "/tFin/fic_CRV.xml"
-IIDM_FILE = "/tFin/fic_IIDM.xml"
+ASTRE_PATH = "/Astre/donneesModelesEntree.xml"
 
 
 def main():
-
+    verbose = False
     if len(sys.argv) < 2:
         print("\nUsage: %s BASECASE [element1 element2 element3 ...]\n" % sys.argv[0])
         print(
@@ -76,11 +81,6 @@ def main():
         return 2
     base_case = sys.argv[1]
     filter_list = [re.compile(x) for x in sys.argv[2:]]
-    # DEBUG:(Lyon) filter_list = ["CHARPL31CIVRI", "CHARPY631",
-    # ".CHAML61.CHTD", RULHAY711, "VALS L31ZP.VE"]
-
-    verbose = True
-
     # Select disconnection mode from how the script is named:
     disconn_mode = "BOTH_ENDS"
     called_as = os.path.basename(sys.argv[0])
@@ -89,17 +89,23 @@ def main():
     elif called_as[:7] == "branchT":
         disconn_mode = "TO"
 
-    # Check all needed files are in place
-    base_case, basename, dirname = check_inputfiles(base_case, verbose)
-    edited_case = dirname + "/TMP_CONTINGENCYCASE"
+    # Get Dynawo paths from the JOB file
+    dwo_paths = get_dwo_jobpaths(base_case)
+
+    # Get the simulation time parameters (from Dynawo's case)
+    dwo_tparams = get_dwo_tparams(base_case)
+
+    # Check that all needed files are in place
+    base_case, basename, dirname = check_inputfiles(base_case, dwo_paths, verbose)
+
+    # Parse all XML files in the basecase
+    parsed_case = parse_basecase(base_case, dwo_paths, ASTRE_PATH)
 
     # Extract the list of all (active) BRANCHES in the Dynawo case
-    dynawo_branches = extract_dynawo_branches(base_case + IIDM_FILE, verbose)
+    dynawo_branches = extract_dynawo_branches(parsed_case.iidmTree, verbose)
 
     # Reduce the list to those BRANCHES that are matched in Astre
-    dynawo_branches = matching_in_astre(
-        base_case + ASTRE_FILE, dynawo_branches, verbose
-    )
+    dynawo_branches = matching_in_astre(parsed_case.astreTree, dynawo_branches, verbose)
 
     # Prepare for random sampling if there's too many
     sampling_ratio = MAX_NCASES / len(dynawo_branches)
@@ -110,7 +116,7 @@ def main():
             % (MAX_NCASES, 100 * sampling_ratio)
         )
 
-    # Initialize another dict to keep Astre's (P,Q)-flows of the disconnected branch
+    # Initialize another dict to keep Astre's (P,Q)-flows of each disconnected branch
     astre_branches = dict()
 
     # For each matching BRANCH, generate the contingency case
@@ -135,25 +141,32 @@ def main():
             )
         )
 
-        # Copy the whole input tree to a new path:
-        clone_base_case(base_case, edited_case)
+        # Copy the basecase (unchanged files and dir structure)
+        # Note we fix any device names with slashes in them (illegal filenames)
+        contg_casedir = (
+            dirname + "/branch" + disconn_mode[0] + "_" + branch_name.replace("/", "+")
+        )
+        copy_basecase(base_case, dwo_paths, contg_casedir)
 
         # Modify the Dynawo case (DYD,PAR,CRV)
         config_dynawo_branch_contingency(
-            edited_case, branch_name, dynawo_branches[branch_name], disconn_mode
+            contg_casedir,
+            parsed_case,
+            dwo_paths,
+            dwo_tparams,
+            branch_name,
+            dynawo_branches[branch_name],
+            disconn_mode,
         )
 
         # Modify the Astre case, and obtain its disrupted power flows (P,Q)
         astre_branches[branch_name] = config_astre_branch_contingency(
-            edited_case, branch_name, dynawo_branches[branch_name], disconn_mode
+            contg_casedir,
+            parsed_case.astreTree,
+            branch_name,
+            dynawo_branches[branch_name],
+            disconn_mode,
         )
-
-        # Save the wole case using "deduplication"
-        # Here we also fix any device names with slashes in them (illegal filenames)
-        deduped_case = (
-            dirname + "/branch" + disconn_mode[0] + "_" + branch_name.replace("/", "+")
-        )
-        dedup_save(basename, edited_case, deduped_case)
 
     # Finally, save the (P,Q) values of disconnected branches in all processed cases
     save_total_branchpq(dirname, dynawo_branches, astre_branches)
@@ -161,97 +174,8 @@ def main():
     return 0
 
 
-def check_inputfiles(input_case, verbose=False):
-    if not os.path.isdir(input_case):
-        raise ValueError("source directory %s not found" % input_case)
-
-    # remove trailing slash so that basename/dirname below behave consistently:
-    if input_case[-1] == "/":
-        input_case = input_case[:-1]
-    basename = os.path.basename(input_case)
-    dirname = os.path.dirname(input_case)
-    # corner case: if called from the parent dir, dirname is empty
-    if dirname == "":
-        dirname = "."
-
-    print("\nUsing input_case: %s" % input_case)
-    print("New cases will be generated under: %s" % dirname)
-    if verbose:
-        print("input_case: %s" % input_case)
-        print("basename: %s" % basename)
-        print("dirname:  %s" % dirname)
-
-    if not (
-        os.path.isfile(input_case + "/Astre/donneesModelesEntree.xml")
-        and os.path.isfile(input_case + "/fic_JOB.xml")
-        and os.path.isfile(input_case + "/tFin/fic_DYD.xml")
-        and os.path.isfile(input_case + "/tFin/fic_PAR.xml")
-        and os.path.isfile(input_case + "/tFin/fic_CRV.xml")
-    ):
-        raise ValueError("some expected files are missing in %s\n" % input_case)
-
-    return input_case, basename, dirname
-
-
-def clone_base_case(input_case, dest_case):
-    # If the destination exists, remove it (it's temporary anyway)
-    if os.path.exists(dest_case):
-        remove_case(dest_case)
-
-    try:
-        retcode = subprocess.call(
-            "rsync -aq --exclude 't0/' '%s/' '%s'" % (input_case, dest_case), shell=True
-        )
-        if retcode < 0:
-            raise ValueError("Copy operation was terminated by signal: %d" % -retcode)
-        elif retcode > 0:
-            raise ValueError("Copy operation returned error code: %d" % retcode)
-    except OSError as e:
-        print("Copy operation failed: ", e, file=sys.stderr)
-        raise
-
-
-def remove_case(dest_case):
-    try:
-        retcode = subprocess.call("rm -rf '%s'" % dest_case, shell=True)
-        if retcode < 0:
-            raise ValueError("rm of bad case was terminated by signal: %d" % -retcode)
-        elif retcode > 0:
-            raise ValueError("rm of bad case returned error code: %d" % retcode)
-    except OSError as e:
-        print("call to rm failed: ", e, file=sys.stderr)
-        raise
-
-
-def dedup_save(basename, edited_case, deduped_case):
-    # If the destination exists, warn and rename it to OLD
-    if os.path.exists(deduped_case):
-        print(
-            "   WARNING: destination %s exists! -- renaming it to *__OLD__"
-            % deduped_case
-        )
-        os.rename(deduped_case, deduped_case + "__OLD__")
-
-    # Save it using "deduplication" (actually, hard links)
-    dedup_cmd = "rsync -a --delete --link-dest='../%s' '%s/' '%s'" % (
-        basename,
-        edited_case,
-        deduped_case,
-    )
-    try:
-        retcode = subprocess.call(dedup_cmd, shell=True)
-        if retcode < 0:
-            raise ValueError("Copy operation was terminated by signal: %d" % -retcode)
-        elif retcode > 0:
-            raise ValueError("Copy operation returned error code: %d" % retcode)
-    except OSError as e:
-        print("Copy operation failed: ", e, file=sys.stderr)
-        raise
-
-
-def extract_dynawo_branches(iidm_file, verbose=False):
-    tree = etree.parse(iidm_file)
-    root = tree.getroot()
+def extract_dynawo_branches(iidm_tree, verbose=False):
+    root = iidm_tree.getroot()
     ns = etree.QName(root).namespace
     branches = dict()
     Branch_info = namedtuple("Branch_info", "P Q branchType busFrom busTo")
@@ -345,12 +269,14 @@ def get_endbus(root, branch, branch_type, side):
     return end_bus
 
 
-def matching_in_astre(astre_file, dynawo_branches, verbose=False):
-    tree = etree.parse(astre_file)
-    root = tree.getroot()
-    astre_branches = set()  # for faster matching below
+def matching_in_astre(astre_tree, dynawo_branches, verbose=False):
+    root = astre_tree.getroot()
 
-    for branch in root.iterfind(".//quadripole", root.nsmap):
+    # Retrieve the list of Astre branches
+    astre_branches = set()  # for faster matching below
+    reseau = root.find("./reseau", root.nsmap)
+    donneesQuadripoles = reseau.find("./donneesQuadripoles", root.nsmap)
+    for branch in donneesQuadripoles.iterfind("./quadripole", root.nsmap):
         astre_branches.add(branch.get("nom"))
 
     print("\nFound %d branches in Astre file" % len(astre_branches))
@@ -373,48 +299,50 @@ def matching_in_astre(astre_file, dynawo_branches, verbose=False):
     return dict(new_list)
 
 
-def config_dynawo_branch_contingency(casedir, branch_name, branch_info, disc_mode):
+def config_dynawo_branch_contingency(
+    casedir, case_trees, dwo_paths, dwo_tparams, branch_name, branch_info, disc_mode
+):
     ###########################################################
     # DYD file: configure an event model for the disconnection
     ###########################################################
-    dyd_file = casedir + DYD_FILE
-    print("   Editing file %s" % dyd_file)
-    tree = etree.parse(dyd_file, etree.XMLParser(remove_blank_text=True))
-    root = tree.getroot()
-    ns = etree.QName(root).namespace
+    dyd_file = casedir + "/" + dwo_paths.dydFile
+    print("   Configuring file %s" % dyd_file)
+    dyd_tree = case_trees.dydTree
+    root = dyd_tree.getroot()
 
     # Erase all existing Event models (keep the IDs to remove their
     # connections later below)
     old_eventIds = []
     old_parIds = []
-    for event in root.iter("{%s}blackBoxModel" % ns):
+    for event in root.iterfind("./blackBoxModel", root.nsmap):
         if event.get("lib")[0:5] == "Event":
             old_eventIds.append(event.get("id"))
             old_parIds.append(event.get("parId"))
             event.getparent().remove(event)
 
     # Declare a new Event
+    ns = etree.QName(root).namespace
+    event = etree.SubElement(root, "{%s}blackBoxModel" % ns)
     event_id = "Disconnect my branch"
-    event = etree.SubElement(root, "blackBoxModel")
     event.set("id", event_id)
     event.set("lib", "EventQuadripoleDisconnection")
-    event.set("parFile", "tFin/fic_PAR.xml")
+    event.set("parFile", dwo_paths.parFile)
     event.set("parId", "99991234")
 
     # Erase all connections of the previous Events we removed above
-    for cnx in root.iter("{%s}connect" % ns):
+    for cnx in root.iterfind("./connect", root.nsmap):
         if cnx.get("id1") in old_eventIds or cnx.get("id2") in old_eventIds:
             cnx.getparent().remove(cnx)
 
     # Declare a new Connect between the Event model and the branch
-    cnx = etree.SubElement(root, "connect")
+    cnx = etree.SubElement(root, "{%s}connect" % ns)
     cnx.set("id1", event_id)
     cnx.set("var1", "event_state1_value")
     cnx.set("id2", "NETWORK")
     cnx.set("var2", branch_name + "_state_value")
 
     # Write out the DYD file, preserving the XML format
-    tree.write(
+    dyd_tree.write(
         dyd_file,
         pretty_print=True,
         xml_declaration='<?xml version="1.0" encoding="UTF-8"?>',
@@ -424,32 +352,26 @@ def config_dynawo_branch_contingency(casedir, branch_name, branch_info, disc_mod
     ###########################################################
     # PAR file: add a section with the disconnecton parameters
     ###########################################################
-    par_file = casedir + PAR_FILE
-    print("   Editing file %s" % par_file)
-    tree = etree.parse(par_file, etree.XMLParser(remove_blank_text=True))
-    root = tree.getroot()
-    ns = etree.QName(root).namespace
+    par_file = casedir + "/" + dwo_paths.parFile
+    print("   Configuring file %s" % par_file)
+    par_tree = case_trees.parTree
+    root = par_tree.getroot()
 
     # Erase all existing parsets used by the Events removed above
-    # But keep the event time (read from the first one)
-    event_time = None
-    for parset in root.iter("{%s}set" % ns):
-        if parset.get("id") == old_parIds[0]:
-            for param in parset:
-                if param.get("name") == "event_tEvent":
-                    event_time = param.get("value")
-                    break
+    for parset in root.iterfind("./set", root.nsmap):
         if parset.get("id") in old_parIds:
             parset.getparent().remove(parset)
 
-    if not event_time:
-        print("Error found while processing the PAR file!!!")
-        raise ValueError("No event_tEvent found to use for the Event")
+    # The event time was already read from the BASECASE (taken from the first event)
+    event_tEvent = str(round(dwo_tparams.event_tEvent))
 
     # Insert the new parset with the params we need
-    new_parset = etree.Element("set", id="99991234")
+    ns = etree.QName(root).namespace
+    new_parset = etree.Element("{%s}set" % ns, id="99991234")
     new_parset.append(
-        etree.Element("par", type="DOUBLE", name="event_tEvent", value=event_time)
+        etree.Element(
+            "{%s}par" % ns, type="DOUBLE", name="event_tEvent", value=event_tEvent
+        )
     )
     open_F = "true"
     open_T = "true"
@@ -458,17 +380,19 @@ def config_dynawo_branch_contingency(casedir, branch_name, branch_info, disc_mod
     if disc_mode == "TO":
         open_F = "false"
     new_parset.append(
-        etree.Element("par", type="BOOL", name="event_disconnectOrigin", value=open_F)
+        etree.Element(
+            "{%s}par" % ns, type="BOOL", name="event_disconnectOrigin", value=open_F
+        )
     )
     new_parset.append(
         etree.Element(
-            "par", type="BOOL", name="event_disconnectExtremity", value=open_T
+            "{%s}par" % ns, type="BOOL", name="event_disconnectExtremity", value=open_T
         )
     )
     root.append(new_parset)
 
     # Write out the PAR file, preserving the XML format
-    tree.write(
+    par_tree.write(
         par_file,
         pretty_print=True,
         xml_declaration='<?xml version="1.0" encoding="UTF-8"?>',
@@ -494,43 +418,53 @@ def config_dynawo_branch_contingency(casedir, branch_name, branch_info, disc_mod
     bus_to = branch_info.busTo
 
     # Add the corresponding curve to the CRV file
-    crv_file = casedir + CRV_FILE
-    print("   Editing file %s" % crv_file)
-    tree = etree.parse(crv_file, etree.XMLParser(remove_blank_text=True))
-    root = tree.getroot()
-    root.append(
-        etree.Element("curve", model="NETWORK", variable=bus_from + "_Upu_value")
+    crv_file = casedir + "/" + dwo_paths.curves_inputFile
+    print("   Configuring file %s" % crv_file)
+    crv_tree = case_trees.crvTree
+    root = crv_tree.getroot()
+    ns = etree.QName(root).namespace
+    new_crv1 = etree.Element(
+        "{%s}curve" % ns, model="NETWORK", variable=bus_from + "_Upu_value"
     )
-    root.append(etree.Element("curve", model="NETWORK", variable=bus_to + "_Upu_value"))
+    new_crv2 = etree.Element(
+        "{%s}curve" % ns, model="NETWORK", variable=bus_to + "_Upu_value"
+    )
+    root.append(new_crv1)
+    root.append(new_crv2)
     # Write out the CRV file, preserving the XML format
-    tree.write(
+    crv_tree.write(
         crv_file,
         pretty_print=True,
         xml_declaration='<?xml version="1.0" encoding="UTF-8"?>',
         encoding="UTF-8",
     )
+    # And erase the 2 curves we've just added, because we'll be reusing the parsed tree
+    root.remove(new_crv1)
+    root.remove(new_crv2)
 
     return 0
 
 
-def config_astre_branch_contingency(casedir, branch_name, branch_info, disc_mode):
-    astre_file = casedir + ASTRE_FILE
-    print("   Editing file %s" % astre_file)
-    tree = etree.parse(astre_file, etree.XMLParser(remove_blank_text=True))
-    root = tree.getroot()
-    ns = etree.QName(root).namespace
+def config_astre_branch_contingency(
+    casedir, astre_tree, branch_name, branch_info, disc_mode
+):
+    astre_file = casedir + ASTRE_PATH
+    print("   Configuring file %s" % astre_file)
+    root = astre_tree.getroot()
 
     # Configure the event by means of the `evtouvrtopo` element.  We
     # first remove all existing events (keeping the event time from
     # the first one).
     event_time = None
-    scenario = None
     nevents = 0
-    for astre_event in root.iter("{%s}evtouvrtopo" % ns):
+    modele = root.find("./modele", root.nsmap)
+    entrees = modele.find("./entrees", root.nsmap)
+    entreesAstre = entrees.find("./entreesAstre", root.nsmap)
+    scenario = entreesAstre.find("./scenario", root.nsmap)
+    for astre_event in scenario.iterfind("./evtouvrtopo", root.nsmap):
         if nevents == 0:
             event_time = astre_event.get("instant")
-            scenario = astre_event.getparent()
-            astre_event.getparent().remove(astre_event)
+            scenario.remove(astre_event)
             nevents = 1
         else:
             astre_event.getparent().remove(astre_event)
@@ -539,8 +473,11 @@ def config_astre_branch_contingency(casedir, branch_name, branch_info, disc_mode
 
     # Find the branch in Astre
     astre_branch = None
-    for astre_branch in root.iter("{%s}quadripole" % ns):
-        if astre_branch.get("nom") == branch_name:
+    reseau = root.find("./reseau", root.nsmap)
+    donneesQuadripoles = reseau.find("./donneesQuadripoles", root.nsmap)
+    for b in donneesQuadripoles.iterfind("./quadripole", root.nsmap):
+        if b.get("nom") == branch_name:
+            astre_branch = b
             break
     branch_id = astre_branch.get("num")
     busID_from = astre_branch.get("nor")
@@ -549,7 +486,7 @@ def config_astre_branch_contingency(casedir, branch_name, branch_info, disc_mode
         raise ValueError("this branch is disconnected in Astre!!!")
     bus_from = branch_info.busFrom  # we will use Dynawo's name for the curve var
     bus_to = branch_info.busTo  # we will use Dynawo's name for the curve var
-    branch_vars = astre_branch.find("{%s}variables" % ns)
+    branch_vars = astre_branch.find("./variables", root.nsmap)
     branch_P = float(branch_vars.get("por"))
     branch_Q = float(branch_vars.get("qor"))
 
@@ -557,7 +494,8 @@ def config_astre_branch_contingency(casedir, branch_name, branch_info, disc_mode
     # `ouvrage` attribute.  The type for branches is "9", and the
     # typeevt for disconnections is "1".  The side is given by the
     # `cote` attribute (0 = both ends; 1 = "From" end; 2 = "To" end.
-    event = etree.SubElement(scenario, "evtouvrtopo")
+    ns = etree.QName(root).namespace
+    event = etree.SubElement(scenario, "{%s}evtouvrtopo" % ns)
     event.set("instant", event_time)
     event.set("ouvrage", branch_id)
     event.set("type", "9")
@@ -586,35 +524,35 @@ def config_astre_branch_contingency(casedir, branch_name, branch_info, disc_mode
     #
     # Since the name of the curve variable is free, we'll use names
     # that match Dynawo.
-    first_astre_curve = root.find(".//{%s}courbe" % ns)
-    astre_entrees = first_astre_curve.getparent()
-    astre_entrees.append(
-        etree.Element(
-            "courbe",
-            nom="NETWORK_" + bus_from + "_Upu_value",
-            typecourbe="63",
-            ouvrage=busID_from,
-            type="7",
-        )
+    new_crv1 = etree.Element(
+        "{%s}courbe" % ns,
+        nom="NETWORK_" + bus_from + "_Upu_value",
+        typecourbe="63",
+        ouvrage=busID_from,
+        type="7",
     )
-    astre_entrees.append(
-        etree.Element(
-            "courbe",
-            nom="NETWORK_" + bus_to + "_Upu_value",
-            typecourbe="63",
-            ouvrage=busID_to,
-            type="7",
-        )
+    new_crv2 = etree.Element(
+        "{%s}courbe" % ns,
+        nom="NETWORK_" + bus_to + "_Upu_value",
+        typecourbe="63",
+        ouvrage=busID_to,
+        type="7",
     )
+    entreesAstre.append(new_crv1)
+    entreesAstre.append(new_crv2)
 
     # Write out the Astre file, preserving the XML format
-    tree.write(
+    astre_tree.write(
         astre_file,
         pretty_print=True,
         xml_declaration='<?xml version="1.0" encoding="ISO-8859-1"?>',
         encoding="ISO-8859-1",
         standalone=False,
     )
+
+    # Erase the curve we've just added, because we'll be reusing the parsed tree
+    entreesAstre.remove(new_crv1)
+    entreesAstre.remove(new_crv2)
 
     return branch_P, branch_Q
 
