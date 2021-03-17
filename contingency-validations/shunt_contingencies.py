@@ -45,6 +45,7 @@ import sys
 from collections import namedtuple
 from common_funcs import check_inputfiles, copy_basecase, parse_basecase
 from lxml import etree
+import pandas as pd
 
 # Relative imports only work for proper Python packages, but we do not want to
 # structure all these as a package; we'd like to keep them as a collection of loose
@@ -74,7 +75,6 @@ def main():
         return 2
     base_case = sys.argv[1]
     filter_list = [re.compile(x) for x in sys.argv[2:]]
-    # DEBUG:(Lille) filter_list = [".AUBA6REAC.1", "ARGOE1REAC.1"]
 
     # Get Dynawo paths from the JOB file
     dwo_paths = get_dwo_jobpaths(base_case)
@@ -102,6 +102,9 @@ def main():
             "LIMITING to a sample of about %d cases (%.2f%% of all cases)"
             % (MAX_NCASES, 100 * sampling_ratio)
         )
+
+    # Initialize another dict to keep Astre's Q of each shunt
+    astre_shunts = dict()
 
     # For each matching SHUNT, generate the contingency case
     for shunt_name in dynawo_shunts:
@@ -135,13 +138,13 @@ def main():
             dynawo_shunts[shunt_name],
         )
 
-        # Modify the Astre case
-        config_astre_shunt_contingency(
+        # Modify the Astre case, and obtain the disconnected shunt's injection (Q)
+        astre_shunts[shunt_name] = config_astre_shunt_contingency(
             contg_casedir, parsed_case.astreTree, shunt_name, dynawo_shunts[shunt_name]
         )
 
     # Finally, save the values of disconnected shunts in all processed cases
-    save_total_shuntq(dirname, dynawo_shunts)
+    save_total_shuntq(dirname, dynawo_shunts, astre_shunts)
 
     return 0
 
@@ -236,7 +239,7 @@ def config_dynawo_shunt_contingency(
     event_id = "Disconnect my shunt"
     event.set("id", event_id)
     event.set("lib", "EventConnectedStatus")
-    event.set("parFile", "tFin/fic_PAR.xml")
+    event.set("parFile", dwo_paths.parFile)
     event.set("parId", "99991234")
 
     # Erase all connections of the previous Events we removed above
@@ -364,12 +367,14 @@ def config_astre_shunt_contingency(casedir, astre_tree, shunt_name, shunt_info):
     astre_shunt = None
     reseau = root.find("./reseau", root.nsmap)
     donneesShunts = reseau.find("./donneesShunts", root.nsmap)
-    for astre_shunt in donneesShunts.iterfind("./shunt", root.nsmap):
-        if astre_shunt.get("nom") == shunt_name:
+    for s in donneesShunts.iterfind("./shunt", root.nsmap):
+        if s.get("nom") == shunt_name:
+            astre_shunt = s
             break
     shunt_id = astre_shunt.get("num")
     bus_id = astre_shunt.get("noeud")
     bus_name = shunt_info.bus  # we can use Dynawo's name for the curve var
+    shunt_Q = -10000 * float(astre_shunt.get("valnom"))  # TODO: ask RTE if this is OK
 
     # We now insert our own events. We link to the shunt id using the
     # `ouvrage` attribute.  The event type for shunts is "4", and
@@ -420,16 +425,27 @@ def config_astre_shunt_contingency(casedir, astre_tree, shunt_name, shunt_info):
     # Erase the curve we've just added, because we'll be reusing the parsed tree
     entreesAstre.remove(new_crv1)
 
-    return 0
+    return shunt_Q
 
 
-def save_total_shuntq(dirname, dynawo_shunts):
-    f = open(dirname + "/total_shuntQ_per_bus.csv", "w")
-    f.write("# BUS; Q_dwo\n")
-    for shunt_name in dynawo_shunts:
+def save_total_shuntq(dirname, dynawo_shunts, astre_shunts):
+    file_name = dirname + "/total_shuntQ_per_bus.csv"
+    # Using a dataframe for sorting
+    column_list = ["SHUNT", "Q_dwo", "Q_ast", "Qdiff_pct"]
+    data_list = []
+    # We enumerate the astre_shunts dict because it contains the cases
+    # that have actually been processed (because we may have skipped
+    # some in the main loop).
+    for shunt_name in astre_shunts:
         Q_dwo = dynawo_shunts[shunt_name].Q
-        f.write(f"{shunt_name}; {Q_dwo:.3f}\n")
-    f.close()
+        Q_ast = astre_shunts[shunt_name]
+        Qdiff_pct = 100 * (Q_dwo - Q_ast) / max(abs(Q_dwo), 0.001)
+        data_list.append([shunt_name, Q_dwo, Q_ast, Qdiff_pct])
+
+    df = pd.DataFrame(data_list, columns=column_list)
+    df.sort_values(by=["Qdiff_pct"], inplace=True, ascending=False, na_position="first")
+    df.to_csv(file_name, index=False, sep=";", float_format="%.2f", encoding="utf-8")
+
     return 0
 
 
