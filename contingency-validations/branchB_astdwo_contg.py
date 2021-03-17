@@ -5,7 +5,7 @@
 #     marinjl@aia.es
 #
 #
-# branch_contingencies.py:
+# branch?_astdwo_contg.py:
 #
 # Takes a base case consisting of two corresponding Dynawo and Astre
 # files and, enumerating all BRANCHES (i.e. lines & transformers) that

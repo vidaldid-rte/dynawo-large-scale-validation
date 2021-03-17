@@ -5,10 +5,10 @@
 #     marinjl@aia.es
 #
 #
-# prepare_basecase.py:
+# prepare_astdwo_basecase.py:
 #
 # Takes an input case consisting of two corresponding Dynawo and Astre
-# files and prepares a BASECASE for contingency analysis, configuring
+# cases and prepares a BASECASE for contingency analysis, configuring
 # a standard set of CURVES for it.
 #
 # On input, the case files are expected to be FORMATTED with xmllint (see

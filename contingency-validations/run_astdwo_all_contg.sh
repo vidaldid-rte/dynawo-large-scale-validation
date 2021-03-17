@@ -1,9 +1,12 @@
 #!/bin/bash
 #
 #
-# run_all_contingencies.sh: given a base directory containing
-# Dynawo+Astre cases, run all that have a given prefix in their name
-# (possibly in parallel, using GNU parallel)
+# run_astdwo_all_contg.sh:
+#
+# given a directory containing Dynawo+Astre contingency cases,
+# all of them derived from a common BASECASE, run all that have a
+# given prefix in their name (possibly in parallel, using GNU
+# parallel).
 #
 # (c) Grupo AIA
 # marinjl@aia.es
@@ -119,7 +122,7 @@ fi
 # handle non-option arguments
 if [[ $# -ne 3 ]]; then
     echo
-    echo "$0: please specify the base directory containing cases, the basecase, and a case prefix"
+    echo "$0: please specify the directory containing the cases, the basecase, and a case prefix"
     usage
     exit 4
 fi
@@ -162,7 +165,7 @@ if [ $c = "y" ]; then
 else
     OPTS=("-o" "$outDir" "$BASECASE")
 fi
-run_case=$(dirname "$0")/run_one_contingency.sh
+run_case=$(dirname "$0")/run_astdwo_one_contg.sh
 if [ $s = "y" ] || ! [ -x "$(type -p parallel)" ]; then
     echo "*** Running sequentially"
     set +e   # allow to continue if any case fails

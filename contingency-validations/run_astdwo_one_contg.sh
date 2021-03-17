@@ -1,9 +1,11 @@
 #!/bin/bash
 #
 #
-# run_one_contingency.sh: given a directory containing a Dynawo+Astre
-# case, run it and collect the results somewhere else. Optionally,
-# delete the case to save space.
+# run_astdwo_one_contg.sh:
+#
+# given a Dynawo+Astre contingency case (and the BASECASE it was
+# derived from), run it and collect the results somewhere
+# else. Optionally, delete the case to save space.
 #
 # (c) Grupo AIA
 # marinjl@aia.es
