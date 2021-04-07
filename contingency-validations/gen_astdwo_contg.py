@@ -185,7 +185,7 @@ def extract_dynawo_gens(iidm_tree, verbose=False):
 
     print("\nFound %d ACTIVE gens in the Dynawo IIDM file" % len(gens))
     if verbose:
-        print("List of all ACTIVE gens in the Dynawo DYD file: (total: %d)" % len(gens))
+        print("List of all ACTIVE gens in the IIDM file: (total: %d)" % len(gens))
         gen_list = sorted(gens.keys())
         if len(gen_list) < 10:
             print(gen_list)
