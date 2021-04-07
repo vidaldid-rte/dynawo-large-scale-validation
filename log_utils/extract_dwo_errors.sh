@@ -17,9 +17,10 @@ usage()
 {
     cat <<EOF
 
-Usage: $0 LOG__DIR
+Usage: $0 LOG__DIR [error_string]
 
-  where LOGDIR contains the compressed Dynawo log files for the contingency runs.
+  where LOGDIR contains the compressed Dynawo log files for the contingency runs. You may also
+  provide a quoted error string to search for (default: "ERROR").
 
   Example: $0 20190410_1200.RESULTS/branchBs/log
     (will process all logs named *-Dynawo.log.xz found under that directory) 
@@ -34,19 +35,23 @@ xztrim()
 
 
 
-
-if [[ $# -ne 1 ]]; then
+if [[ $# -eq 1 ]]; then
+    LOG_DIR="$1"
+    ERR_STRING="ERROR"
+elif [[ $# -eq 2 ]]; then
+    LOG_DIR="$1"
+    ERR_STRING="$2"
+else
     usage
     exit 4
 fi
-LOG_DIR="$1"
 
 rm -rf $OUTPUT_FILE
 echo "Cases containing ERRORS:"
 echo "========================"
 find "$LOG_DIR" -maxdepth 1 -name '*-Dynawo.log.xz' | while read -r LOG_FILE; do
     # echo "Searching $LOG_FILE"
-    if xztrim "$LOG_FILE" | grep -F -q "ERROR"; then
+    if xztrim "$LOG_FILE" | grep -F -q "$ERR_STRING"; then
         echo "$LOG_FILE"
         {
             echo "$LOG_FILE"
