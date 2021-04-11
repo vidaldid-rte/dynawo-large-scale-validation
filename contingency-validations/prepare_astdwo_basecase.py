@@ -55,7 +55,12 @@ from collections import namedtuple
 # the following hack is ugly, but needed:
 sys.path.insert(1, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Alternatively, you could set PYTHONPATH to PYTHONPATH="/<dir>/dynawo-validation-AIA"
-from xml_utils.dwo_jobinfo import get_dwo_jobpaths  # noqa: E402
+from xml_utils.dwo_jobinfo import (
+    is_astdwo,
+    is_dwodwo,
+    get_dwo_jobpaths,
+    get_dwodwo_jobpaths,
+)  # noqa: E402
 
 
 ASTRE_FILE = "/Astre/donneesModelesEntree.xml"
@@ -65,35 +70,53 @@ verbose = False
 def main():
 
     if len(sys.argv) != 3:
-        print("\nUsage: %s INPUT_CASE CASE_SVC_ZONE\n" % sys.argv[0])
+        print(f"\nUsage: {sys.argv[0]} INPUT_CASE CASE_SVC_ZONE\n")
         print(
             "(where CASE_SVC_ZONE is one of: 'Lille', 'Lyon', 'Marseille', "
-            "'Nancy', 'Nantes', 'Paris', 'Toulouse', 'Recollement'\n"
+            "'Nancy', 'Nantes', 'Paris', 'Toulouse', 'Recollement)'\n"
         )
         return 2
     input_case = sys.argv[1]
     case_zone = sys.argv[2]
 
-    # Get some Dynawo paths from the JOB file
-    dwo_paths = get_dwo_jobpaths(input_case)
-
-    # Check all needed files are in place (and sanitize names)
-    input_case = check_inputfiles(input_case, dwo_paths)
+    # The path for the prepared case
+    if input_case[-1] == "/":
+        input_case = input_case[:-1]
     if input_case[-10:] == ".FORMATTED":
         edited_case = input_case[:-10] + ".BASECASE"
     else:
         edited_case = input_case + ".BASECASE"
 
-    # Copy the whole input tree to a new path:
+    # Check whether it's an Astre-vs-Dynawo or a Dynawo-vs-Dynawo case
+    dwo_paths, astdwo = (None, None)
+    dwo_pathsA, dwo_pathsB = (None, None)
+    if is_astdwo(input_case):
+        print(f"Preparing ASTRE-vs-DYNAWO case: {edited_case}")
+        dwo_paths = get_dwo_jobpaths(input_case)
+        astdwo = True
+    elif is_dwodwo(input_case):
+        print(f"Preparing DYNAWO-vs-DYNAWO case: {edited_case}")
+        dwo_pathsA, dwo_pathsB = get_dwodwo_jobpaths(input_case)
+        astdwo = False
+    else:
+        raise ValueError(f"Case {input_case} is neither an ast-dwo nor a dwo-dwo case")
+
+    # Copy the whole input tree to the new path
     clone_input_case(input_case, edited_case)
 
     # And now edit the curve files in place
-    rst_models, pilot_buses = edit_dwo_curves(edited_case, case_zone, dwo_paths)
-    edit_ast_curves(edited_case, case_zone, rst_models, pilot_buses)
+    if astdwo:
+        rst_models, pilot_buses = edit_dwo_curves(
+            edited_case, case_zone, dwo_paths, astdwo
+        )
+        edit_ast_curves(edited_case, case_zone, rst_models, pilot_buses)
+    else:
+        _, _ = edit_dwo_curves(edited_case, case_zone, dwo_pathsA, astdwo)
+        _, _ = edit_dwo_curves(edited_case, case_zone, dwo_pathsB, astdwo)
 
     # Show some reminders
-    msg = (
-        "\nThe BASECASE is almost ready, but not quite. Please do:\n"
+    msg_astdwo = (
+        "\nREMINDER: The BASECASE is almost ready, but not quite. Please do:\n"
         "  * Run the Astre and Dynawo cases to verify they work\n"
         "  * Delete the Astre output files\n"
         "  * Delete the Dynawo tFin output, but keep the t0 files\n"
@@ -104,62 +127,55 @@ def main():
         "        contingency cases need to see when they're run. For instance:\n"
         '           <initialState file="../20200527_1700.BASECASE/t0/...\n'
     )
-    print(msg)
+    msg_dwodwo = (
+        "\nREMINDER: The BASECASE is almost ready, but not quite. Please do:\n"
+        "  * Run the A / B Dynawo cases to verify they both work\n"
+        "  * Delete their respective tFin outputs, but keep the t0 outputs\n"
+        "  * Edit the JOB files to comment out the first job (the pre-contingency)\n"
+        "  * And tweak the second job (the one containing the contingency):\n"
+        "      - set INFO log level, remove the finalState IIDM, etc.\n"
+        "      - but MOST IMPORTANTLY, edit the initialState path that the\n"
+        "        contingency cases need to see when they're run. For instance:\n"
+        '           <initialState file="../20200527_1700.BASECASE/t0/...\n'
+    )
+    if astdwo:
+        print(msg_astdwo)
+    else:
+        print(msg_dwodwo)
 
     return 0
-
-
-def check_inputfiles(input_case, dwo_paths):
-    if not os.path.isdir(input_case):
-        raise ValueError("source directory %s not found" % input_case)
-
-    # remove trailing slash so that basename/dirname below behave consistently:
-    if input_case[-1] == "/":
-        input_case = input_case[:-1]
-
-    dirname = os.path.dirname(input_case)
-    # corner case: if called from the parent dir, dirname is empty
-    if dirname == "":
-        dirname = "."
-
-    print("\nUsing input_case: %s" % input_case, end="")
-    print(" (the edited BASECASE will be generated under: %s)" % dirname)
-
-    if not (
-        os.path.isfile(input_case + ASTRE_FILE)
-        and os.path.isfile(input_case + "/" + dwo_paths.dydFile)
-        and os.path.isfile(input_case + "/" + dwo_paths.curves_inputFile)
-    ):
-        raise ValueError("some expected files are missing in %s\n" % input_case)
-
-    return input_case
 
 
 def clone_input_case(input_case, dest_case):
     # If the destination exists, remove it
     if os.path.exists(dest_case):
         remove_case(dest_case)
-
     try:
-        retcode = subprocess.call(
-            "cp -a '%s' '%s'" % (input_case, dest_case), shell=True
-        )
+        retcode = subprocess.call(f"cp -a {input_case} {dest_case}", shell=True)
         if retcode < 0:
-            raise ValueError("Copy operation was terminated by signal: %d" % -retcode)
+            raise ValueError(
+                f"Copy operation ({input_case} -->{dest_case}) was terminated by "
+                f"signal: {-retcode}"
+            )
         elif retcode > 0:
-            raise ValueError("Copy operation returned error code: %d" % retcode)
+            raise ValueError(
+                f"Copy operation ({input_case} -->{dest_case}) returned error "
+                f"code: {retcode}"
+            )
     except OSError as e:
-        print("Copy operation failed: ", e, file=sys.stderr)
+        print(
+            f"Copy operation ({input_case} -->{dest_case}) failed: ", e, file=sys.stderr
+        )
         raise
 
 
 def remove_case(dest_case):
     try:
-        retcode = subprocess.call("rm -rf '%s'" % dest_case, shell=True)
+        retcode = subprocess.call(f"rm -rf {dest_case}", shell=True)
         if retcode < 0:
-            raise ValueError("rm of old BASECASE terminated by signal: %d" % -retcode)
+            raise ValueError(f"rm of {dest_case} terminated by signal: {-retcode}")
         elif retcode > 0:
-            raise ValueError("rm of old BASECASE returned error code: %d" % retcode)
+            raise ValueError(f"rm of {dest_case} returned error code: {retcode}")
     except OSError as e:
         print("call to rm failed: ", e, file=sys.stderr)
         raise
@@ -232,19 +248,19 @@ def get_rst_table():
     return rst_zones
 
 
-def edit_dwo_curves(edited_case, case_zone, dwo_paths):
+def edit_dwo_curves(edited_case, case_zone, dwo_paths, astdwo):
     # We prepare the `curvesInput` section in Dynawo's CRV input file with the
     # variables that monitor the behavior of the SVC (pilot point voltage, K level,
     # and P,Q of participating generators).  Also the K levels of all other SVC
     # external to the zone.
     rst_table = get_rst_table()
     if case_zone not in rst_table:
-        raise ValueError("RST Zone %s is not in the master list" % case_zone)
+        raise ValueError(f"RST Zone {case_zone} is not in the master list")
     all_pilot_buses = set()
     for zone in rst_table:
         all_pilot_buses.update(rst_table[zone])
 
-    # Get the SVC controls actually available in the DYD file
+    # Get the SVC controls that are actually present in the DYD file
     dyd_file = edited_case + "/" + dwo_paths.dydFile
     tree = etree.parse(dyd_file, etree.XMLParser(remove_blank_text=True))
     root = tree.getroot()
@@ -280,8 +296,10 @@ def edit_dwo_curves(edited_case, case_zone, dwo_paths):
     # Add our standard curves
     zone_pilot_buses = rst_table[case_zone]
     for rst_id in rst_models:
-        if rst_id == "RST_AVOI5P7_":  # avoid var mismatches with Astre (SPECIAL CASE)
+        # avoid var mismatches with Astre (SPECIAL CASE)
+        if astdwo and rst_id == "RST_AVOI5P7_":
             continue
+        # comments to differentiate SVC controls that belong to the Zone
         if rst_id[4:] in zone_pilot_buses:
             root.append(
                 etree.Comment(" === Inside %s zone: %s === " % (case_zone, rst_id))
@@ -298,6 +316,7 @@ def edit_dwo_curves(edited_case, case_zone, dwo_paths):
         for gen in rst_models[rst_id]:
             root.append(etree.Element("curve", model=gen.DM, variable="generator_PGen"))
             root.append(etree.Element("curve", model=gen.DM, variable="generator_QGen"))
+
     root.append(etree.Comment(" === below, the contingency-specific curves === "))
 
     # Write out the CRV file, preserving the XML format
@@ -331,7 +350,8 @@ def edit_ast_curves(edited_case, case_zone, dwo_rst_models, zone_pilot_buses):
     }
     dwo_rst_set = {x[4:11] for x in dwo_rst_models}  # because of "AVOI5P7_", etc
     if ast_rst_set != dwo_rst_set:
-        print("   WARNING: Dynawo and Astre cases have different RST controls!")
+        print("   WARNING: Dynawo and Astre cases have different RST controls!"
+              " (these may be Astre's RST whose participating gens are all inactive)")
         print("      Non-matching Astre controls:  ", sorted(ast_rst_set - dwo_rst_set))
         print("      Non-matching Dynawo controls: ", sorted(dwo_rst_set - ast_rst_set))
 
