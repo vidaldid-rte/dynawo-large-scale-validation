@@ -38,7 +38,7 @@ def check_inputfiles(input_case, dwo_paths, verbose=False):
     return input_case, basename, dirname
 
 
-def copy_basecase(base_case, dwo_paths, dest_case):
+def copy_astdwo_basecase(base_case, dwo_paths, dest_case):
     # If the destination exists, remove it
     if os.path.exists(dest_case):
         remove_case(dest_case)
@@ -54,6 +54,41 @@ def copy_basecase(base_case, dwo_paths, dest_case):
             f" '{dest_case}/{dyd_dir}' '{dest_case}/{par_dir}' '{dest_case}/{crv_dir}'"
             f" && cp -l '{dwo_paths.job_file}' '{dest_case}'"
             f" && cp -l '{base_case}/{dwo_paths.iidmFile}' '{dest_case}/{iidm_dir}'",
+            shell=True,
+        )
+        if retcode < 0:
+            raise ValueError("Copy operation was terminated by signal: %d" % -retcode)
+        elif retcode > 0:
+            raise ValueError("Copy operation returned error code: %d" % retcode)
+    except OSError as e:
+        print("Copy operation failed: ", e, file=sys.stderr)
+        raise
+
+
+def copy_dwodwo_basecase(base_case, dwo_pathsA, dwo_pathsB, dest_case):
+    # If the destination exists, remove it
+    if os.path.exists(dest_case):
+        remove_case(dest_case)
+    # Make the subdirs for Dynawo cases A & B; and copy any non-changed
+    # files (Dynawo's JOB file and the IIDM) using hard links
+    iidm_dirA = os.path.dirname(dwo_pathsA.iidmFile)
+    dyd_dirA = os.path.dirname(dwo_pathsA.dydFile)  # all these are usually the same
+    par_dirA = os.path.dirname(dwo_pathsA.parFile)  # but we allow themm to be different
+    crv_dirA = os.path.dirname(dwo_pathsA.curves_inputFile)  # just in case
+    iidm_dirB = os.path.dirname(dwo_pathsB.iidmFile)
+    dyd_dirB = os.path.dirname(dwo_pathsB.dydFile)  # all these are usually the same
+    par_dirB = os.path.dirname(dwo_pathsB.parFile)  # but we allow themm to be different
+    crv_dirB = os.path.dirname(dwo_pathsB.curves_inputFile)  # just in case
+    try:
+        retcode = subprocess.call(
+            f"mkdir -p '{dest_case}/{iidm_dirA}' '{dest_case}/{iidm_dirB}'"
+            f" '{dest_case}/{dyd_dirA}' '{dest_case}/{dyd_dirB}'"
+            f" '{dest_case}/{par_dirA}' '{dest_case}/{par_dirB}'"
+            f" '{dest_case}/{crv_dirA}' '{dest_case}/{crv_dirB}'"
+            f" && cp -l '{dwo_pathsA.job_file}' '{dest_case}'"
+            f" && cp -l '{dwo_pathsB.job_file}' '{dest_case}'"
+            f" && cp -l '{base_case}/{dwo_pathsA.iidmFile}' '{dest_case}/{iidm_dirA}'"
+            f" && cp -l '{base_case}/{dwo_pathsB.iidmFile}' '{dest_case}/{iidm_dirB}'",
             shell=True,
         )
         if retcode < 0:
@@ -121,30 +156,84 @@ def dedup_save(basename, edited_case, deduped_case):
         raise
 
 
-def parse_basecase(base_case, dwo_paths, astre_path):
+def parse_basecase(base_case, dwo_paths, astre_path, dwo_pathsA, dwo_pathsB):
     Parsed_case = namedtuple(
         "Parsed_case", "astreTree iidmTree parTree dydTree crvTree"
     )
+    Parsed_dwodwo_case = namedtuple("Parsed_dwodwo_case", "A B")
 
-    file = base_case + astre_path
-    astreTree = etree.parse(file, etree.XMLParser(remove_blank_text=True))
+    if dwo_pathsA is None and dwo_pathsB is None:
+        astreTree = etree.parse(
+            base_case + astre_path, etree.XMLParser(remove_blank_text=True)
+        )
+        iidmTree = etree.parse(
+            base_case + "/" + dwo_paths.iidmFile,
+            etree.XMLParser(remove_blank_text=True),
+        )
+        parTree = etree.parse(
+            base_case + "/" + dwo_paths.parFile, etree.XMLParser(remove_blank_text=True)
+        )
+        dydTree = etree.parse(
+            base_case + "/" + dwo_paths.dydFile, etree.XMLParser(remove_blank_text=True)
+        )
+        crvTree = etree.parse(
+            base_case + "/" + dwo_paths.curves_inputFile,
+            etree.XMLParser(remove_blank_text=True),
+        )
+        return Parsed_case(
+            astreTree=astreTree,
+            iidmTree=iidmTree,
+            parTree=parTree,
+            dydTree=dydTree,
+            crvTree=crvTree,
+        )
+    else:
+        iidmTreeA = etree.parse(
+            base_case + "/" + dwo_pathsA.iidmFile,
+            etree.XMLParser(remove_blank_text=True),
+        )
+        parTreeA = etree.parse(
+            base_case + "/" + dwo_pathsA.parFile,
+            etree.XMLParser(remove_blank_text=True),
+        )
+        dydTreeA = etree.parse(
+            base_case + "/" + dwo_pathsA.dydFile,
+            etree.XMLParser(remove_blank_text=True),
+        )
+        crvTreeA = etree.parse(
+            base_case + "/" + dwo_pathsA.curves_inputFile,
+            etree.XMLParser(remove_blank_text=True),
+        )
+        parsed_caseA = Parsed_case(
+            astreTree=None,
+            iidmTree=iidmTreeA,
+            parTree=parTreeA,
+            dydTree=dydTreeA,
+            crvTree=crvTreeA,
+        )
 
-    file = base_case + "/" + dwo_paths.iidmFile
-    iidmTree = etree.parse(file, etree.XMLParser(remove_blank_text=True))
+        iidmTreeB = etree.parse(
+            base_case + "/" + dwo_pathsB.iidmFile,
+            etree.XMLParser(remove_blank_text=True),
+        )
+        parTreeB = etree.parse(
+            base_case + "/" + dwo_pathsB.parFile,
+            etree.XMLParser(remove_blank_text=True),
+        )
+        dydTreeB = etree.parse(
+            base_case + "/" + dwo_pathsB.dydFile,
+            etree.XMLParser(remove_blank_text=True),
+        )
+        crvTreeB = etree.parse(
+            base_case + "/" + dwo_pathsB.curves_inputFile,
+            etree.XMLParser(remove_blank_text=True),
+        )
+        parsed_caseB = Parsed_case(
+            astreTree=None,
+            iidmTree=iidmTreeB,
+            parTree=parTreeB,
+            dydTree=dydTreeB,
+            crvTree=crvTreeB,
+        )
 
-    file = base_case + "/" + dwo_paths.parFile
-    parTree = etree.parse(file, etree.XMLParser(remove_blank_text=True))
-
-    file = base_case + "/" + dwo_paths.dydFile
-    dydTree = etree.parse(file, etree.XMLParser(remove_blank_text=True))
-
-    file = base_case + "/" + dwo_paths.curves_inputFile
-    crvTree = etree.parse(file, etree.XMLParser(remove_blank_text=True))
-
-    return Parsed_case(
-        astreTree=astreTree,
-        iidmTree=iidmTree,
-        parTree=parTree,
-        dydTree=dydTree,
-        crvTree=crvTree,
-    )
+        return Parsed_dwodwo_case(A=parsed_caseA, B=parsed_caseB)

@@ -43,7 +43,7 @@ import random
 import re
 import sys
 from collections import namedtuple
-from common_funcs import check_inputfiles, copy_basecase, parse_basecase
+from common_funcs import copy_astdwo_basecase, copy_dwodwo_basecase, parse_basecase
 from lxml import etree
 import pandas as pd
 
@@ -53,8 +53,14 @@ import pandas as pd
 # the following hack is ugly, but needed:
 sys.path.insert(1, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Alternatively, you could set PYTHONPATH to PYTHONPATH="/<dir>/dynawo-validation-AIA"
-from xml_utils.dwo_jobinfo import get_dwo_jobpaths  # noqa: E402
-from xml_utils.dwo_jobinfo import get_dwo_tparams  # noqa: E402
+from xml_utils.dwo_jobinfo import (
+    is_astdwo,
+    is_dwodwo,
+    get_dwo_jobpaths,
+    get_dwo_tparams,
+    get_dwodwo_jobpaths,
+    get_dwodwo_tparams,
+)  # noqa: E402
 
 
 MAX_NCASES = 5  # limits the no. of contingency cases (via random sampling)
@@ -76,23 +82,45 @@ def main():
     base_case = sys.argv[1]
     filter_list = [re.compile(x) for x in sys.argv[2:]]
 
-    # Get Dynawo paths from the JOB file
-    dwo_paths = get_dwo_jobpaths(base_case)
+    # remove a possible trailing slash
+    if base_case[-1] == "/":
+        base_case = base_case[:-1]
 
-    # Get the simulation time parameters (from Dynawo's case)
-    dwo_tparams = get_dwo_tparams(base_case)
+    # Contingency cases will be created under the same dir as the basecase
+    dirname = os.path.dirname(os.path.abspath(base_case))
 
-    # Check that all needed files are in place
-    base_case, basename, dirname = check_inputfiles(base_case, dwo_paths, verbose)
+    # Check whether it's an Astre-vs-Dynawo or a Dynawo-vs-Dynawo case
+    # And get the Dynawo paths from the JOB file, and the simulation time params
+    dwo_paths, astdwo = (None, None)
+    dwo_pathsA, dwo_pathsB = (None, None)
+    if is_astdwo(base_case):
+        print(f"Creating contingencies from ASTRE-vs-DYNAWO case: {base_case}")
+        dwo_paths = get_dwo_jobpaths(base_case)
+        dwo_tparams = get_dwo_tparams(base_case)
+        astdwo = True
+    elif is_dwodwo(base_case):
+        print(f"Creating contingencies from DYNAWO-vs-DYNAWO case: {base_case}")
+        dwo_pathsA, dwo_pathsB = get_dwodwo_jobpaths(base_case)
+        dwo_tparamsA, dwo_tparamsB = get_dwodwo_tparams(base_case)
+        astdwo = False
+    else:
+        raise ValueError(f"Case {base_case} is neither an ast-dwo nor a dwo-dwo case")
 
     # Parse all XML files in the basecase
-    parsed_case = parse_basecase(base_case, dwo_paths, ASTRE_PATH)
+    parsed_case = parse_basecase(
+        base_case, dwo_paths, ASTRE_PATH, dwo_pathsA, dwo_pathsB
+    )
 
     # Extract the list of all (active) GENS in the Dynawo case
-    dynawo_gens = extract_dynawo_gens(parsed_case.iidmTree, verbose)
-
-    # Reduce the list to those GENS that are matched in Astre
-    dynawo_gens = matching_in_astre(parsed_case.astreTree, dynawo_gens, verbose)
+    if astdwo:
+        dynawo_gens = extract_dynawo_gens(parsed_case.iidmTree, verbose)
+        # And reduce the list to those GENS that are matched in Astre
+        dynawo_gens = matching_in_astre(parsed_case.astreTree, dynawo_gens, verbose)
+    else:
+        dynawo_gens = extract_dynawo_gens(parsed_case.A.iidmTree, verbose)
+        dynawo_gensB = extract_dynawo_gens(parsed_case.B.iidmTree, verbose)
+        # And reduce the list to those GENS that are matched in the Dynawo B case
+        dynawo_gens = matching_in_dwoB(dynawo_gens, dynawo_gensB)
 
     # Prepare for random sampling if there's too many
     sampling_ratio = MAX_NCASES / len(dynawo_gens)
@@ -103,8 +131,9 @@ def main():
             % (MAX_NCASES, 100 * sampling_ratio)
         )
 
-    # Initialize another dict to keep Astre's (P,Q) of each gen
-    astre_gens = dict()
+    # This dict will keep track of which contingencies are actually processed
+    # It will also keep Astre's (P,Q) of each gen
+    processed_gensPQ = dict()
 
     # For each matching GEN, generate the contingency case
     for gen_name in dynawo_gens:
@@ -123,28 +152,53 @@ def main():
             % (gen_name, dynawo_gens[gen_name].bus)
         )
 
-        # Copy the basecase (unchanged files and dir structure)
-        # Note we fix any device names with slashes in them (illegal filenames)
+        # We fix any device names with slashes in them (illegal filenames)
         contg_casedir = dirname + "/gen_" + gen_name.replace("/", "+")
-        copy_basecase(base_case, dwo_paths, contg_casedir)
 
-        # Modify the Dynawo case (DYD,PAR,CRV)
-        config_dynawo_gen_contingency(
-            contg_casedir,
-            parsed_case,
-            dwo_paths,
-            dwo_tparams,
-            gen_name,
-            dynawo_gens[gen_name],
-        )
+        if astdwo:
+            # Copy the basecase (unchanged files and dir structure)
+            copy_astdwo_basecase(base_case, dwo_paths, contg_casedir)
+            # Modify the Dynawo case (DYD,PAR,CRV)
+            config_dynawo_gen_contingency(
+                contg_casedir,
+                parsed_case,
+                dwo_paths,
+                dwo_tparams,
+                gen_name,
+                dynawo_gens[gen_name],
+            )
+            # Modify the Astre case, and obtain the disconnected generation (P,Q)
+            processed_gensPQ[gen_name] = config_astre_gen_contingency(
+                contg_casedir, parsed_case.astreTree, gen_name, dynawo_gens[gen_name]
+            )
+        else:
+            # Copy the basecase (unchanged files and dir structure)
+            copy_dwodwo_basecase(base_case, dwo_pathsA, dwo_pathsB, contg_casedir)
+            # Modify the Dynawo A & B cases (DYD,PAR,CRV)
+            config_dynawo_gen_contingency(
+                contg_casedir,
+                parsed_case.A,
+                dwo_pathsA,
+                dwo_tparamsA,
+                gen_name,
+                dynawo_gens[gen_name],
+            )
+            config_dynawo_gen_contingency(
+                contg_casedir,
+                parsed_case.B,
+                dwo_pathsB,
+                dwo_tparamsB,
+                gen_name,
+                dynawo_gens[gen_name],
+            )
+            # Get the disconnected generation (P,Q) for case B
+            processed_gensPQ[gen_name] = (
+                dynawo_gensB[gen_name].P,
+                dynawo_gensB[gen_name].Q,
+            )
 
-        # Modify the Astre case, and obtain the disconnected generation (P,Q)
-        astre_gens[gen_name] = config_astre_gen_contingency(
-            contg_casedir, parsed_case.astreTree, gen_name, dynawo_gens[gen_name]
-        )
-
-    # Finally, save the (P,Q) values of disconnected gens in all processed cases
-    save_total_genpq(dirname, dynawo_gens, astre_gens)
+    # Finally, save the (P,Q) values of disconnected gens in all *processed* cases
+    save_total_genpq(dirname, astdwo, dynawo_gens, processed_gensPQ)
 
     return 0
 
@@ -197,12 +251,11 @@ def extract_dynawo_gens(iidm_tree, verbose=False):
 
 
 def matching_in_astre(astre_tree, dynawo_gens, verbose=False):
+    # Retrieve the list of Astre gens
     root = astre_tree.getroot()
-
-    # Retrieve the list of Astre shunts
-    astre_gens = set()  # for faster matching below
     reseau = root.find("./reseau", root.nsmap)
     donneesGroupes = reseau.find("./donneesGroupes", root.nsmap)
+    astre_gens = set()  # for faster matching below
     for gen in donneesGroupes.iterfind("./groupe", root.nsmap):
         # Discard gens having noeud="-1"
         if gen.get("noeud") != "-1":
@@ -222,6 +275,13 @@ def matching_in_astre(astre_tree, dynawo_gens, verbose=False):
     new_list = [x for x in dynawo_gens.items() if x[0] in astre_gens]
     print("   (matched %d gens against Dynawo file)\n" % len(new_list))
 
+    return dict(new_list)
+
+
+def matching_in_dwoB(dynawo_gensA, dynawo_gensB):
+    # Match:
+    new_list = [x for x in dynawo_gensA.items() if x[0] in dynawo_gensB]
+    print("   (matched %d gens against Dynawo A case)\n" % len(new_list))
     return dict(new_list)
 
 
@@ -460,33 +520,53 @@ def config_astre_gen_contingency(casedir, astre_tree, gen_name, gen_info):
     return gen_P, gen_Q
 
 
-def save_total_genpq(dirname, dynawo_gens, astre_gens):
+def save_total_genpq(dirname, astdwo, dynawo_gens, processed_gens):
     file_name = dirname + "/total_PQ_per_generator.csv"
     # Using a dataframe for sorting
-    column_list = [
-        "GEN",
-        "P_dwo",
-        "P_ast",
-        "Pdiff_pct",
-        "Q_dwo",
-        "Q_ast",
-        "Qdiff_pct",
-        "sumPQdiff_pct",
-    ]
+    if astdwo:
+        column_list = [
+            "GEN",
+            "P_dwo",
+            "P_ast",
+            "Pdiff_pct",
+            "Q_dwo",
+            "Q_ast",
+            "Qdiff_pct",
+            "sumPQdiff_pct",
+        ]
+    else:
+        column_list = [
+            "GEN",
+            "P_dwoA",
+            "P_dwoB",
+            "Pdiff_pct",
+            "Q_dwoA",
+            "Q_dwoB",
+            "Qdiff_pct",
+            "sumPQdiff_pct",
+        ]
+    # The processed_gens dict contains the cases that have actually been processed
+    # (because we may have skipped some in the main loop)
     data_list = []
-    # We enumerate the astre_gens dict because it contains the cases
-    # that have actually been processed (because we may have skipped
-    # some in the main loop).
-    for gen_name in astre_gens:
+    for gen_name in processed_gens:
         P_dwo = dynawo_gens[gen_name].P
-        P_ast = astre_gens[gen_name][0]
-        Pdiff_pct = 100 * (P_dwo - P_ast) / max(abs(P_ast), 0.001)
+        P_proc = processed_gens[gen_name][0]
+        Pdiff_pct = 100 * (P_dwo - P_proc) / max(abs(P_proc), 0.001)
         Q_dwo = dynawo_gens[gen_name].Q
-        Q_ast = astre_gens[gen_name][1]
-        Qdiff_pct = 100 * (Q_dwo - Q_ast) / max(abs(Q_ast), 0.001)
+        Q_proc = processed_gens[gen_name][1]
+        Qdiff_pct = 100 * (Q_dwo - Q_proc) / max(abs(Q_proc), 0.001)
         sumPQdiff_pct = abs(Pdiff_pct) + abs(Qdiff_pct)
         data_list.append(
-            [gen_name, P_dwo, P_ast, Pdiff_pct, Q_dwo, Q_ast, Qdiff_pct, sumPQdiff_pct]
+            [
+                gen_name,
+                P_dwo,
+                P_proc,
+                Pdiff_pct,
+                Q_dwo,
+                Q_proc,
+                Qdiff_pct,
+                sumPQdiff_pct,
+            ]
         )
 
     df = pd.DataFrame(data_list, columns=column_list)
