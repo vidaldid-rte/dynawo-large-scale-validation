@@ -5,34 +5,48 @@
 #     marinjl@aia.es
 #
 #
-# gen_astdwo_contg.py:
+# gen_contg.py:
 #
-# Takes a base case consisting of two corresponding Dynawo and Astre
-# files and, enumerating all SHUNTS that can be matched in the two,
-# generates the files for running a single-shunt contingency for each
-# device.
+# Takes a given base case, consisting of EITHER two corresponding Dynawo and Astre
+# cases OR two corresponding Dynawo and Dynawo cases, and, enumerating all SHUNTS
+# that can be matched in the two, generates the files for running a single-shunt
+# contingency for each device.
 #
-# On input, the files are expected to have a structure similar to this
-# (not strict, see below):
+# On input, the files are expected to have a structure that typically looks as either
+# one of these  similar to this (but this is not strict; see below):
 #
-# basecase/
-# ├── Astre
-# │   └── donneesModelesEntree.xml
-# ├── fic_JOB.xml
-# ├── t0
-# │   ├── fic_CRV.xml
-# │   ├── fic_DYD.xml
-# │   ├── fic_IIDM.xml
-# │   └── fic_PAR.xml
-# └── tFin
-#    ├── fic_CRV.xml
-#    ├── fic_DYD.xml
-#    ├── fic_IIDM.xml
-#    └── fic_PAR.xml
+#    For Astre-vs-Dynawo:                For Dynawo_A vs. Dynawo_B:
+#    ====================                ==========================
+#    BASECASE/                           BASECASE/
+#    ├── Astre                           ├── fic_JOB_A.xml
+#    │   └── donneesModelesEntree.xml    ├── fic_JOB_B.xml
+#    ├── fic_JOB.xml                     ├── t0_A
+#    ├── t0                              │   ├── fic_CRV.xml
+#    │   ├── fic_CRV.xml                 │   ├── fic_DYD.xml
+#    │   ├── fic_DYD.xml                 │   ├── fic_IIDM.xml
+#    │   ├── fic_IIDM.xml                │   └── fic_PAR.xml
+#    │   └── fic_PAR.xml                 ├── t0_B
+#    └── tFin                            │   ├── fic_CRV.xml
+#       ├── fic_CRV.xml                  │   ├── fic_DYD.xml
+#       ├── fic_DYD.xml                  │   ├── fic_IIDM.xml
+#       ├── fic_IIDM.xml                 │   └── fic_PAR.xml
+#       └── fic_PAR.xml                  ├── tFin_A
+#                                        │   ├── fic_CRV.xml
+#                                        │
+#                                        ├── fic_DYD.xml
+#                                        │   ├── fic_IIDM.xml
+#                                        │   └── fic_PAR.xml
+#                                        └── tFin_B
+#                                            ├── fic_CRV.xml
+#                                            ├── fic_DYD.xml
+#                                            ├── fic_IIDM.xml
+#                                            └── fic_PAR.xml
 #
-# For Astre, the structure should be strictly as the above example.  However,
-# for Dynawo we read the actual paths from the existing JOB file, and we configure the
-# contingency in the last job defined inside the JOB file (see module dwo_jobinfo).
+# For Astre, the structure should be strictly as the above example.  On the other
+# hand, for Dynawo we only require that there is a JOB file with patterns "*JOB*.xml"
+# (or "*JOB_A*.xml", "*JOB_B*.xml"); and then we read from them the actual paths to
+# the IIDM, DYD, etc., configuring the contingency in the last job defined inside the
+# JOB file (see module dwo_jobinfo).
 #
 # On output, the script generates new dirs sibling to basecase:
 # gen_LABEL1, gen_LABEL2, etc.
