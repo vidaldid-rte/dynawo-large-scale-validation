@@ -51,17 +51,19 @@
 # reference.
 #
 
-import sys
 import os
-from lxml import etree
-import pandas as pd
+import sys
 from collections import namedtuple
-from dwo_jobinfo import get_dwo_jobpaths
+import pandas as pd
+from dwo_jobinfo import is_astdwo, is_dwodwo, get_dwo_jobpaths, get_dwodwo_jobpaths
+from lxml import etree
 
 ASTRE_EVENTS_IN = "/Astre/donneesModelesSortie.xml"
 ASTRE_EVENTS_OUT = "/Astre/Astre_automata_changes.csv"
 DYNAWO_TIMELINE = "/timeLine/timeline.xml"  # to be prefixed with output path from JOB
 DYNAWO_EVENTS_OUT = "/Dynawo_automata_changes.csv"
+DYNAWO_A_EVENTS_OUT = "/DynawoA_automata_changes.csv"
+DYNAWO_B_EVENTS_OUT = "/DynawoB_automata_changes.csv"
 
 devtype_xfmer = "Transformer"
 devtype_loadxfmer = "Load_Transformer"
@@ -79,43 +81,59 @@ def main():
         return 2
     run_case = sys.argv[1]
 
-    # Get some Dynawo paths from the JOB file
-    dwo_paths = get_dwo_jobpaths(run_case)
-    dyd_file = "/" + dwo_paths.dydFile
-    dynawo_events_in = "/" + dwo_paths.outputs_directory + DYNAWO_TIMELINE
-
-    # Check that all needed files are in place
-    check_inputfiles(run_case, ASTRE_EVENTS_IN, dynawo_events_in)
     if verbose:
         print("Extracting automata changes for case: %s" % run_case)
 
-    # Extract the events from Astre results
-    df_ast = extract_astre_events(run_case + ASTRE_EVENTS_IN)
-
-    # Extract the events from Dynawo results
-    df_dwo = extract_dynawo_events(run_case + dynawo_events_in, run_case + dyd_file)
-
-    # Sort and save
-    save_extracted_events(
-        df_ast, df_dwo, run_case + ASTRE_EVENTS_OUT, run_case + DYNAWO_EVENTS_OUT
-    )
+    # Manage here whether it is an Astre-vs-Dynawo or a DynawoA-vs-DynawoB case
+    if is_astdwo(run_case):
+        # construct Dynawo paths from the info in the JOB file
+        dwo_paths = get_dwo_jobpaths(run_case)
+        dwo_events_in = "/" + dwo_paths.outputs_directory + DYNAWO_TIMELINE
+        dyd_file = "/" + dwo_paths.dydFile
+        check_inputfiles(run_case, ASTRE_EVENTS_IN, dwo_events_in)
+        # Extract the events from Astre results
+        df_ast = extract_astre_events(run_case + ASTRE_EVENTS_IN)
+        # Extract the events from Dynawo results
+        df_dwo = extract_dynawo_events(run_case + dwo_events_in, run_case + dyd_file)
+        # Sort and save
+        save_extracted_events(
+            df_ast, df_dwo, run_case + ASTRE_EVENTS_OUT, run_case + DYNAWO_EVENTS_OUT
+        )
+    elif is_dwodwo(run_case):
+        # construct Dynawo paths from the info in the JOB_A and JOB_B files
+        dwo_pathsA, dwo_pathsB = get_dwodwo_jobpaths(run_case)
+        dwo_events_inA = "/" + dwo_pathsA.outputs_directory + DYNAWO_TIMELINE
+        dwo_events_inB = "/" + dwo_pathsB.outputs_directory + DYNAWO_TIMELINE
+        dyd_fileA = "/" + dwo_pathsA.dydFile
+        dyd_fileB = "/" + dwo_pathsB.dydFile
+        check_inputfiles(run_case, dwo_events_inA, dwo_events_inB)
+        # Extract the events from Dynawo A & B results
+        df_dwoA = extract_dynawo_events(run_case + dwo_events_inA, run_case + dyd_fileA)
+        df_dwoB = extract_dynawo_events(run_case + dwo_events_inB, run_case + dyd_fileB)
+        # Sort and save
+        save_extracted_events(
+            df_dwoA,
+            df_dwoB,
+            run_case + DYNAWO_A_EVENTS_OUT,
+            run_case + DYNAWO_B_EVENTS_OUT,
+        )
+    else:
+        raise ValueError("Case %s is neither an ast-dwo nor a dwo-dwo case" % run_case)
 
     return 0
 
 
-def check_inputfiles(input_case, astre_events_in, dynawo_events_in):
-    if not os.path.isdir(input_case):
-        raise ValueError("source directory %s not found" % input_case)
-
-    # remove trailing slash so that basename/dirname below behave consistently:
-    if input_case[-1] == "/":
-        input_case = input_case[:-1]
-
+def check_inputfiles(run_case, events_in_1, events_in_2):
+    if not os.path.isdir(run_case):
+        raise ValueError("case directory %s not found" % run_case)
+    # remove trailing slash
+    if run_case[-1] == "/":
+        run_case = run_case[:-1]
     if not (
-        os.path.isfile(input_case + astre_events_in)
-        and os.path.isfile(input_case + dynawo_events_in)
+        os.path.isfile(run_case + events_in_1)
+        and os.path.isfile(run_case + events_in_2)
     ):
-        raise ValueError("the expected output files are missing in %s\n" % input_case)
+        raise ValueError("the expected output files are missing in %s\n" % run_case)
 
 
 def extract_astre_events(astre_input):
@@ -300,8 +318,7 @@ def dynawo_id2name(data, dynawo_dyd):
                 row[0] = dm_libname
 
 
-def save_extracted_events(df_ast, df_dwo, astre_output, dynawo_output):
-
+def save_extracted_events(df_1, df_2, output_1, output_2):
     # Filter events. Use Panda's query() syntax (use None for no filter).
     # evt_filter = "DEVICE_TYPE in ['%s', '%s', '%s']" % (devtype_xfmer,
     # devtype_loadxfmer, devtype_shunt)
@@ -311,24 +328,22 @@ def save_extracted_events(df_ast, df_dwo, astre_output, dynawo_output):
         devtype_shunt,
     )
     if evt_filter is not None:
-        df_ast = df_ast.query(evt_filter)
-        df_dwo = df_dwo.query(evt_filter)
+        df_1 = df_1.query(evt_filter)
+        df_2 = df_2.query(evt_filter)
 
     # Sort dataframe
     sort_fields = ["DEVICE_TYPE", "DEVICE", "TIME"]
     sort_order = [True, True, True]
-    df_ast = df_ast.sort_values(
+    df_1 = df_1.sort_values(
         by=sort_fields, ascending=sort_order, inplace=False, na_position="first"
     )
-    df_dwo = df_dwo.sort_values(
+    df_2 = df_2.sort_values(
         by=sort_fields, ascending=sort_order, inplace=False, na_position="first"
     )
 
-    # Save Astre data
-    df_ast.to_csv(astre_output, index=False, sep=";", encoding="utf-8")
-
-    # Save Dynawo data
-    df_dwo.to_csv(dynawo_output, index=False, sep=";", encoding="utf-8")
+    # Save to file
+    df_1.to_csv(output_1, index=False, sep=";", encoding="utf-8")
+    df_2.to_csv(output_2, index=False, sep=";", encoding="utf-8")
 
 
 if __name__ == "__main__":
