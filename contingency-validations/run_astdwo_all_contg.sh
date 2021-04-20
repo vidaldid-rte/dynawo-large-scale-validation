@@ -1,16 +1,16 @@
 #!/bin/bash
 #
 #
-# run_astdwo_all_contg.sh:
+# run_all_contg.sh:
 #
-# given a directory containing Dynawo+Astre contingency cases,
-# all of them derived from a common BASECASE, run all that have a
+# given a directory containing contingency cases (which can be of
+# EITHER Astre vs. Dynawo OR Dynawo vs. Dynawo type), all of them
+# derived from a common BASECASE, this script runs all cases having a
 # given prefix in their name (possibly in parallel, using GNU
 # parallel).
 #
 # (c) Grupo AIA
 # marinjl@aia.es
-#
 #
 
 # For saner programming:
@@ -24,11 +24,11 @@ usage()
 
 Usage: $0 [OPTIONS] CASE_DIR BASECASE CASE_PREFIX
   Options:
-    -c | --cleanup    Delete input cases (both Astre & Dynawo) after getting the results
+    -c | --cleanup    Delete input cases after getting the results
     -d | --debug      More debug messages
     -h | --help       This help message
     -o | --output     Specify a directory (no whitespace!) for collecting results (default: RESULTS)
-    -v | --verbose    Mode verbose output
+    -v | --verbose    More verbose output
     -s | --sequential Run jobs sequentially (defult is parallel)
 
   Example: $0 PtFige-Lille load

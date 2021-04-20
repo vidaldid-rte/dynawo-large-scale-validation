@@ -1,18 +1,20 @@
 #!/bin/bash
 #
 #
-# run_astdwo_one_contg.sh:
+# run_one_contg.sh:
 #
-# given a Dynawo+Astre contingency case (and the BASECASE it was
-# derived from), run it and collect the results somewhere
-# else. Optionally, delete the case to save space.
+# given a specific contingency case (which can be of EITHER type,
+# Astre vs. Dynawo OR Dynawo vs. Dynawo), plus the BASECASE it was
+# derived from, this script runs the case and collects all results in
+# a (configurable) output directory designed to store the results from
+# many other contingencies. Optionally, delete the case to save space.
 #
 # (c) Grupo AIA
 # marinjl@aia.es
 #
 
 # For saner programming:
-set -o nounset  # here we don't set noclobber because we need it
+set -o nounset  # don't set noclobber because we do need to overwrite files with ">"
 set -o errexit -o pipefail 
 
 
@@ -22,16 +24,68 @@ usage()
 
 Usage: $0 [OPTIONS] BASECASE CONTINGENCY_CASE
   Options:
-    -c | --cleanup  Delete the input case (both Astre & Dynawo) after getting the results
+    -c | --cleanup  Delete the contingency case after getting the results
     -d | --debug    More debug messages
     -h | --help     This help message
     -o | --output   Specify a directory for collecting results (default: RESULTS)
-    -v | --verbose  Mode verbose output
+    -v | --verbose  More verbose output
 
 EOF
 }
 
 
+run_astre(){
+    if [ ! -d "$CONTG_CASE"/Astre ]; then
+        echo "Directory $CONTG_CASE/Astre not found."
+        exit 1
+    fi
+    OLD_PWD=$(pwd)
+    cd "$CONTG_CASE"/Astre
+    RUNLOG=Astre.runStdout
+    astre donneesModelesEntree.xml > "$RUNLOG" 2>&1
+    if [ ! -f donneesModelesSortie.csv ]; then
+        echo "Astre run failed. Check the runlog: $CONTG_CASE/Astre/$RUNLOG"
+        exit 1
+    fi
+    # Collect and compress all results
+    cd "$OLD_PWD"
+    xz -c9 "$CONTG_CASE"/Astre/donneesModelesSortie.csv > "$outDir"/crv/"$prefix"-AstreCurves.csv.xz
+    xz -c9 "$CONTG_CASE"/Astre/donneesModelesSortie.xml > "$outDir"/xml/"$prefix"-AstreSortie.xml.xz
+    xz -c9 "$CONTG_CASE"/Astre/donneesModelesLog.xml    > "$outDir"/log/"$prefix"-AstreLog.xml.xz
+    xz -c9 "$CONTG_CASE"/Astre/"$RUNLOG"                > "$outDir"/log/"$prefix"-"$RUNLOG".xz
+}
+
+
+run_dynawo(){
+    if [ ! -f "$CONTG_CASE"/"$DWO_JOBFILE" ]; then
+        echo "Dynawo JOB file not found under $CONTG_CASE/"
+        exit 1
+    fi
+    OLD_PWD=$(pwd)
+    cd "$CONTG_CASE"
+    RUNLOG=Dynawo"$1".runStdout
+    dynawo-RTE jobs "$DWO_JOBFILE" > "$RUNLOG" 2>&1 || true  # allow it to fail while using errexit flag
+    if [ ! -f ./"$DWO_OUTPUT_DIR"/curves/curves.csv ]; then
+        if [ -f ./"$DWO_OUTPUT_DIR"/curves/curves.xml ]; then
+            echo "Dynawo$1 run: output curves file found in XML format; required format is CSV"
+        else
+            echo "Dynawo$1 run: no curves output found. Check Dynawo's log and the run-log: $CONTG_CASE/$RUNLOG"
+        fi
+        exit 1
+    fi
+    # Collect and compress all results
+    cd "$OLD_PWD"
+    xz -c9 "$CONTG_CASE"/"$DWO_OUTPUT_DIR"/curves/curves.csv           > "$outDir"/crv/"$prefix"-DynawoCurves"$1".csv.xz
+    xz -c9 "$CONTG_CASE"/"$DWO_OUTPUT_DIR"/constraints/constraints.xml > "$outDir"/xml/"$prefix"-DynawoConstraints"$1".xml.xz
+    xz -c9 "$CONTG_CASE"/"$DWO_OUTPUT_DIR"/timeLine/timeline.xml       > "$outDir"/xml/"$prefix"-DynawoTimeLine"$1".xml.xz
+    xz -c9 "$CONTG_CASE"/"$DWO_OUTPUT_DIR"/logs/dynamo.log             > "$outDir"/log/"$prefix"-Dynawo"$1".log.xz
+    xz -c9 "$CONTG_CASE"/"$RUNLOG"                                     > "$outDir"/log/"$prefix"-"$RUNLOG".xz
+}
+
+
+#######################################
+# getopt-like input option processing
+#######################################
 
 # -allow a command to fail with !’s side effect on errexit
 # -use return value from ${PIPESTATUS[0]}, because ! hosed $?
@@ -116,7 +170,6 @@ if [ $d = "y" ]; then
 fi
 
 
-
 #######################################
 # The real meat starts here
 ########################################
@@ -133,21 +186,12 @@ if [ ! -d "$CONTG_CASE" ]; then
 fi
 prefix=$(basename "$CONTG_CASE")
 
-DWO_JOBINFO_SCRIPT=$(dirname "$0")/../xml_utils/dwo_jobinfo.py
-DWO_JOBFILE=$("$DWO_JOBINFO_SCRIPT" "$CONTG_CASE" | grep -F job_file | cut -d'=' -f2)
-DWO_JOBFILE=$(basename "$DWO_JOBFILE")
-DWO_OUTPUT_DIR=$("$DWO_JOBINFO_SCRIPT" "$CONTG_CASE" | grep -F outputs_directory | cut -d'=' -f2)
-
 # Create the output dirs if they don't exist
 mkdir -p "$outDir"/crv
 mkdir -p "$outDir"/aut
 mkdir -p "$outDir"/xml
 mkdir -p "$outDir"/log
 mkdir -p "$outDir"/casediffs
-
-# Save the PWD to avoid having to deal with absolute/relative paths in outDir vs CONTG_CASE
-OLD_PWD=$(pwd)
-
 
 
 #################################################
@@ -178,56 +222,27 @@ EOF
 fi
 
 
-
-########################################
-# Run Astre
-########################################
-if [ ! -d "$CONTG_CASE"/Astre ]; then
-   echo "Directory $CONTG_CASE/Astre not found."
-   exit 1
+#####################################################################
+# Detect whether it's astdwo / dwodwo, and run the cases accordingly
+#####################################################################
+DWO_JOBINFO_SCRIPT=$(dirname "$0")/../xml_utils/dwo_jobinfo.py
+CASE_TYPE=$("$DWO_JOBINFO_SCRIPT" "$CONTG_CASE" | grep -F "CASE_TYPE" | cut -d'=' -f2)
+if [ "$CASE_TYPE" = "astdwo" ]; then
+    run_astre
+    DWO_JOBFILE=$("$DWO_JOBINFO_SCRIPT" "$CONTG_CASE" | grep -F "job_file" | cut -d'=' -f2)
+    DWO_JOBFILE=$(basename "$DWO_JOBFILE")
+    DWO_OUTPUT_DIR=$("$DWO_JOBINFO_SCRIPT" "$CONTG_CASE" | grep -F "outputs_directory" | cut -d'=' -f2)
+    run_dynawo ""
+else
+    DWO_JOBFILE=$("$DWO_JOBINFO_SCRIPT" "$CONTG_CASE" | grep -F "job_fileA" | cut -d'=' -f2)
+    DWO_JOBFILE=$(basename "$DWO_JOBFILE")
+    DWO_OUTPUT_DIR=$("$DWO_JOBINFO_SCRIPT" "$CONTG_CASE" | grep -F "outputs_directoryA" | cut -d'=' -f2)
+    run_dynawo "A"
+    DWO_JOBFILE=$("$DWO_JOBINFO_SCRIPT" "$CONTG_CASE" | grep -F "job_fileB" | cut -d'=' -f2)
+    DWO_JOBFILE=$(basename "$DWO_JOBFILE")
+    DWO_OUTPUT_DIR=$("$DWO_JOBINFO_SCRIPT" "$CONTG_CASE" | grep -F "outputs_directoryB" | cut -d'=' -f2)
+    run_dynawo "B"
 fi
-cd "$CONTG_CASE"/Astre
-RUNLOG=Astre.runStdout
-astre donneesModelesEntree.xml > "$RUNLOG" 2>&1
-if [ ! -f donneesModelesSortie.csv ]; then
-   echo "Astre run failed. Check the runlog: $CONTG_CASE/Astre/$RUNLOG"
-   exit 1
-fi
-
-# Collect and compress all results
-cd "$OLD_PWD"
-xz -c9 "$CONTG_CASE"/Astre/donneesModelesSortie.csv > "$outDir"/crv/"$prefix"-AstreCurves.csv.xz
-xz -c9 "$CONTG_CASE"/Astre/donneesModelesSortie.xml > "$outDir"/xml/"$prefix"-AstreSortie.xml.xz
-xz -c9 "$CONTG_CASE"/Astre/donneesModelesLog.xml    > "$outDir"/log/"$prefix"-AstreLog.xml.xz
-xz -c9 "$CONTG_CASE"/Astre/"$RUNLOG"                > "$outDir"/log/"$prefix"-"$RUNLOG".xz
-
-
-
-########################################
-# Run Dynawo
-########################################
-if [ ! -f "$CONTG_CASE"/"$DWO_JOBFILE" ]; then
-   echo "Dynawo JOB file not found under $CONTG_CASE/."
-   exit 1
-fi
-cd "$CONTG_CASE"
-RUNLOG=Dynawo.runStdout
-dynawo-RTE jobs "$DWO_JOBFILE" > "$RUNLOG" 2>&1 || true  # allow it to fail while using errexit flag
-if [ ! -f ./"$DWO_OUTPUT_DIR"/curves/curves.csv ]; then
-   echo "Dynawo run failed. Check Dynawo's log and the run-log: $CONTG_CASE/$RUNLOG"
-   if [ -f ./"$DWO_OUTPUT_DIR"/curves/curves.xml ]; then
-       echo "Output curves file found in XML format. Required format is CSV: please check the jobs file"
-   fi
-   exit 1
-fi
-
-# Collect and compress all results
-cd "$OLD_PWD"
-xz -c9 "$CONTG_CASE"/"$DWO_OUTPUT_DIR"/curves/curves.csv           > "$outDir"/crv/"$prefix"-DynawoCurves.csv.xz
-xz -c9 "$CONTG_CASE"/"$DWO_OUTPUT_DIR"/constraints/constraints.xml > "$outDir"/xml/"$prefix"-DynawoConstraints.xml.xz
-xz -c9 "$CONTG_CASE"/"$DWO_OUTPUT_DIR"/timeLine/timeline.xml       > "$outDir"/xml/"$prefix"-DynawoTimeLine.xml.xz
-xz -c9 "$CONTG_CASE"/"$DWO_OUTPUT_DIR"/logs/dynamo.log             > "$outDir"/log/"$prefix"-Dynawo.log.xz
-xz -c9 "$CONTG_CASE"/"$RUNLOG"                                     > "$outDir"/log/"$prefix"-"$RUNLOG".xz
 
 
 
@@ -240,8 +255,13 @@ scripts_basedir=$(dirname "$0")/..
 "$scripts_basedir"/xml_utils/extract_automata_changes.py "$CONTG_CASE"
 
 # Collect and compress all results
-xz -c9 "$CONTG_CASE"/Astre/Astre_automata_changes.csv > "$outDir"/aut/"$prefix"-AstreAutomata.csv.xz
-xz -c9 "$CONTG_CASE"/Dynawo_automata_changes.csv      > "$outDir"/aut/"$prefix"-DynawoAutomata.csv.xz
+if [ "$CASE_TYPE" = "astdwo" ]; then
+    xz -c9 "$CONTG_CASE"/Astre/Astre_automata_changes.csv > "$outDir"/aut/"$prefix"-AstreAutomata.csv.xz
+    xz -c9 "$CONTG_CASE"/Dynawo_automata_changes.csv      > "$outDir"/aut/"$prefix"-DynawoAutomata.csv.xz
+else
+    xz -c9 "$CONTG_CASE"/DynawoA_automata_changes.csv      > "$outDir"/aut/"$prefix"-DynawoAutomataA.csv.xz
+    xz -c9 "$CONTG_CASE"/DynawoB_automata_changes.csv      > "$outDir"/aut/"$prefix"-DynawoAutomataB.csv.xz
+fi
 
 
 
