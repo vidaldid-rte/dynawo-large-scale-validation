@@ -7,13 +7,15 @@
 #
 # gen_contg.py:
 #
-# Takes a given base case, consisting of EITHER two corresponding Dynawo and Astre
-# cases OR two corresponding Dynawo and Dynawo cases, and, enumerating all SHUNTS
-# that can be matched in the two, generates the files for running a single-shunt
-# contingency for each device.
+# Takes a given base case, consisting of EITHER two corresponding
+# Dynawo and Astre cases OR two corresponding Dynawo and Dynawo cases,
+# and, enumerating all SHUNTS that can be matched in the two,
+# generates the files for running a single-shunt contingency for each
+# device.
 #
-# On input, the files are expected to have a structure that typically looks as either
-# one of these  similar to this (but this is not strict; see below):
+# On input, the files are expected to have a structure that typically
+# looks as either one of these similar to this (but this is not
+# strict; see below):
 #
 #    For Astre-vs-Dynawo:                For Dynawo_A vs. Dynawo_B:
 #    ====================                ==========================
@@ -32,8 +34,7 @@
 #       ├── fic_IIDM.xml                 │   └── fic_PAR.xml
 #       └── fic_PAR.xml                  ├── tFin_A
 #                                        │   ├── fic_CRV.xml
-#                                        │
-#                                        ├── fic_DYD.xml
+#                                        │   ├── fic_DYD.xml
 #                                        │   ├── fic_IIDM.xml
 #                                        │   └── fic_PAR.xml
 #                                        └── tFin_B
@@ -42,11 +43,12 @@
 #                                            ├── fic_IIDM.xml
 #                                            └── fic_PAR.xml
 #
-# For Astre, the structure should be strictly as the above example.  On the other
-# hand, for Dynawo we only require that there is a JOB file with patterns "*JOB*.xml"
-# (or "*JOB_A*.xml", "*JOB_B*.xml"); and then we read from them the actual paths to
-# the IIDM, DYD, etc., configuring the contingency in the last job defined inside the
-# JOB file (see module dwo_jobinfo).
+# For Astre, the structure should be strictly as the above example.
+# On the other hand, for Dynawo we only require that there exists a
+# JOB file with patterns "*JOB*.xml" (or "*JOB_A*.xml",
+# "*JOB_B*.xml"); and then we read from them the actual paths to the
+# IIDM, DYD, etc., configuring the contingency in the last job defined
+# inside the JOB file (see module dwo_jobinfo).
 #
 # On output, the script generates new dirs sibling to basecase:
 # gen_LABEL1, gen_LABEL2, etc.
