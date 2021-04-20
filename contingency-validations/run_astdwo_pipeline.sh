@@ -1,29 +1,31 @@
 #!/bin/bash
 #
 #
-# run_astdwo_pipeline.sh:
+# run_pipeline.sh:
 #
-# a simple high-level "driver" script that runs the whole process
-# pipeline.  Given a directory containing a Dynawo+Astre basecase, and
-# for each type of device (load, shunt, gen, etc.):
+# A simple high-level "driver" script that runs the whole processing
+# pipeline.  Given a directory containing either an Astre vs. Dynawo
+# OR a Dynawo vs. Dynawo BASECASE, and for each type of device (load,
+# shunt, gen, branchB, etc.):
 #
-#   (a) creates all contingency cases (it assumes the BASECASE is
-#       already prepared--see the script "prepare_astdwo_basecase.py"
-#       to help you do that, before running this script)
+#   (a) creates all contingency cases (IMPORTANT: it assumes that the
+#       BASECASE is already prepared--see the script
+#       "prepare_pipeline_basecase.py" to help you do that, before
+#       running this script)
 #
-#   (b) runs them all and collects the results in the given directory
+#   (b) runs them all, and collects the results in the given directory
 #
 # So, for example, instead of running these commands:
 #
 #    $ cd ~/work/PtFige-Lille
 #    $ rm -rf gen_* MyResults/gens/
-#    $ gen_astdwo_contg.py 20190410_1350.BASECASE
-#    $ run_astdwo_all_contg.sh -v -c -o MyResults/gens . 20190410_1350.BASECASE gen_
+#    $ gen_contg.py 20190410_1350.BASECASE
+#    $ run_all_contg.sh -v -c -o MyResults/gens . 20190410_1350.BASECASE gen_
 #
 # and having to repeat this for loads, branches, etc.; invoke this
-# script as follows, to obtain the same result:
+# script instead, to obtain the same result:
 #
-#    $ run_astdwo_pipeline.sh 20190410_1350.BASECASE MyResults
+#    $ run_pipeline.sh 20190410_1350.BASECASE MyResults
 #
 # You may use either relative or absolute paths.
 #
@@ -39,15 +41,15 @@ set -o errexit -o pipefail
 
 # Configure what devices to process (using an associative array -- bash version >= 4)
 declare -A create_contg
-create_contg[shunt]="shunt_astdwo_contg.py"
-create_contg[load]="load_astdwo_contg.py"
-create_contg[gen]="gen_astdwo_contg.py"
-create_contg[branchB]="branchB_astdwo_contg.py"
-#create_contg[branchF]="branchF_astdwo_contg.py"
-#create_contg[branchT]="branchT_astdwo_contg.py"
-#create_contg[bus]="bus_astdwo_contg.py"
+create_contg[shunt]="shunt_contg.py"
+create_contg[load]="load_contg.py"
+create_contg[gen]="gen_contg.py"
+create_contg[branchB]="branchB_contg.py"
+#create_contg[branchF]="branchF_contg.py"
+#create_contg[branchT]="branchT_contg.py"
+#create_contg[bus]="bus_contg.py"
 
-# Note this assumes all scripts are under the Github dir structure
+# Note this assumes all scripts are under the Github src dir structure
 # (otherwise, you'll have to edit the correct paths below)
 DWO_VALIDATION_SRC=$(dirname "$0")/..
 DWO_VALIDATION_SRC=$(realpath "$DWO_VALIDATION_SRC")
@@ -121,7 +123,7 @@ for DEVICE in "${!create_contg[@]}"; do
     RESULTS_DIR="$RESULTS_BASEDIR"/"$DEVICE"s
     mkdir -p "$RESULTS_DIR"
     set -x
-    "$CONTG_SRC"/run_astdwo_all_contg.sh "${RUN_OPTS[@]}" -o "$RESULTS_DIR" "$CASE_DIR" "$BASECASE" "$DEVICE"_
+    "$CONTG_SRC"/run_all_contg.sh "${RUN_OPTS[@]}" -o "$RESULTS_DIR" "$CASE_DIR" "$BASECASE" "$DEVICE"_
     set +x
     echo
 
