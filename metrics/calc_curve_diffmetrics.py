@@ -5,18 +5,21 @@
 #     gaitanv@aia.es
 #     marinjl@aia.es
 #
-# calc_curve_diffmetrics.py: Given a directory containing processed Astre and Dynawo
-# cases, all of them derived from a common base case, this script extracts several
-# "reduced parameters" that characterize the curve signals. It works on the curve
-# files produced by Astre and Dynawo, where variable names have been suitably
-# prepared in order to have the same names.
+# calc_curve_diffmetrics.py:
+#
+# Given a directory containing processed cases, of type EITHER Astre vs. Dynawo OR
+# Dynawo vs. Dynawo, and all of them derived from a common BASECASE, this script
+# extracts several "reduced parameters" that characterize the curve signals. It works
+# on the curve files produced by Astre and Dynawo, where all variables (and their
+# order) are expected to be suitably prepared in order to have exactly the same names.
 #
 #   * On input: you have to provide the directory that contains the curve files (e.g.
 #     "*-AstreCurves.csv.xz", etc.), a filename prefix for them (e.g. "shunt_"), and the
 #     common BASECASE from which the cases were derived.
 #
-#   * On output: a file "crv_reducedparams.csv" containing dSS, dPP, etc. for all cases
-#     and all variables, for Dynawo and Astre values.
+#   * On output: a file "crv_reducedparams.csv" containing dSS, dPP, etc. for all
+#     variables, and for all "case A" and "case B" files (whether they are
+#     Astre-vs-Dynawo or Dynawo-vs-Dynawo).
 #
 
 import sys
@@ -34,16 +37,24 @@ from scipy.interpolate import interp1d
 # the following hack is ugly, but needed:
 sys.path.insert(1, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Alternatively, you could set PYTHONPATH to PYTHONPATH="/<dir>/dynawo-validation-AIA"
-from xml_utils.dwo_jobinfo import get_dwo_tparams  # noqa: E402
+from xml_utils.dwo_jobinfo import (
+    is_astdwo,
+    is_dwodwo,
+    get_dwo_tparams,
+    get_dwodwo_tparams,
+)  # noqa: E402
 
 
 REL_TOL = 1.0e-5  # when testing for the SS, relative tolerance in signal
+T_TOL = 1.0e-2  # when comparing time instants for equality, absolute tolerance
 STABILITY_MINTIME = 60  # require at least these seconds for the SS to be achieved
 TT_MIN_FOR_PRONY = 60  # transient must be at least these seconds long to do Prony
 PRONY_ORDER = 7  # number of damped sinusoid components
 PRONY_SAMPLES = 100  # number of (interpolated) data points used for Prony analysis
 AST_SUFFIX = "-AstreCurves.csv.xz"
 DWO_SUFFIX = "-DynawoCurves.csv.xz"
+DWO_SUFFIX_A = "-DynawoCurvesA.csv.xz"
+DWO_SUFFIX_B = "-DynawoCurvesB.csv.xz"
 verbose = True
 
 
@@ -55,41 +66,61 @@ def main():
     prefix = sys.argv[2]
     base_case = sys.argv[3]
 
-    # Check all needed dirs are in place, and get the list of files to process
-    file_list = check_inputfiles(crv_dir, prefix)
-    print("Calculating diffmetrics for curve data in: %s" % crv_dir)
+    # Get common time params from the BASECASE
+    if is_astdwo(base_case):
+        case_type = "astdwo"
+        dwo_tparams = get_dwo_tparams(base_case)
+        startTime = dwo_tparams.startTime
+        tEvent = dwo_tparams.event_tEvent
+    elif is_dwodwo(base_case):
+        case_type = "dwodwo"
+        dwo_tparamsA, _ = get_dwodwo_tparams(base_case)
+        startTime = dwo_tparamsA.startTime
+        tEvent = dwo_tparamsA.event_tEvent
+    else:
+        raise ValueError("Case %s is neither an ast-dwo nor a dwo-dwo case" % base_case)
 
-    # Obtain the time at which the contingency takes place
-    dwo_tparams = get_dwo_tparams(base_case)
-    print(dwo_tparams)
-    startTime = dwo_tparams.startTime
-    tEvent = dwo_tparams.event_tEvent
+    print(
+        "Calculating diffmetrics for curves in: %s (CASE_TYPE=%s)"
+        % (crv_dir, case_type)
+    )
+
+    # Get the list of curve files to process
+    file_list = list_inputfiles(case_type, crv_dir, prefix)
 
     # Calculate all diffmetrics and output the results to file
-    process_all_curves(crv_dir, file_list, startTime, tEvent)
+    process_all_curves(case_type, crv_dir, file_list, startTime, tEvent)
 
     return 0
 
 
-def check_inputfiles(crv_dir, prefix):
+def list_inputfiles(case_type, crv_dir, prefix):
     if not os.path.isdir(crv_dir):
         raise ValueError("input directory %s not found" % crv_dir)
+    if case_type == "astdwo":
+        caseA_suffix = AST_SUFFIX
+        caseB_suffix = DWO_SUFFIX
+    elif case_type == "dwodwo":
+        caseA_suffix = DWO_SUFFIX_A
+        caseB_suffix = DWO_SUFFIX_B
+    else:
+        raise ValueError("case_type is neither 'astdwo' nor 'dwodwo'")
 
-    # We first find out all Astre files
-    ast_filepattern = crv_dir + "/" + prefix + "*" + AST_SUFFIX
-    ast_files = glob.glob(ast_filepattern)
-    if len(ast_files) == 0:
-        raise ValueError("no input files found with prefix %s\n" % prefix)
+    # First get the list of all "case A" files
+    caseA_filepattern = crv_dir + "/" + prefix + "*" + caseA_suffix
+    caseA_files = glob.glob(caseA_filepattern)
+    if len(caseA_files) == 0:
+        raise ValueError("no 'case A' input files found with prefix %s\n" % prefix)
 
-    # Then we find their corresponding Dynawo counterparts
-    Crv_Pair = namedtuple("Crv_Pair", ["ast", "dwo"])
+    # Then find their corresponding "case B" counterparts
+    Crv_Pair = namedtuple("Crv_Pair", ["caseA", "caseB"])
     file_list = dict()
-    for ast_file in ast_files:
-        case_label = ast_file.split(AST_SUFFIX)[0].split(prefix)[-1]
-        dwo_file = ast_file.split(AST_SUFFIX)[0] + DWO_SUFFIX
-        if not (os.path.isfile(dwo_file)):
-            raise ValueError("Dinawo data file not found for %s\n" % ast_file)
-        file_list[case_label] = Crv_Pair(ast=ast_file, dwo=dwo_file)
+    for caseA_file in caseA_files:
+        case_label = caseA_file.split(caseA_suffix)[0].split(prefix)[-1]
+        caseB_file = caseA_file.split(caseA_suffix)[0] + caseB_suffix
+        if not (os.path.isfile(caseB_file)):
+            raise ValueError("'case B' crv file %s not found\n" % caseB_file)
+        file_list[case_label] = Crv_Pair(caseA=caseA_file, caseB=caseB_file)
 
     if verbose:
         print("crv_dir: %s" % crv_dir)
@@ -105,81 +136,96 @@ def check_inputfiles(crv_dir, prefix):
     return file_list
 
 
-def process_all_curves(crv_dir, file_list, start_time, t_event):
-
-    all_ast = pd.DataFrame()
-    all_dwo = pd.DataFrame()
+def process_all_curves(case_type, crv_dir, file_list, start_time, t_event):
+    all_casesA = pd.DataFrame()
+    all_casesB = pd.DataFrame()
     cnames = ["dSS", "dPP", "TT", "period", "damping", "is_preStab", "is_postStab"]
-    t0_event = t_event - start_time
+    t0_event = t_event - start_time  # adjust time offset (Dynawo cases)
 
     print("Processing ", end="")
     for case_label in file_list:
-        crv_ast = pd.read_csv(file_list[case_label].ast, sep=";", compression="infer")
-        crv_dwo = pd.read_csv(file_list[case_label].dwo, sep=";", compression="infer")
-        crv_dwo = crv_dwo.iloc[:, :-1]  # because of extra ";" at end-of-lines
+        crv_A = pd.read_csv(file_list[case_label].caseA, sep=";", compression="infer")
+        crv_B = pd.read_csv(file_list[case_label].caseB, sep=";", compression="infer")
+
+        # Clean Dynawo's extra ";" at end-of-lines
+        if case_type == "astdwo":
+            crv_B = crv_B.iloc[:, :-1]
+        else:
+            crv_A = crv_A.iloc[:, :-1]
+            crv_B = crv_B.iloc[:, :-1]
+
         # Check vars. They should match by order AND name
-        if list(crv_ast.columns) != list(crv_dwo.columns):
+        if list(crv_A.columns) != list(crv_B.columns):
             raise ValueError(
-                "Dynawo and Astre curves differ in name or number of fields (case %s)\n"
-                % case_label
+                "'case A' and 'case B' curves differ in the name or number of fields"
+                " (case %s)\n" % case_label
             )
-        # Check that Dynawo's simulation startTime is consistent, and
-        # adjust the time offset w.r.t. Astre
-        dwo_crv_startTime = crv_dwo["time"].iloc[0]
-        if dwo_crv_startTime != start_time:
+
+        # Check that Dynawo's simulation startTime is consistently the same as in the
+        # BASECASE, and adjust the time offset w.r.t. Astre, which is always zero
+        if case_type == "dwodwo":
+            if abs(float(crv_A["time"].iloc[0]) - float(start_time)) > T_TOL:
+                raise ValueError(
+                    "The startTime in DynawoA curve file (case %s) differs from"
+                    " the one in the BASECASE!\n" % case_label
+                )
+            crv_A["time"] = crv_A["time"] - start_time
+        if abs(float(crv_B["time"].iloc[0]) - float(start_time)) > T_TOL:
             raise ValueError(
-                "The startTime in Dynawo curve file (case %s) differs from BASECASE!\n"
-                % case_label
+                "The startTime in DynawoB curve file (case %s) differs from"
+                " the one in the BASECASE!\n" % case_label
             )
-        crv_dwo["time"] = crv_dwo["time"] - start_time
-        # Check for simulations that stopped before the end
-        if crv_ast["time"].iloc[-1] != crv_dwo["time"].iloc[-1]:
+        crv_B["time"] = crv_B["time"] - start_time
+
+        # Warn about simulations that stopped before they were supposed to
+        if abs(float(crv_A["time"].iloc[-1]) - float(crv_B["time"].iloc[-1])) > T_TOL:
             is_crv_time_matching = False
             print(
-                "  WARNING: Dynawo and Astre curves stop at different times (case %s)\n"
-                % case_label
+                "   WARNING: 'case A' and 'case B' curves stop at different times"
+                " (case %s)\n" % case_label
             )
         else:
             is_crv_time_matching = True
 
         # Process all variables for this case
-        var_list = list(crv_dwo.columns)[1:]
-        res_ast = [extract_crv_reduced_params(crv_ast, x, t0_event) for x in var_list]
-        res_dwo = [extract_crv_reduced_params(crv_dwo, x, t0_event) for x in var_list]
+        var_list = list(crv_A.columns)[1:]
+        resultsA = [extract_crv_reduced_params(crv_A, x, t0_event) for x in var_list]
+        resultsB = [extract_crv_reduced_params(crv_B, x, t0_event) for x in var_list]
 
         # Structure the results in a dataframe
-        case_ast = pd.DataFrame(data=res_ast, columns=cnames)
-        case_dwo = pd.DataFrame(data=res_dwo, columns=cnames)
-        case_ast["dev"] = case_label
-        case_dwo["dev"] = case_label
-        case_ast["vars"] = var_list
-        case_dwo["vars"] = var_list
-        case_dwo["is_crv_time_matching"] = is_crv_time_matching
+        df_resultsA = pd.DataFrame(data=resultsA, columns=cnames)
+        df_resultsB = pd.DataFrame(data=resultsB, columns=cnames)
+        df_resultsA["dev"] = case_label
+        df_resultsB["dev"] = case_label
+        df_resultsA["vars"] = var_list
+        df_resultsB["vars"] = var_list
+        df_resultsB["is_crv_time_matching"] = is_crv_time_matching
 
         # Collect results for all cases
-        all_ast = all_ast.append(case_ast)
-        all_dwo = all_dwo.append(case_dwo)
+        all_casesA = all_casesA.append(df_resultsA)
+        all_casesB = all_casesB.append(df_resultsB)
         print(".", end="", flush=True)
 
     print(" OK.")
 
     # Group all reduced signal parameters in one single dataframe
-    reduced_params = all_ast[["dev", "vars"]].copy(deep=True)
-    reduced_params["dSS_ast"] = all_ast.dSS
-    reduced_params["dSS_dwo"] = all_dwo.dSS
-    reduced_params["dPP_ast"] = all_ast.dPP
-    reduced_params["dPP_dwo"] = all_dwo.dPP
-    reduced_params["TT_ast"] = all_ast.TT
-    reduced_params["TT_dwo"] = all_dwo.TT
-    reduced_params["period_ast"] = all_ast.period
-    reduced_params["period_dwo"] = all_dwo.period
-    reduced_params["damp_ast"] = all_ast.damping
-    reduced_params["damp_dwo"] = all_dwo.damping
-    reduced_params["is_preStab_ast"] = all_ast.is_preStab
-    reduced_params["is_preStab_dwo"] = all_dwo.is_preStab
-    reduced_params["is_postStab_ast"] = all_ast.is_postStab
-    reduced_params["is_postStab_dwo"] = all_dwo.is_postStab
-    reduced_params["is_crv_time_matching"] = all_dwo.is_crv_time_matching
+    # TODO: rename these fields as A and B (and resp. in the Notebook, too)
+    reduced_params = all_casesA[["dev", "vars"]].copy(deep=True)
+    reduced_params["dSS_ast"] = all_casesA.dSS
+    reduced_params["dSS_dwo"] = all_casesB.dSS
+    reduced_params["dPP_ast"] = all_casesA.dPP
+    reduced_params["dPP_dwo"] = all_casesB.dPP
+    reduced_params["TT_ast"] = all_casesA.TT
+    reduced_params["TT_dwo"] = all_casesB.TT
+    reduced_params["period_ast"] = all_casesA.period
+    reduced_params["period_dwo"] = all_casesB.period
+    reduced_params["damp_ast"] = all_casesA.damping
+    reduced_params["damp_dwo"] = all_casesB.damping
+    reduced_params["is_preStab_ast"] = all_casesA.is_preStab
+    reduced_params["is_preStab_dwo"] = all_casesB.is_preStab
+    reduced_params["is_postStab_ast"] = all_casesA.is_postStab
+    reduced_params["is_postStab_dwo"] = all_casesB.is_postStab
+    reduced_params["is_crv_time_matching"] = all_casesB.is_crv_time_matching
 
     # Output to file
     metrics_dir = crv_dir + "/../metrics"
@@ -191,6 +237,8 @@ def process_all_curves(crv_dir, file_list, start_time, t_event):
         float_format="%.6f",
     )
     print("Saved reduced parameters for curve data under: %s" % metrics_dir)
+
+    # Record any bad cases
     bad_cases = (
         reduced_params["dev"].loc[~reduced_params["is_crv_time_matching"]].unique()
     )
@@ -201,7 +249,7 @@ def process_all_curves(crv_dir, file_list, start_time, t_event):
         header="Cases where the simulation time span doesn't match "
         "(probably because of integration error)",
     )
-    print("Bad cases (early stopped simulations) will be listed in 'bad_cases.csv'")
+    print("Note: simulations that stopped early will be listed in 'bad_cases.csv'")
 
 
 #################################################################################
