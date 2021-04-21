@@ -7,12 +7,13 @@
 #
 # calc_automata_diffmetrics.py:
 #
-# Given a directory containing processed Astre and Dynawo cases, all
-# of them derived from a common base case, this script calculates
-# several metrics that try to assess the differences in automata
-# events (such as tap changers and shunt engagement / disengagement
-# actions). It works on the output files produced by the script
-# "extract_automata_changes.py".
+# Given a directory containing processed cases, of type EITHER Astre vs. Dynawo OR
+# Dynawo vs. Dynawo, and all of them derived from a common BASECASE, this script
+# calculates several metrics for the differences in automata events (such as tap
+# changers and shunt engagement / disengagement actions). It works on the output
+# files produced by the script "extract_automata_changes.py", which takes care of
+# standardizing a common format for both Astre and Dynawo events (this is why many
+# parts of the code can be common to both cases).
 #
 #   * On input: you have to provide the "aut" directory that contains the
 #     files that have the extracted automata events
@@ -70,15 +71,23 @@ from lxml import etree
 # the following hack is ugly, but needed:
 sys.path.insert(1, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Alternatively, you could set PYTHONPATH to PYTHONPATH="/<dir>/dynawo-validation-AIA"
-from xml_utils.dwo_jobinfo import get_dwo_tparams  # noqa: E402
-from xml_utils.dwo_jobinfo import get_dwo_jobpaths  # noqa: E402
+from xml_utils.dwo_jobinfo import (
+    is_astdwo,
+    is_dwodwo,
+    get_dwo_jobpaths,
+    get_dwo_tparams,
+    get_dwodwo_jobpaths,
+    get_dwodwo_tparams,
+)  # noqa: E402
 
 
 N_TWPOINTS = 41  # 41 TW data points results in 30s timesteps when Tsim is 1200s
 AST_SUFFIX = "-AstreAutomata.csv.xz"
 DWO_SUFFIX = "-DynawoAutomata.csv.xz"
+DWO_SUFFIX_A = "-DynawoAutomataA.csv.xz"
+DWO_SUFFIX_B = "-DynawoAutomataB.csv.xz"
 verbose = True
-pd.set_option("display.max_rows", 50)
+pd.set_option("display.max_rows", 50)  # useful for debugging
 
 
 def main():
@@ -89,39 +98,56 @@ def main():
     aut_dir = sys.argv[1]
     prefix = sys.argv[2]
     base_case = sys.argv[3]
+    print("Calculating diffmetrics for automata changes in: %s" % aut_dir)
 
-    # Get the simulation time parameters (from Dynawo's case)
-    dwo_tparams = get_dwo_tparams(base_case)
-    startTime = dwo_tparams.startTime
-    stopTime = dwo_tparams.stopTime
-    tEvent = dwo_tparams.event_tEvent
+    # Detect whether it's an Astre-vs-Dynawo or Dynawo-vs-Dynawo run, and:
+    #   * get Dynawo paths and the simulation time parameters from the JOB file(s)
+    #   * build an auxiliary dict: load-->bus (needed for Load_Transformers)
+    #   * get the normalization factors for each class of metric (shunt, xfmr, etc.)
+    if is_astdwo(base_case):
+        case_type = "astdwo"
+        print("(CASE_TYPE = astdwo)")
+        dwo_paths = get_dwo_jobpaths(base_case)
+        dwo_tparams = get_dwo_tparams(base_case)
+        startTime = dwo_tparams.startTime
+        stopTime = dwo_tparams.stopTime
+        tEvent = dwo_tparams.event_tEvent
+        ld_bus = load2bus_dict_astdwo(base_case, dwo_paths)
+        norm_factor = get_norm_factor(base_case, dwo_paths)
+    elif is_dwodwo(base_case):
+        case_type = "dwodwo"
+        print("(CASE_TYPE = dwodwo)")
+        dwo_pathsA, dwo_pathsB = get_dwodwo_jobpaths(base_case)
+        dwo_tparamsA, _ = get_dwodwo_tparams(base_case)
+        startTime = dwo_tparamsA.startTime
+        stopTime = dwo_tparamsA.stopTime
+        tEvent = dwo_tparamsA.event_tEvent
+        ld_bus = load2bus_dict_dwodwo(base_case, dwo_pathsA, dwo_pathsB)
+        norm_factor = get_norm_factor(base_case, dwo_pathsA)
+    else:
+        raise ValueError("Case %s is neither an ast-dwo nor a dwo-dwo case" % base_case)
 
-    # Get some Dynawo paths from the JOB file
-    dwo_paths = get_dwo_jobpaths(base_case)
-
-    # Check all needed dirs are in place, and get the list of files to process
-    file_list = check_inputfiles(aut_dir, prefix, base_case, dwo_paths)
-
-    # Build a dict: load-->bus (needed for Load_Transformers)
-    ld_bus = load2bus_dict(base_case, dwo_paths)
-
-    # Get the normalization factors for each class of metric (shunt, xfmr, etc.)
-    norm_factor = get_norm_factor(base_case, dwo_paths)
+    # Get the list of automata data files to process
+    file_list = list_inputfiles(case_type, aut_dir, prefix)
 
     # We'll need this later on, for correcting Dynawo's shunt events count
     is_shunt_contg = "shunt" == prefix[:5]
+    if is_shunt_contg:
+        shunt_correct = True
+    else:
+        shunt_correct = False
 
     ############################################################################
     # PART I : compute the metrics for all cases (at the end of the simulation)
     ############################################################################
-    print("Calculating diffmetrics for automata changes in: %s" % aut_dir)
+    print("Calculating diffmetrics at t = END")
     metrics_rowdata = []
     for case_label in file_list:
         if verbose:
             print("   processing: " + prefix + case_label)
-        ast_df = pd.read_csv(file_list[case_label].ast, sep=";")
-        dwo_df = pd.read_csv(file_list[case_label].dwo, sep=";")
-        metrics = calc_metrics(ast_df, dwo_df, ld_bus, norm_factor)
+        caseA_df = pd.read_csv(file_list[case_label].caseA, sep=";")
+        caseB_df = pd.read_csv(file_list[case_label].caseB, sep=";")
+        metrics = calc_metrics(caseA_df, caseB_df, ld_bus, norm_factor, shunt_correct)
         metrics_rowdata.append({"Contg_case": case_label, **metrics})
 
     # Save the metrics to file
@@ -137,28 +163,33 @@ def main():
     ###############################################################################
     # PART II: compute how these same metrics evolve in time (only non-zero cases)
     ###############################################################################
-    print("Calculating TIME WINDOWED diffmetrics for automata changes in: %s" % aut_dir)
+    print("Calculating TIME WINDOWED diffmetrics")
     metrics_rowdata = []
     nz = df["any_shunt_evt"] | df["any_xfmr_tap"] | df["any_ldxfmr_tap"]
     for case_label in df.loc[nz, "Contg_case"]:
         if verbose:
             print("   TW processing: " + prefix + case_label)
-        ast_df = pd.read_csv(file_list[case_label].ast, sep=";")
-        dwo_df = pd.read_csv(file_list[case_label].dwo, sep=";")
-        dwo_df["TIME"] -= startTime  # undo the time offset in Dynawo
+        caseA_df = pd.read_csv(file_list[case_label].caseA, sep=";")
+        caseB_df = pd.read_csv(file_list[case_label].caseB, sep=";")
+        # undo the time offset in Dynawo
+        caseB_df["TIME"] -= startTime
+        if case_type == "dwodwo":
+            caseA_df["TIME"] -= startTime
         for tw in np.linspace(0, stopTime - startTime, N_TWPOINTS):
-            ast_tw = ast_df[ast_df["TIME"] <= tw]
-            dwo_tw = dwo_df[dwo_df["TIME"] <= tw]
+            caseA_tw = caseA_df[caseA_df["TIME"] <= tw]
+            caseB_tw = caseB_df[caseB_df["TIME"] <= tw]
             if is_shunt_contg and tw >= (tEvent - startTime):
-                shunt_corr = True
+                shunt_correct = True
             else:
-                shunt_corr = False
-            metrics = calc_metrics(ast_tw, dwo_tw, ld_bus, norm_factor, shunt_corr)
+                shunt_correct = False
+            metrics = calc_metrics(
+                caseA_tw, caseB_tw, ld_bus, norm_factor, shunt_correct
+            )
             metrics_rowdata.append({"Contg_case": case_label, "time": tw, **metrics})
 
     # Save the metrics to file
     if 0 == len(metrics_rowdata):
-        print("(no events found -- TIME-WINDOWED diffmetrics will be empty)")
+        print("   (no events found -- TIME-WINDOWED diffmetrics will be empty)")
     col_names.insert(1, "time")
     tw_df = pd.DataFrame(metrics_rowdata, columns=col_names)
     tw_df = tw_df.drop(columns=["any_shunt_evt", "any_xfmr_tap", "any_ldxfmr_tap"])
@@ -173,42 +204,38 @@ def main():
     return 0
 
 
-def check_inputfiles(aut_dir, prefix, base_case, dwo_paths):
+def list_inputfiles(case_type, aut_dir, prefix):
     if not os.path.isdir(aut_dir):
         raise ValueError("Automata data input directory %s not found" % aut_dir)
+    if case_type == "astdwo":
+        caseA_suffix = AST_SUFFIX
+        caseB_suffix = DWO_SUFFIX
+    elif case_type == "dwodwo":
+        caseA_suffix = DWO_SUFFIX_A
+        caseB_suffix = DWO_SUFFIX_B
+    else:
+        raise ValueError("case_type is neither 'astdwo' nor 'dwodwo'")
 
-    if not (
-        os.path.isfile(base_case + "/Astre/donneesModelesEntree.xml")
-        and os.path.isfile(base_case + "/" + dwo_paths.iidmFile)
-        and os.path.isfile(base_case + "/" + dwo_paths.dydFile)
-        and os.path.isfile(base_case + "/" + dwo_paths.parFile)
-        and os.path.isfile(base_case + "/" + dwo_paths.curves_inputFile)
-    ):
-        raise ValueError(
-            "some expected files are missing in BASECASE dir %s\n" % base_case
-        )
+    # First get the list of all "case A" files
+    caseA_filepattern = aut_dir + "/" + prefix + "*" + caseA_suffix
+    caseA_files = glob.glob(caseA_filepattern)
+    if len(caseA_files) == 0:
+        raise ValueError("no 'case A' input files found with prefix %s\n" % prefix)
 
-    # We first find out all Astre files
-    ast_filepattern = aut_dir + "/" + prefix + "*" + AST_SUFFIX
-    ast_files = glob.glob(ast_filepattern)
-    if len(ast_files) == 0:
-        raise ValueError("no input files found with prefix %s\n" % prefix)
-
-    # Then we find their corresponding Dynawo counterparts
-    Aut_Pair = namedtuple("Aut_Pair", ["ast", "dwo"])
+    # Then find their corresponding "case B" counterparts
+    Aut_Pair = namedtuple("Aut_Pair", ["caseA", "caseB"])
     file_list = dict()
-    for ast_file in ast_files:
-        case_label = ast_file.split(AST_SUFFIX)[0].split(prefix)[-1]
-        dwo_file = ast_file.split(AST_SUFFIX)[0] + DWO_SUFFIX
-        if not (os.path.isfile(dwo_file)):
-            raise ValueError("Dynawo data file not found for %s\n" % ast_file)
-        file_list[case_label] = Aut_Pair(ast=ast_file, dwo=dwo_file)
+    for caseA_file in caseA_files:
+        case_label = caseA_file.split(caseA_suffix)[0].split(prefix)[-1]
+        caseB_file = caseA_file.split(caseA_suffix)[0] + caseB_suffix
+        if not (os.path.isfile(caseB_file)):
+            raise ValueError("'case B' aut file %s not found\n" % caseB_file)
+        file_list[case_label] = Aut_Pair(caseA=caseA_file, caseB=caseB_file)
 
     if verbose:
-        print("aut_dir: %s" % aut_dir)
-        print("prefix: %s" % prefix)
-        print("base_case: %s" % base_case)
-        print("List of cases to process: (total: %d)" % len(file_list))
+        print("   aut_dir: %s" % aut_dir)
+        print("   prefix: %s" % prefix)
+        print("   List of cases to process (total: %d): " % len(file_list), end="")
         case_list = sorted(file_list.keys())
         if len(case_list) < 10:
             print(case_list)
@@ -218,9 +245,9 @@ def check_inputfiles(aut_dir, prefix, base_case, dwo_paths):
     return file_list
 
 
-def calc_metrics(ast_df, dwo_df, ld_bus, norm_factor, shunt_correction=False):
+def calc_metrics(a_df, b_df, ld_bus, norm_factor, shunt_correction=False):
     # SHUNTS:
-    shunt_metrics = calc_shunt_metrics(ast_df, dwo_df)
+    shunt_metrics = calc_shunt_metrics(a_df, b_df)
     if shunt_correction:  # because Dynawo shows the contingency itself as an event
         shunt_metrics["shunt_netchanges"] += -1
         shunt_metrics["shunt_numchanges"] += -1
@@ -228,13 +255,13 @@ def calc_metrics(ast_df, dwo_df, ld_bus, norm_factor, shunt_correction=False):
     shunt_metrics["shunt_numchanges"] /= norm_factor.shunt
 
     # TRANSFORMERS:
-    xfmr_metrics = calc_xfmr_metrics(ast_df, dwo_df)
+    xfmr_metrics = calc_xfmr_metrics(a_df, b_df)
     xfmr_metrics["tap_netchanges"] /= norm_factor.xfmr
     xfmr_metrics["tap_p2pchanges"] /= norm_factor.xfmr
     xfmr_metrics["tap_numchanges"] /= norm_factor.xfmr
 
     # LOAD TRANSFORMERS:
-    ldxfmr_metrics = calc_ldxfmr_metrics(ast_df, dwo_df, ld_bus)
+    ldxfmr_metrics = calc_ldxfmr_metrics(a_df, b_df, ld_bus)
     ldxfmr_metrics["ldtap_netchanges"] /= norm_factor.ldxfmr
     ldxfmr_metrics["ldtap_p2pchanges"] /= norm_factor.ldxfmr
     ldxfmr_metrics["ldtap_numchanges"] /= norm_factor.ldxfmr
@@ -253,29 +280,29 @@ def event_counts(df, event):
 #################################################
 # SHUNTS
 #################################################
-def calc_shunt_metrics(ast_df, dwo_df):
-    ast_df = ast_df.loc[ast_df["DEVICE_TYPE"] == "Shunt"]
-    dwo_df = dwo_df.loc[dwo_df["DEVICE_TYPE"] == "Shunt"]
+def calc_shunt_metrics(a_df, b_df):
+    a_df = a_df.loc[a_df["DEVICE_TYPE"] == "Shunt"]
+    b_df = b_df.loc[b_df["DEVICE_TYPE"] == "Shunt"]
     # Shortcut: a vast majority of cases have no relevant events
-    if ast_df.empty and dwo_df.empty:
+    if a_df.empty and b_df.empty:
         return {"shunt_netchanges": 0, "shunt_numchanges": 0, "any_shunt_evt": False}
 
     # Auxiliary counts of Shunt connection/disconnection events
-    ast_shunts_on = event_counts(ast_df, "ShuntConnected")
-    ast_shunts_off = event_counts(ast_df, "ShuntDisconnected")
-    dwo_shunts_on = event_counts(dwo_df, "ShuntConnected")
-    dwo_shunts_off = event_counts(dwo_df, "ShuntDisconnected")
+    caseA_shunts_on = event_counts(a_df, "ShuntConnected")
+    caseA_shunts_off = event_counts(a_df, "ShuntDisconnected")
+    caseB_shunts_on = event_counts(b_df, "ShuntConnected")
+    caseB_shunts_off = event_counts(b_df, "ShuntDisconnected")
 
     # Shunt metric: "diff in net change" (STRICT)
-    ast_netchanges = ast_shunts_on.sub(ast_shunts_off, fill_value=0)
-    dwo_netchanges = dwo_shunts_on.sub(dwo_shunts_off, fill_value=0)
-    netchange_diffs = ast_netchanges.sub(dwo_netchanges, fill_value=0)
+    caseA_netchanges = caseA_shunts_on.sub(caseA_shunts_off, fill_value=0)
+    caseB_netchanges = caseB_shunts_on.sub(caseB_shunts_off, fill_value=0)
+    netchange_diffs = caseA_netchanges.sub(caseB_netchanges, fill_value=0)
     shunt_netchanges_metric = netchange_diffs.abs().sum()  # L1 norm
 
     # Shunt metric: "diff in the total number of changes" (STRICT)
-    ast_numchanges = ast_shunts_on.add(ast_shunts_off, fill_value=0)
-    dwo_numchanges = dwo_shunts_on.add(dwo_shunts_off, fill_value=0)
-    numchange_diffs = ast_numchanges.sub(dwo_numchanges, fill_value=0)
+    caseA_numchanges = caseA_shunts_on.add(caseA_shunts_off, fill_value=0)
+    caseB_numchanges = caseB_shunts_on.add(caseB_shunts_off, fill_value=0)
+    numchange_diffs = caseA_numchanges.sub(caseB_numchanges, fill_value=0)
     shunt_numchanges_metric = numchange_diffs.abs().sum()  # L1 norm
 
     metrics = {
@@ -290,11 +317,11 @@ def calc_shunt_metrics(ast_df, dwo_df):
 #################################################
 # TRANSFORMERS (only transmission transformers)
 #################################################
-def calc_xfmr_metrics(ast_df, dwo_df):
-    ast_df = ast_df.loc[ast_df["DEVICE_TYPE"] == "Transformer"]
-    dwo_df = dwo_df.loc[dwo_df["DEVICE_TYPE"] == "Transformer"]
+def calc_xfmr_metrics(a_df, b_df):
+    a_df = a_df.loc[a_df["DEVICE_TYPE"] == "Transformer"]
+    b_df = b_df.loc[b_df["DEVICE_TYPE"] == "Transformer"]
     # Shortcut: a vast majority of cases have no relevant events
-    if ast_df.empty and dwo_df.empty:
+    if a_df.empty and b_df.empty:
         return {
             "tap_netchanges": 0,
             "tap_p2pchanges": 0,
@@ -303,29 +330,29 @@ def calc_xfmr_metrics(ast_df, dwo_df):
         }
 
     # Auxiliary counts of Tap changer events
-    ast_taps_up = event_counts(ast_df, "TapUp")
-    ast_taps_down = event_counts(ast_df, "TapDown")
-    dwo_taps_up = event_counts(dwo_df, "TapUp")
-    dwo_taps_down = event_counts(dwo_df, "TapDown")
+    caseA_taps_up = event_counts(a_df, "TapUp")
+    caseA_taps_down = event_counts(a_df, "TapDown")
+    caseB_taps_up = event_counts(b_df, "TapUp")
+    caseB_taps_down = event_counts(b_df, "TapDown")
 
     # Tap changer metric: "diff in net change" (STRICT)
-    ast_netchange = ast_taps_up.sub(ast_taps_down, fill_value=0)
-    dwo_netchange = dwo_taps_up.sub(dwo_taps_down, fill_value=0)
-    netchange_diffs = ast_netchange.sub(dwo_netchange, fill_value=0)
+    caseA_netchange = caseA_taps_up.sub(caseA_taps_down, fill_value=0)
+    caseB_netchange = caseB_taps_up.sub(caseB_taps_down, fill_value=0)
+    netchange_diffs = caseA_netchange.sub(caseB_netchange, fill_value=0)
     tap_netchanges_metric = netchange_diffs.abs().sum()  # L1 norm
 
     # Tap changer metric: "diff in the total number of changes" (STRICT)
-    ast_numchanges = ast_taps_up.add(ast_taps_down, fill_value=0)
-    dwo_numchanges = dwo_taps_up.add(dwo_taps_down, fill_value=0)
-    numchange_diffs = ast_numchanges.sub(dwo_numchanges, fill_value=0)
+    caseA_numchanges = caseA_taps_up.add(caseA_taps_down, fill_value=0)
+    caseB_numchanges = caseB_taps_up.add(caseB_taps_down, fill_value=0)
+    numchange_diffs = caseA_numchanges.sub(caseB_numchanges, fill_value=0)
     tap_numchanges_metric = numchange_diffs.abs().sum()  # L1 norm
 
     # Auxiliary calculation of Tap peak-to-peak changes
-    ast_p2pchange = peak2peak(ast_df, ["Transformer"], ["TapUp", "TapDown"])
-    dwo_p2pchange = peak2peak(dwo_df, ["Transformer"], ["TapUp", "TapDown"])
+    caseA_p2pchange = peak2peak(a_df, ["Transformer"], ["TapUp", "TapDown"])
+    caseB_p2pchange = peak2peak(b_df, ["Transformer"], ["TapUp", "TapDown"])
 
     # Tap changer metric: "diff in peak-to-peak change" (STRICT)
-    p2pchange_diffs = ast_p2pchange.sub(dwo_p2pchange, fill_value=0)
+    p2pchange_diffs = caseA_p2pchange.sub(caseB_p2pchange, fill_value=0)
     tap_p2pchanges_metric = p2pchange_diffs.abs().sum()  # L1 norm
 
     metrics = {
@@ -341,11 +368,11 @@ def calc_xfmr_metrics(ast_df, dwo_df):
 #################################################
 # LOAD TRANSFORMERS
 #################################################
-def calc_ldxfmr_metrics(ast_df, dwo_df, ld_bus):
-    ast_df = ast_df.loc[ast_df["DEVICE_TYPE"] == "Load_Transformer"]
-    dwo_df = dwo_df.loc[dwo_df["DEVICE_TYPE"] == "Load_Transformer"]
+def calc_ldxfmr_metrics(a_df, b_df, ld_bus):
+    a_df = a_df.loc[a_df["DEVICE_TYPE"] == "Load_Transformer"]
+    b_df = b_df.loc[b_df["DEVICE_TYPE"] == "Load_Transformer"]
     # Shortcut: a vast majority of cases have no relevant events
-    if ast_df.empty and dwo_df.empty:
+    if a_df.empty and b_df.empty:
         return {
             "ldtap_netchanges": 0,
             "ldtap_p2pchanges": 0,
@@ -359,35 +386,35 @@ def calc_ldxfmr_metrics(ast_df, dwo_df, ld_bus):
     # merged loads, which prevent matching loads on an individual basis.
 
     # Auxiliary counts of Tap changer events
-    ast_taps_up = event_counts(ast_df, "TapUp")
-    ast_taps_down = event_counts(ast_df, "TapDown")
-    dwo_taps_up = event_counts(dwo_df, "TapUp")
-    dwo_taps_down = event_counts(dwo_df, "TapDown")
+    caseA_taps_up = event_counts(a_df, "TapUp")
+    caseA_taps_down = event_counts(a_df, "TapDown")
+    caseB_taps_up = event_counts(b_df, "TapUp")
+    caseB_taps_down = event_counts(b_df, "TapDown")
 
     # Tap changer metric: "diff in net change" (RELAXED)
-    ast_netchange = ast_taps_up.sub(ast_taps_down, fill_value=0)
-    dwo_netchange = dwo_taps_up.sub(dwo_taps_down, fill_value=0)
-    ast_netchange_bybus = worst_netchange_bybus(ast_netchange, ld_bus)
-    dwo_netchange_bybus = worst_netchange_bybus(dwo_netchange, ld_bus)
-    netchange_diffs = ast_netchange_bybus.sub(dwo_netchange_bybus, fill_value=0)
+    caseA_netchange = caseA_taps_up.sub(caseA_taps_down, fill_value=0)
+    caseB_netchange = caseB_taps_up.sub(caseB_taps_down, fill_value=0)
+    caseA_netchange_bybus = worst_netchange_bybus(caseA_netchange, ld_bus)
+    caseB_netchange_bybus = worst_netchange_bybus(caseB_netchange, ld_bus)
+    netchange_diffs = caseA_netchange_bybus.sub(caseB_netchange_bybus, fill_value=0)
     ldtap_netchanges_metric = netchange_diffs.abs().sum()  # L1 norm
 
     # Tap changer metric: "diff in the total number of changes" (RELAXED)
-    ast_numchange = ast_taps_up.add(ast_taps_down, fill_value=0)
-    dwo_numchange = dwo_taps_up.add(dwo_taps_down, fill_value=0)
-    ast_numchange_bybus = worst_numchange_bybus(ast_numchange, ld_bus)
-    dwo_numchange_bybus = worst_numchange_bybus(dwo_numchange, ld_bus)
-    numchange_diffs = ast_numchange_bybus.sub(dwo_numchange_bybus, fill_value=0)
+    caseA_numchange = caseA_taps_up.add(caseA_taps_down, fill_value=0)
+    caseB_numchange = caseB_taps_up.add(caseB_taps_down, fill_value=0)
+    caseA_numchange_bybus = worst_numchange_bybus(caseA_numchange, ld_bus)
+    caseB_numchange_bybus = worst_numchange_bybus(caseB_numchange, ld_bus)
+    numchange_diffs = caseA_numchange_bybus.sub(caseB_numchange_bybus, fill_value=0)
     ldtap_numchanges_metric = numchange_diffs.abs().sum()  # L1 norm
 
     # Auxiliary calculation of Tap peak-to-peak changes
-    ast_p2pchange = peak2peak(ast_df, ["Load_Transformer"], ["TapUp", "TapDown"])
-    dwo_p2pchange = peak2peak(dwo_df, ["Load_Transformer"], ["TapUp", "TapDown"])
+    caseA_p2pchange = peak2peak(a_df, ["Load_Transformer"], ["TapUp", "TapDown"])
+    caseB_p2pchange = peak2peak(b_df, ["Load_Transformer"], ["TapUp", "TapDown"])
 
     # Tap changer metric: "diff in peak-to-peak change" (RELAXED)
-    ast_p2pchange_bybus = worst_p2pchange_bybus(ast_p2pchange, ld_bus)
-    dwo_p2pchange_bybus = worst_p2pchange_bybus(dwo_p2pchange, ld_bus)
-    p2pchange_diffs = ast_p2pchange_bybus.sub(dwo_p2pchange_bybus, fill_value=0)
+    caseA_p2pchange_bybus = worst_p2pchange_bybus(caseA_p2pchange, ld_bus)
+    caseB_p2pchange_bybus = worst_p2pchange_bybus(caseB_p2pchange, ld_bus)
+    p2pchange_diffs = caseA_p2pchange_bybus.sub(caseB_p2pchange_bybus, fill_value=0)
     ldtap_p2pchanges_metric = p2pchange_diffs.abs().sum()  # L1 norm
 
     metrics = {
@@ -470,28 +497,8 @@ def worst_p2pchange_bybus(nc, ld_bus):
 
 
 def load2bus_dict(base_case, dwo_paths):
-    # Build a dictionary load_label-->bus_label, common to both Astre
-    # and Dynawo.
-    #
-    # On buses whose topology is NODE-BREAKER, bus_labels may not match
-    # between Astre and Dynawo. So the strategy we follow is:
-    #
-    #    * Build the dictionary first by using Dynawo's case. If the
-    #      load is on a BUS_BREAKER bus, keep the bus name (they
-    #      usually match bus names in Astre). But if the load is on a
-    #      NODE_BREAKER bus, use the Voltage Level as its bus label (+
-    #      a suffix "*" to mark these).
-    #
-    #    * Then complete it by reading Astre's case. If the load
-    #      already exists, just keep the dictionary entry (this avoids
-    #      having to match the bus name). If it does not not: check
-    #      that its Astre bus exists in Dynawo; if not, then use the
-    #      "poste" name (+ a suffix "*" to mark these).
-    #
     ld_bus = dict()
-    astre_file = base_case + "/Astre/donneesModelesEntree.xml"
     iidm_file = base_case + "/" + dwo_paths.iidmFile
-
     # Initial build, enumerating loads in Dynawo
     tree = etree.parse(iidm_file)
     root = tree.getroot()
@@ -508,21 +515,44 @@ def load2bus_dict(base_case, dwo_paths):
             ld_bus[load.get("id")] = vl.get("id") + "*"
         else:
             buses_with_bad_topo = True
-
     if buses_with_bad_topo:
-        print("WARNING: found loads at Voltage Levels with bad topology!!!")
+        print("WARNING: found loads at VL with bad topology!!! (in: %s)" % iidm_file)
+    return ld_bus
 
+
+def load2bus_dict_astdwo(base_case, dwo_paths):
+    # Build a dictionary load_label-->bus_label, common to both Astre and Dynawo.
+    # This will be used in functions worst_*change_bybus(), in order to group
+    # transformer-load events by bus.
+    #
+    # On buses whose topology is NODE-BREAKER, bus_labels may not match
+    # between Astre and Dynawo. So the strategy we follow is:
+    #
+    #    * Build the dictionary first by using Dynawo's case. If the
+    #      load is on a BUS_BREAKER bus, keep the bus name (they
+    #      usually match bus names in Astre). But if the load is on a
+    #      NODE_BREAKER bus, use the Voltage Level as its bus label (+
+    #      a suffix "*" to mark these).
+    #
+    #    * Then complete it by reading Astre's case. If the load
+    #      already exists, just keep the dictionary entry (this avoids
+    #      having to match the bus name). If it does not not: check
+    #      that its Astre bus exists in Dynawo; if not, then use the
+    #      "poste" name (+ a suffix "*" to mark these).
+    #
+    ld_bus = load2bus_dict(base_case, dwo_paths)
     print(
-        "Building ld_bus dict from BASECASE: found %d active loads in Dynawo file"
+        "   Building ld_bus dict from BASECASE: found %d active loads in Dynawo"
         % len(ld_bus),
         end="",
     )
     dwo_loadbuses = set(list(ld_bus.values()))
 
     # Now complete the dict with Astre's loads
+    astre_file = base_case + "/Astre/donneesModelesEntree.xml"
     tree = etree.parse(astre_file)
     root = tree.getroot()
-    # first we'll need two auxiliary dicts to speed up Astre bus & vl lookups
+    # first we'll build two auxiliary dicts to speed up Astre bus & vl lookups
     bus_nom = dict()
     reseau = root.find("./reseau", root.nsmap)
     donneesNoeuds = reseau.find("./donneesNoeuds", root.nsmap)
@@ -532,27 +562,51 @@ def load2bus_dict(base_case, dwo_paths):
     postes = reseau.find("./postes", root.nsmap)
     for vl in postes.iterfind("./poste", root.nsmap):
         vl_nom[vl.get("num")] = vl.get("nom")
-    # now enumerate all loads
+    # now enumerate all Astre loads
     donneesConsos = reseau.find("./donneesConsos", root.nsmap)
     for load in donneesConsos.iterfind("./conso", root.nsmap):
-        load_label = load.get("nom")
         noeud_id = load.get("noeud")
-        vl_id = load.get("poste")
         if noeud_id == "-1":  # skip disconnected loads
             continue
         # If load name matches in Dynawo, just keep Dynawo's bus name
+        load_label = load.get("nom")
         if load_label in ld_bus:
             continue
         # If not, add it to the dict. First get its Astre bus name:
         bus_label = bus_nom[noeud_id]
-        # If this bus name is not in Dynawo, use the voltage level name
+        # If this Astre bus name is not in Dynawo, use the voltage level name instead
         if bus_label not in dwo_loadbuses:
+            vl_id = load.get("poste")
             bus_label = vl_nom[vl_id] + "*"
         ld_bus[load_label] = bus_label
-
-    print("  (increased to %d after reading Astre file)" % len(ld_bus))
+    print("  (increased to %d after reading Astre basecase)" % len(ld_bus))
 
     return ld_bus
+
+
+def load2bus_dict_dwodwo(base_case, dwo_paths_a, dwo_paths_b):
+    # Analogous to load2bus_dict_astdwo() above, but for Dyawo-vs-Dynawo.
+    # Initial build, enumerating loads in Dynawo case A:
+    ld_busA = load2bus_dict(base_case, dwo_paths_a)
+    print(
+        "   Building ld_bus dict from BASECASE: found %d active loads in Dynawo A, "
+        % len(ld_busA),
+        end="",
+    )
+    # Initial build, enumerating loads in Dynawo case B:
+    ld_busB = load2bus_dict(base_case, dwo_paths_b)
+    print(
+        "%d active loads in Dynawo B "
+        % len(ld_busB),
+        end="",
+    )
+    # Now complete ld_busA with ld_busB (in case there are diffs, like merged loads)
+    for load_labelB in ld_busB:
+        if load_labelB not in ld_busA:
+            ld_busA[load_labelB] = ld_busB[load_labelB]
+    print("(final unified dict contains: %d loads)" % len(ld_busA))
+
+    return ld_busA
 
 
 def get_norm_factor(base_case, dwo_paths):
@@ -586,7 +640,7 @@ def get_norm_factor(base_case, dwo_paths):
     norm_factor = Norm_Factor(shunt=nshunts, xfmr=nxfmrs, ldxfmr=nldfxmrs)
 
     if verbose:
-        print("Normalizing factors: ", norm_factor)
+        print("   Normalizing factors: ", norm_factor)
 
     return norm_factor
 
