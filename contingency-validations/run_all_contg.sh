@@ -165,7 +165,7 @@ if [ $c = "y" ]; then
 else
     OPTS=("-o" "$outDir" "$BASECASE")
 fi
-run_case=$(dirname "$0")/run_astdwo_one_contg.sh
+run_case=$(dirname "$0")/run_one_contg.sh
 if [ $s = "y" ] || ! [ -x "$(type -p parallel)" ]; then
     echo "*** Running sequentially"
     set +e   # allow to continue if any case fails
