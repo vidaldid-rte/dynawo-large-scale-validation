@@ -78,7 +78,7 @@ run_dynawo(){
     xz -c9 "$CONTG_CASE"/"$DWO_OUTPUT_DIR"/curves/curves.csv           > "$outDir"/crv/"$prefix"-DynawoCurves"$1".csv.xz
     xz -c9 "$CONTG_CASE"/"$DWO_OUTPUT_DIR"/constraints/constraints.xml > "$outDir"/xml/"$prefix"-DynawoConstraints"$1".xml.xz
     xz -c9 "$CONTG_CASE"/"$DWO_OUTPUT_DIR"/timeLine/timeline.xml       > "$outDir"/xml/"$prefix"-DynawoTimeLine"$1".xml.xz
-    xz -c9 "$CONTG_CASE"/"$DWO_OUTPUT_DIR"/logs/dynamo.log             > "$outDir"/log/"$prefix"-Dynawo"$1".log.xz
+    xz -c9 "$CONTG_CASE"/"$DWO_OUTPUT_DIR"/logs/dynawo.log             > "$outDir"/log/"$prefix"-Dynawo"$1".log.xz
     xz -c9 "$CONTG_CASE"/"$RUNLOG"                                     > "$outDir"/log/"$prefix"-"$RUNLOG".xz
 }
 
