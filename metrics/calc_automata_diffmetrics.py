@@ -595,11 +595,7 @@ def load2bus_dict_dwodwo(base_case, dwo_paths_a, dwo_paths_b):
     )
     # Initial build, enumerating loads in Dynawo case B:
     ld_busB = load2bus_dict(base_case, dwo_paths_b)
-    print(
-        "%d active loads in Dynawo B "
-        % len(ld_busB),
-        end="",
-    )
+    print("%d active loads in Dynawo B " % len(ld_busB), end="")
     # Now complete ld_busA with ld_busB (in case there are diffs, like merged loads)
     for load_labelB in ld_busB:
         if load_labelB not in ld_busA:
@@ -618,6 +614,7 @@ def get_norm_factor(base_case, dwo_paths):
     #
     # We get these numbers from Dynawo's DYD (that is, the number of elements that
     # could potentially leave events in the timeline).
+    # In case there are none, we set the factor to 1 to avoid div by zero.
     #
     dyd_file = base_case + "/" + dwo_paths.dydFile
     tree = etree.parse(dyd_file)
@@ -627,14 +624,16 @@ def get_norm_factor(base_case, dwo_paths):
     for mc in root.iterfind("./macroConnect", root.nsmap):
         if mc.get("connector")[-16:] == "ControlledShunts":
             nshunts += 1
+    nshunts = max(1, nshunts)
     for bbm in root.iterfind("./blackBoxModel", root.nsmap):
         if bbm.get("lib")[:4] == "Load":
             nldfxmrs += 1
+    nldfxmrs = max(1, nldfxmrs)
 
     iidm_file = base_case + "/" + dwo_paths.iidmFile
     tree = etree.parse(iidm_file)
     root = tree.getroot()
-    nxfmrs = len(tuple(root.iterfind(".//twoWindingsTransformer", root.nsmap)))
+    nxfmrs = max(1, len(tuple(root.iterfind(".//twoWindingsTransformer", root.nsmap))))
 
     Norm_Factor = namedtuple("Norm_Factor", ["shunt", "xfmr", "ldxfmr"])
     norm_factor = Norm_Factor(shunt=nshunts, xfmr=nxfmrs, ldxfmr=nldfxmrs)
