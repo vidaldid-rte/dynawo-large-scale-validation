@@ -105,7 +105,7 @@ def get_tparams(case, dwo_jobpaths):
     ns = etree.QName(root).namespace
     jobs = root.findall("{%s}job" % ns)
     last_job = jobs[-1]  # contemplate only the *last* job, in case there are several
-    simulation = last_job.find("simulation", root.nsmap)
+    simulation = last_job.find("{%s}simulation" % ns)
     startTime = float(simulation.get("startTime"))
     stopTime = float(simulation.get("stopTime"))
 
@@ -114,9 +114,10 @@ def get_tparams(case, dwo_jobpaths):
     dyd_file = casedir / dwo_jobpaths.dydFile
     tree = etree.parse(str(dyd_file), etree.XMLParser(remove_blank_text=True))
     root = tree.getroot()
+    ns = etree.QName(root).namespace
     parFile = None
     parId = None
-    for bbm in root.iterfind("./blackBoxModel", root.nsmap):
+    for bbm in root.iterfind("./{%s}blackBoxModel" % ns):
         if bbm.get("lib")[0:5] == "Event":
             parFile = bbm.get("parFile")
             parId = bbm.get("parId")
@@ -128,10 +129,11 @@ def get_tparams(case, dwo_jobpaths):
     par_file = casedir / parFile
     tree = etree.parse(str(par_file), etree.XMLParser(remove_blank_text=True))
     root = tree.getroot()
+    ns = etree.QName(root).namespace
     event_tEvent = None
-    for par_set in root.iterfind("./set", root.nsmap):
+    for par_set in root.iterfind("./{%s}set" % ns):
         if par_set.get("id") == parId:
-            for par in par_set.iterfind("./par", root.nsmap):
+            for par in par_set.iterfind("./{%s}par" % ns):
                 if par.get("name") == "event_tEvent":
                     event_tEvent = float(par.get("value"))
                     break
@@ -221,9 +223,7 @@ def main():
         print_jobinfo(jobpathsA, tparamsA, "A")
         print_jobinfo(jobpathsB, tparamsB, "B")
     else:
-        raise ValueError(
-            "Case %s is neither an ast-dwo nor a dwo-dwo case" % case
-        )
+        raise ValueError("Case %s is neither an ast-dwo nor a dwo-dwo case" % case)
     return 0
 
 
