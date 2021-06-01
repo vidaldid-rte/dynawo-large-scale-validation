@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 #
-# convert_dflow2dwodwoB.sh: given a base directory containing a DynaFlow
+# convert_dflow2dwoAdwoB.sh: given a base directory containing a DynaFlow
 # case that follows RTE filename conventions, rearrange filenames and
 # paths in order to prepare a case with separate A/B subdirectories
 # and A/B JOB files, suitable for the dynawo-vs-dynawo pipeline.
