@@ -143,6 +143,9 @@ def extract_dynawo_output(dynawo_output, vl_nomv=None, branches=None):
     # Transformers and phase shifters: p & q flows
     extract_dwo_xfmrs(root, is_case_A, data, vl_nomv, branches)
 
+    # Aggregate bus injections (loads, generators, shunts, VSCs)
+    extract_dwo_bus_inj(root, data, vl_nomv)
+
     return pd.DataFrame(data, columns=column_list), vl_nomv, branches
 
 
@@ -266,7 +269,51 @@ def extract_dwo_xfmrs(root, is_case_a, data, vl_nomv, branches):
         else:
             ctr += 1
     print(f" {ctr:5d} xfmrs", end="")
-    print(f" {psctr:3d} psxfmrs")
+    print(f" {psctr:3d} psxfmrs", end="")
+
+
+def extract_dwo_bus_inj(root, data, vl_nomv):
+    """Aggregate injections (loads, gens, shunts, VSCs) by bus, and update data."""
+    # Since a voltage level may contain more than one bus, it is easier to keep the
+    # aggregate injections in dicts indexed by bus, and then output at the end.
+    p_inj = dict()
+    q_inj = dict()
+    for vl in root.iterfind(".//voltageLevel", root.nsmap):
+        # loads
+        for load in vl.iterfind("./load", root.nsmap):
+            bus_name = load.get("bus")
+            if bus_name is not None:
+                p_inj[bus_name] = p_inj.get(bus_name, 0.0) + float(load.get("p"))
+                q_inj[bus_name] = q_inj.get(bus_name, 0.0) + float(load.get("q"))
+        # generators
+        for gen in vl.iterfind("./generator", root.nsmap):
+            bus_name = gen.get("bus")
+            if bus_name is not None:
+                p_inj[bus_name] = p_inj.get(bus_name, 0.0) + float(gen.get("p"))
+                q_inj[bus_name] = q_inj.get(bus_name, 0.0) + float(gen.get("q"))
+        # shunts
+        for shunt in vl.iterfind("./shunt", root.nsmap):
+            bus_name = shunt.get("bus")
+            if bus_name is not None:
+                q_inj[bus_name] = q_inj.get(bus_name, 0.0) + float(shunt.get("q"))
+        # VSCs
+        for vsc in vl.iterfind("./vscConverterStation", root.nsmap):
+            bus_name = vsc.get("bus")
+            if bus_name is not None:
+                p_inj[bus_name] = p_inj.get(bus_name, 0.0) + float(vsc.get("p"))
+                q_inj[bus_name] = q_inj.get(bus_name, 0.0) + float(vsc.get("q"))
+
+    # update data
+    for bus_name in p_inj:
+        p = p_inj[bus_name]
+        if abs(p) > ZEROPQ_TOL:
+            data.append([bus_name, "bus", vl_nomv[bus_name], "p", p])
+    for bus_name in q_inj:
+        q = q_inj[bus_name]
+        if abs(q) > ZEROPQ_TOL:
+            data.append([bus_name, "bus", vl_nomv[bus_name], "q", q])
+    print(f" {len(p_inj):5d} P injections", end="")
+    print(f" {len(q_inj):5d} Q injections")
 
 
 def extract_hades_output(hades_output, hades_input, vl_nomv, dwo_branches):
@@ -278,13 +325,13 @@ def extract_hades_output(hades_output, hades_input, vl_nomv, dwo_branches):
     data = []
     print("   found in Hades file:", end="")
     # Buses: get V & angle
-    extract_hds_buses(root, data, vl_nomv)
+    extract_hds_buses(root, vl_nomv, data)
     # Branches (line/xfmr/psxfmr): p & q flows and xfmr taps
     extract_hds_branches(hades_input, root, dwo_branches, data)
     return pd.DataFrame(data, columns=column_list)
 
 
-def extract_hds_buses(root, data, vl_nomv):
+def extract_hds_buses(root, vl_nomv, data):
     """Read V & angles, and update data."""
     reseau = root.find("./reseau", root.nsmap)
     donneesNoeuds = reseau.find("./donneesNoeuds", root.nsmap)
