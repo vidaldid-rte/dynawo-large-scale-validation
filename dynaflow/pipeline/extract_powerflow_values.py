@@ -58,6 +58,9 @@ ERRORS_A_FILE = "/FILTERED-elements_not_in_caseA.csv.xz"
 ERRORS_B_FILE = "/FILTERED-elements_not_in_caseB.csv.xz"
 ZEROPQ_TOL = 1.0e-5  # inactivity detection: flows below this (in MW) considered zero
 
+# named tuples
+Branch_info = namedtuple("Branch_info", ["type", "bus1", "bus2"])
+Branch_side = namedtuple("Branch_side", ["bus1", "bus2"])
 verbose = True
 
 
@@ -112,11 +115,12 @@ def check_inputfiles(case_dir, solution_1, solution_2):
 
 
 def extract_dynawo_output(dynawo_output, vl_nomv=None, branches=None):
+    """Read all output and return a dataframe. If case_A, create vl_nomv & branches"""
     tree = etree.parse(dynawo_output)
     root = tree.getroot()
-    Branch_info = namedtuple("Branch_info", ["type", "bus1", "bus2"])
+    # Manage whether we're case A or B, when used for Dynawo-vs-Dynawo
     if vl_nomv is None:
-        is_caseA = True
+        is_case_A = True
         value_col = "VALUE_A"
         # we will build an aux dict (bus --> volt level) as we traverse buses below
         vl_nomv = dict()
@@ -125,7 +129,7 @@ def extract_dynawo_output(dynawo_output, vl_nomv=None, branches=None):
         #    * buses on each side, to avoid inconsistencies in side-labeling convention
         branches = dict()
     else:
-        is_caseA = False
+        is_case_A = False
         value_col = "VALUE_B"
 
     # We'll be using a dataframe, for sorting
@@ -134,13 +138,26 @@ def extract_dynawo_output(dynawo_output, vl_nomv=None, branches=None):
     print("   found in Dynawo file:", end="")
 
     # Buses: get V & angle
+    extract_dwo_buses(root, is_case_A, data, vl_nomv)
+
+    # Lines: p & q flows
+    extract_dwo_lines(root, is_case_A, data, vl_nomv, branches)
+
+    # Transformers and phase shifters: p & q flows
+    extract_dwo_xfmrs(root, is_case_A, data, vl_nomv, branches)
+
+    return pd.DataFrame(data, columns=column_list), vl_nomv, branches
+
+
+def extract_dwo_buses(root, is_case_a, data, vl_nomv):
+    """Read V & angles, and update data. Also update the vl_nomv dict if it's case_A"""
     ctr = 0
     for bus in root.iterfind(".//bus", root.nsmap):
         bus_name = bus.get("id")
         v = bus.get("v")
         angle = bus.get("angle")
-        # build vl dict *before* skipping inactive buses
-        if is_caseA:
+        # build the voltlevel dict *before* skipping inactive buses
+        if is_case_a:
             vl_nomv[bus_name] = int(bus.getparent().getparent().get("nominalV"))
         # skip inactive buses
         if v == "0" and angle == "0":
@@ -151,7 +168,9 @@ def extract_dynawo_output(dynawo_output, vl_nomv=None, branches=None):
         ctr += 1
     print(f" {ctr:5d} buses", end="")
 
-    # Lines: p & q flows
+
+def extract_dwo_lines(root, is_case_a, data, vl_nomv, branches):
+    """Read line flows, and update data. Also update branches dict if it's case_A"""
     ctr = 0
     for line in root.iterfind("./line", root.nsmap):
         line_name = line.get("id")
@@ -159,14 +178,14 @@ def extract_dynawo_output(dynawo_output, vl_nomv=None, branches=None):
         q1 = float(line.get("q1"))
         p2 = float(line.get("p2"))
         q2 = float(line.get("q2"))
-        # build branches dict *before* skipping inactive lines
-        if is_caseA:
+        # build the branches dict *before* skipping inactive lines
+        if is_case_a:
             branches[line_name] = Branch_info(
                 type="line",
                 bus1=line.get("connectableBus1"),
                 bus2=line.get("connectableBus2"),
             )
-        # skip inactive lines (note how some of these may be active in the other case)
+        # skip inactive lines (beware threshold effect when comparing to the other case)
         if (
             abs(p1) < ZEROPQ_TOL
             and abs(q1) < ZEROPQ_TOL
@@ -175,14 +194,17 @@ def extract_dynawo_output(dynawo_output, vl_nomv=None, branches=None):
         ):
             continue
         volt_level = vl_nomv[line.get("connectableBus1")]
-        data.append([line_name, branches[line_name].type, volt_level, "p1", p1])
-        data.append([line_name, branches[line_name].type, volt_level, "q1", q1])
-        data.append([line_name, branches[line_name].type, volt_level, "p2", p2])
-        data.append([line_name, branches[line_name].type, volt_level, "q2", q2])
+        element_type = branches[line_name].type
+        data.append([line_name, element_type, volt_level, "p1", p1])
+        data.append([line_name, element_type, volt_level, "q1", q1])
+        data.append([line_name, element_type, volt_level, "p2", p2])
+        data.append([line_name, element_type, volt_level, "q2", q2])
         ctr += 1
     print(f" {ctr:5d} lines", end="")
 
-    # Transformers and phase shifters: p & q flows
+
+def extract_dwo_xfmrs(root, is_case_a, data, vl_nomv, branches):
+    """Read xfmr flows & taps, and update data. Also update branches dict, if case_A"""
     ctr = 0
     psctr = 0
     for xfmr in root.iterfind(".//twoWindingsTransformer", root.nsmap):
@@ -194,7 +216,7 @@ def extract_dynawo_output(dynawo_output, vl_nomv=None, branches=None):
         tap = xfmr.find("./ratioTapChanger", root.nsmap)
         ps_tap = xfmr.find("./phaseTapChanger", root.nsmap)
         # build branches dict *before* skipping inactive transformers
-        if is_caseA:
+        if is_case_a:
             if ps_tap is not None:
                 branches[xfmr_name] = Branch_info(
                     type="psxfmr",
@@ -207,7 +229,7 @@ def extract_dynawo_output(dynawo_output, vl_nomv=None, branches=None):
                     bus1=xfmr.get("connectableBus1"),
                     bus2=xfmr.get("connectableBus2"),
                 )
-        # skip inactive xfmrs (note how some of these may be active in the other case)
+        # skip inactive xfmrs (beware threshold effect when comparing to the other case)
         if (
             abs(p1) < ZEROPQ_TOL
             and abs(q1) < ZEROPQ_TOL
@@ -250,25 +272,61 @@ def extract_dynawo_output(dynawo_output, vl_nomv=None, branches=None):
     print(f" {ctr:5d} xfmrs", end="")
     print(f" {psctr:3d} psxfmrs")
 
-    df = pd.DataFrame(data, columns=column_list)
-    return df, vl_nomv, branches
 
-
-def extract_hades_output(hades_output, hades_input, vl_nom, dwo_branches):
-    # These auxiliary dicts need to be extracted from the Hades input case
-    hds_branch_sides, tap2xfmr, pstap2xfmr = extract_hds_gridinfo(hades_input)
-
-    # Now we read everything else from Hades output file
+def extract_hades_output(hades_output, hades_input, vl_nomv, dwo_branches):
     tree = etree.parse(hades_output)
     root = tree.getroot()
 
     # We'll be using a dataframe, for sorting
     column_list = ["ID", "ELEMENT_TYPE", "VAR", "VALUE_B"]
     data = []
-    reseau = root.find("./reseau", root.nsmap)
     print("   found in Hades file:", end="")
 
     # Buses: get V & angle
+    extract_hds_buses(root, data, vl_nomv)
+
+    # Branches (line/xfmr/psxfmr): p & q flows (and xfmr taps)
+    extract_hds_branches(hades_input, root, dwo_branches, data)
+
+    return pd.DataFrame(data, columns=column_list)
+
+
+def extract_hds_gridinfo(hades_input):
+    """Read info that's only available in the input file (branch buses; xfmr taps)."""
+    tree = etree.parse(hades_input)
+    root = tree.getroot()
+    reseau = root.find("./reseau", root.nsmap)
+    # auxiliary dict that maps "num" to "nom"
+    buses = dict()
+    donneesNoeuds = reseau.find("./donneesNoeuds", root.nsmap)
+    for bus in donneesNoeuds.iterfind("./noeud", root.nsmap):
+        buses[bus.get("num")] = bus.get("nom")
+    buses["-1"] = "DISCONNECTED"
+    # now build a dict that maps branch names to their bus1 and bus2 names
+    branch_sides = dict()
+    donneesQuadripoles = reseau.find("./donneesQuadripoles", root.nsmap)
+    for branch in donneesQuadripoles.iterfind("./quadripole", root.nsmap):
+        branch_sides[branch.get("nom")] = Branch_side(
+            bus1=buses[branch.get("nor")], bus2=buses[branch.get("nex")]
+        )
+    # now build a dict that maps "regleur" IDs to their transformer's name
+    # AND a dict that maps "dephaseur" IDs to their transformer's name
+    tap2xfmr = dict()
+    pstap2xfmr = dict()
+    for branch in donneesQuadripoles.iterfind("./quadripole", root.nsmap):
+        tap_ID = branch.get("ptrregleur")
+        if tap_ID != "0" and tap_ID is not None:
+            tap2xfmr[tap_ID] = branch.get("nom")
+        pstap_ID = branch.get("ptrdepha")
+        if pstap_ID != "0" and pstap_ID is not None:
+            pstap2xfmr[pstap_ID] = branch.get("nom")
+
+    return branch_sides, tap2xfmr, pstap2xfmr
+
+
+def extract_hds_buses(root, data, vl_nomv):
+    """Read V & angles, and update data."""
+    reseau = root.find("./reseau", root.nsmap)
     donneesNoeuds = reseau.find("./donneesNoeuds", root.nsmap)
     ctr = 0
     for bus in donneesNoeuds.iterfind("./noeud", root.nsmap):
@@ -277,14 +335,22 @@ def extract_hades_output(hades_output, hades_input, vl_nom, dwo_branches):
         angle = bus[0].get("ph")
         if v == "999999.000000000000000" and angle == "999999.000000000000000":
             continue  # skip inactive buses
-        data.append([bus_name, "bus", "v", float(v) * vl_nom[bus_name] / 100])
+        data.append([bus_name, "bus", "v", float(v) * vl_nomv[bus_name] / 100])
         data.append([bus_name, "bus", "angle", float(angle) * 180 / math.pi])
         ctr += 1
     print(f"  {ctr:5d} buses", end="")
 
-    # Branches (line/xfmr/psxfmr): p & q flows
+
+def extract_hds_branches(hades_input, root, dwo_branches, data):
+    """Read branch flows (incl. xfmr taps), and update data."""
+
+    # These aux dicts need to be read from the *input* case (it's not in the output)
+    hds_branch_sides, tap2xfmr, pstap2xfmr = extract_hds_gridinfo(hades_input)
+
+    # now we can read everything else from the output file
     # first we extract tap values (used later below)
     taps = dict()
+    reseau = root.find("./reseau", root.nsmap)
     donneesRegleurs = reseau.find("./donneesRegleurs", root.nsmap)
     for regleur in donneesRegleurs.iterfind("./regleur", root.nsmap):
         quadrip_name = tap2xfmr.get(regleur.get("num"))
@@ -370,41 +436,6 @@ def extract_hades_output(hades_output, hades_input, vl_nom, dwo_branches):
         f" {lctr:5d} lines {xctr:5d} xfmrs {psctr:3d} psxfmrs"
         f" ({bad_ctr} quadrip. not in Dynawo)"
     )
-
-    return pd.DataFrame(data, columns=column_list)
-
-
-def extract_hds_gridinfo(hades_input):
-    tree = etree.parse(hades_input)
-    root = tree.getroot()
-    reseau = root.find("./reseau", root.nsmap)
-    # auxiliary dict that maps "num" to "nom"
-    buses = dict()
-    donneesNoeuds = reseau.find("./donneesNoeuds", root.nsmap)
-    for bus in donneesNoeuds.iterfind("./noeud", root.nsmap):
-        buses[bus.get("num")] = bus.get("nom")
-    buses["-1"] = "DISCONNECTED"
-    # now build a dict that maps branch names to their bus1 and bus2 names
-    branch_sides = dict()
-    Branch_side = namedtuple("Branch_side", ["bus1", "bus2"])
-    donneesQuadripoles = reseau.find("./donneesQuadripoles", root.nsmap)
-    for branch in donneesQuadripoles.iterfind("./quadripole", root.nsmap):
-        branch_sides[branch.get("nom")] = Branch_side(
-            bus1=buses[branch.get("nor")], bus2=buses[branch.get("nex")]
-        )
-    # now build a dict that maps "regleur" IDs to their transformer's name
-    # AND a dict that maps "dephaseur" IDs to their transformer's name
-    tap2xfmr = dict()
-    pstap2xfmr = dict()
-    for branch in donneesQuadripoles.iterfind("./quadripole", root.nsmap):
-        tap_ID = branch.get("ptrregleur")
-        if tap_ID != "0" and tap_ID is not None:
-            tap2xfmr[tap_ID] = branch.get("nom")
-        pstap_ID = branch.get("ptrdepha")
-        if pstap_ID != "0" and pstap_ID is not None:
-            pstap2xfmr[pstap_ID] = branch.get("nom")
-
-    return branch_sides, tap2xfmr, pstap2xfmr
 
 
 def save_extracted_events(df_a, df_b, output_file, errors_a_file, errors_b_file):
