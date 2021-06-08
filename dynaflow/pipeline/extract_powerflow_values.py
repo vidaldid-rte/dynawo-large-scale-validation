@@ -47,10 +47,12 @@ import pandas as pd
 from lxml import etree
 from collections import namedtuple
 
+# import itertools
+
+HDS_INPUT = "/Hades/donneesEntreeHADES2.xml"
 HDS_SOLUTION = "/Hades/out.xml"
-HDS_GRID = "/Hades/donneesEntreeHADES2.xml"
 DYNAWO_SOLUTION = "/finalState/outputIIDM.xml"
-DYNAWO_OUTPUTS_DIR = "outputs"  # TODO: extract from JOB file instead
+DYNAWO_OUTPUTS_DIR = "/outputs"  # TODO: extract from JOB file instead
 OUTPUT_FILE = "/pfsolution_AB.csv.xz"
 ERRORS_A_FILE = "/FILTERED-elements_not_in_caseA.csv.xz"
 ERRORS_B_FILE = "/FILTERED-elements_not_in_caseB.csv.xz"
@@ -77,15 +79,15 @@ def main():
     # TODO: construct Dynawo paths from the info in the JOB file
     # dwo_paths = get_dwo_jobpaths(case_dir)
     # dwo_soln = "/" + dwo_paths.outputs_directory + DYNAWO_OUTPUT_FILE
-    dwo_solution = "/" + DYNAWO_OUTPUTS_DIR + DYNAWO_SOLUTION
+    dwo_solution = DYNAWO_OUTPUTS_DIR + DYNAWO_SOLUTION
     check_inputfiles(case_dir, HDS_SOLUTION, dwo_solution)
 
     # Extract the solution values from Dynawo results
-    df_dwo, vl_nomV, branch_info = extract_dynawo_values(case_dir + dwo_solution)
+    df_dwo, vl_nomV, branch_info = extract_dynawo_output(case_dir + dwo_solution)
 
     # Extract the solution values from Hades results
-    df_hds = extract_hades_values(
-        case_dir + HDS_SOLUTION, case_dir + HDS_GRID, vl_nomV, branch_info
+    df_hds = extract_hades_output(
+        case_dir + HDS_SOLUTION, case_dir + HDS_INPUT, vl_nomV, branch_info
     )
 
     # Merge, sort, and save
@@ -109,8 +111,8 @@ def check_inputfiles(case_dir, solution_1, solution_2):
         raise ValueError(f"the expected PF solution files are missing in {case_dir}\n")
 
 
-def extract_dynawo_values(dynawo_input, vl_nomv=None, branches=None):
-    tree = etree.parse(dynawo_input)
+def extract_dynawo_output(dynawo_output, vl_nomv=None, branches=None):
+    tree = etree.parse(dynawo_output)
     root = tree.getroot()
     Branch_info = namedtuple("Branch_info", ["type", "bus1", "bus2"])
     if vl_nomv is None:
@@ -189,9 +191,11 @@ def extract_dynawo_values(dynawo_input, vl_nomv=None, branches=None):
         q1 = float(xfmr.get("q1"))
         p2 = float(xfmr.get("p2"))
         q2 = float(xfmr.get("q2"))
+        tap = xfmr.find("./ratioTapChanger", root.nsmap)
+        ps_tap = xfmr.find("./phaseTapChanger", root.nsmap)
         # build branches dict *before* skipping inactive transformers
         if is_caseA:
-            if xfmr.find("./phaseTapChanger", root.nsmap) is not None:
+            if ps_tap is not None:
                 branches[xfmr_name] = Branch_info(
                     type="psxfmr",
                     bus1=xfmr.get("connectableBus1"),
@@ -216,6 +220,29 @@ def extract_dynawo_values(dynawo_input, vl_nomv=None, branches=None):
         data.append([xfmr_name, branches[xfmr_name].type, volt_level, "q1", q1])
         data.append([xfmr_name, branches[xfmr_name].type, volt_level, "p2", p2])
         data.append([xfmr_name, branches[xfmr_name].type, volt_level, "q2", q2])
+        # transformer taps
+        if tap is not None:
+            data.append(
+                [
+                    xfmr_name,
+                    branches[xfmr_name].type,
+                    volt_level,
+                    "tap",
+                    int(tap.get("tapPosition")),
+                ]
+            )
+        # phase-shifter taps
+        if ps_tap is not None:
+            data.append(
+                [
+                    xfmr_name,
+                    branches[xfmr_name].type,
+                    volt_level,
+                    "pstap",
+                    int(ps_tap.get("tapPosition")),
+                ]
+            )
+        # counters
         if branches[xfmr_name].type == "psxfmr":
             psctr += 1
         else:
@@ -227,17 +254,21 @@ def extract_dynawo_values(dynawo_input, vl_nomv=None, branches=None):
     return df, vl_nomv, branches
 
 
-def extract_hades_values(hades_input, hades_grid, vl_nom, dwo_branches):
-    tree = etree.parse(hades_input)
+def extract_hades_output(hades_output, hades_input, vl_nom, dwo_branches):
+    # These auxiliary dicts need to be extracted from the Hades input case
+    hds_branch_sides, tap2xfmr, pstap2xfmr = extract_hds_gridinfo(hades_input)
+
+    # Now we read everything else from Hades output file
+    tree = etree.parse(hades_output)
     root = tree.getroot()
 
     # We'll be using a dataframe, for sorting
     column_list = ["ID", "ELEMENT_TYPE", "VAR", "VALUE_B"]
     data = []
+    reseau = root.find("./reseau", root.nsmap)
     print("   found in Hades file:", end="")
 
     # Buses: get V & angle
-    reseau = root.find("./reseau", root.nsmap)
     donneesNoeuds = reseau.find("./donneesNoeuds", root.nsmap)
     ctr = 0
     for bus in donneesNoeuds.iterfind("./noeud", root.nsmap):
@@ -251,13 +282,37 @@ def extract_hades_values(hades_input, hades_grid, vl_nom, dwo_branches):
         ctr += 1
     print(f"  {ctr:5d} buses", end="")
 
-    # Lines: p & q flows
-    branchsides = extract_hds_branchsides(hades_grid)
-    donneesQuadripoles = reseau.find("./donneesQuadripoles", root.nsmap)
+    # Branches (line/xfmr/psxfmr): p & q flows
+    # first we extract tap values (used later below)
+    taps = dict()
+    donneesRegleurs = reseau.find("./donneesRegleurs", root.nsmap)
+    for regleur in donneesRegleurs.iterfind("./regleur", root.nsmap):
+        quadrip_name = tap2xfmr.get(regleur.get("num"))
+        if quadrip_name is None:
+            raise ValueError(
+                f"in Hades output file: regleur {regleur.get('num')}"
+                "  has no associated transformer!"
+            )
+        taps[quadrip_name] = int(regleur.find("./variables", root.nsmap).get("plot"))
+    # and phase-shifter tap values (used later below)
+    pstaps = dict()
+    donneesDephaseurs = reseau.find("./donneesDephaseurs", root.nsmap)
+    for dephaseur in donneesDephaseurs.iterfind("./dephaseur", root.nsmap):
+        quadrip_name = pstap2xfmr.get(dephaseur.get("num"))
+        if quadrip_name is None:
+            raise ValueError(
+                f"in Hades output file: dephaseur {dephaseur.get('num')}"
+                "  has no associated transformer!"
+            )
+        pstaps[quadrip_name] = int(
+            dephaseur.find("./variables", root.nsmap).get("plot")
+        )
+    # and now we extract the branch (quadripole) data
     lctr = 0
     xctr = 0
     psctr = 0
     bad_ctr = 0
+    donneesQuadripoles = reseau.find("./donneesQuadripoles", root.nsmap)
     for quadrip in donneesQuadripoles.iterfind("./quadripole", root.nsmap):
         quadrip_name = quadrip.get("nom")
         p1 = float(quadrip[0].get("por"))
@@ -281,20 +336,28 @@ def extract_hades_values(hades_input, hades_grid, vl_nom, dwo_branches):
             and abs(q2) < ZEROPQ_TOL
         ):
             continue
-        # disambiguate which kind of branch it is
+        # find out whether it is a line/xfmr/psxfmr by looking it up in Dynawo case
         dwo_branch_info = dwo_branches.get(quadrip_name)
         if dwo_branch_info is not None:
             element_type = dwo_branch_info.type
             # and if side-labeling convention is reversed, fix it
-            if branchsides[quadrip_name].bus1 == dwo_branch_info.bus2:
+            if hds_branch_sides[quadrip_name].bus1 == dwo_branch_info.bus2:
                 p1, p2 = (p2, p1)
                 q1, q2 = (q2, q1)
         else:
             element_type = "QUADRIPOLE_NOT_IN_DWO"
+        # collect the data
         data.append([quadrip_name, element_type, "p1", p1])
         data.append([quadrip_name, element_type, "q1", q1])
         data.append([quadrip_name, element_type, "p2", p2])
         data.append([quadrip_name, element_type, "q2", q2])
+        tap_value = taps.get(quadrip_name)
+        if tap_value is not None:
+            data.append([quadrip_name, element_type, "tap", tap_value])
+        pstap_value = pstaps.get(quadrip_name)
+        if pstap_value is not None:
+            data.append([quadrip_name, element_type, "pstap", pstap_value])
+        # counters
         if element_type == "line":
             lctr += 1
         elif element_type == "xfmr":
@@ -311,30 +374,42 @@ def extract_hades_values(hades_input, hades_grid, vl_nom, dwo_branches):
     return pd.DataFrame(data, columns=column_list)
 
 
-def extract_hds_branchsides(hades_grid):
-    tree = etree.parse(hades_grid)
+def extract_hds_gridinfo(hades_input):
+    tree = etree.parse(hades_input)
     root = tree.getroot()
     reseau = root.find("./reseau", root.nsmap)
-    # build an aux dict that maps "num" to "nom"
+    # auxiliary dict that maps "num" to "nom"
     buses = dict()
     donneesNoeuds = reseau.find("./donneesNoeuds", root.nsmap)
     for bus in donneesNoeuds.iterfind("./noeud", root.nsmap):
         buses[bus.get("num")] = bus.get("nom")
     buses["-1"] = "DISCONNECTED"
     # now build a dict that maps branch names to their bus1 and bus2 names
-    branchsides = dict()
+    branch_sides = dict()
     Branch_side = namedtuple("Branch_side", ["bus1", "bus2"])
     donneesQuadripoles = reseau.find("./donneesQuadripoles", root.nsmap)
     for branch in donneesQuadripoles.iterfind("./quadripole", root.nsmap):
-        branchsides[branch.get("nom")] = Branch_side(
+        branch_sides[branch.get("nom")] = Branch_side(
             bus1=buses[branch.get("nor")], bus2=buses[branch.get("nex")]
         )
-    return branchsides
+    # now build a dict that maps "regleur" IDs to their transformer's name
+    # AND a dict that maps "dephaseur" IDs to their transformer's name
+    tap2xfmr = dict()
+    pstap2xfmr = dict()
+    for branch in donneesQuadripoles.iterfind("./quadripole", root.nsmap):
+        tap_ID = branch.get("ptrregleur")
+        if tap_ID != "0" and tap_ID is not None:
+            tap2xfmr[tap_ID] = branch.get("nom")
+        pstap_ID = branch.get("ptrdepha")
+        if pstap_ID != "0" and pstap_ID is not None:
+            pstap2xfmr[pstap_ID] = branch.get("nom")
+
+    return branch_sides, tap2xfmr, pstap2xfmr
 
 
 def save_extracted_events(df_a, df_b, output_file, errors_a_file, errors_b_file):
     # Merge (inner join) the two dataframes, checking for duplicates (just in case)
-    key_fields = ["ID", "ELEMENT_TYPE", "VAR"]
+    key_fields = ["ELEMENT_TYPE", "ID", "VAR"]
     df = pd.merge(df_a, df_b, how="inner", on=key_fields, validate="one_to_one")
 
     # Print some summaries
@@ -372,9 +447,7 @@ def save_extracted_events(df_a, df_b, output_file, errors_a_file, errors_b_file)
         df_not_in_A = df_b.loc[
             (df_b["ID"] + df_b["ELEMENT_TYPE"]).isin(elements_not_in_A)
         ]
-        df_not_in_A.sort_values(
-            by=["ELEMENT_TYPE", "ID", "VAR"], ascending=[True, True, True]
-        ).to_csv(
+        df_not_in_A.sort_values(by=key_fields, ascending=[True, True, True]).to_csv(
             errors_a_file, index=False, sep=";", encoding="utf-8", compression="xz"
         )
         print(
@@ -385,9 +458,7 @@ def save_extracted_events(df_a, df_b, output_file, errors_a_file, errors_b_file)
         df_not_in_B = df_a.loc[
             (df_a["ID"] + df_a["ELEMENT_TYPE"]).isin(elements_not_in_B)
         ]
-        df_not_in_B.sort_values(
-            by=["ELEMENT_TYPE", "ID", "VAR"], ascending=[True, True, True]
-        ).to_csv(
+        df_not_in_B.sort_values(by=key_fields, ascending=[True, True, True]).to_csv(
             errors_b_file, index=False, sep=";", encoding="utf-8", compression="xz"
         )
         print(
