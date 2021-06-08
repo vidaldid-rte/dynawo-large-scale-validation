@@ -94,12 +94,9 @@ def main():
     )
 
     # Merge, sort, and save
-    save_extracted_events(
-        df_dwo,
-        df_hds,
-        case_dir + OUTPUT_FILE,
-        case_dir + ERRORS_A_FILE,
-        case_dir + ERRORS_B_FILE,
+    save_extracted_values(df_dwo, df_hds, case_dir + OUTPUT_FILE)
+    save_nonmatching_elements(
+        df_dwo, df_hds, case_dir + ERRORS_A_FILE, case_dir + ERRORS_B_FILE
     )
 
     return 0
@@ -205,8 +202,7 @@ def extract_dwo_lines(root, is_case_a, data, vl_nomv, branches):
 
 def extract_dwo_xfmrs(root, is_case_a, data, vl_nomv, branches):
     """Read xfmr flows & taps, and update data. Also update branches dict, if case_A"""
-    ctr = 0
-    psctr = 0
+    ctr, psctr = [0, 0]
     for xfmr in root.iterfind(".//twoWindingsTransformer", root.nsmap):
         xfmr_name = xfmr.get("id")
         p1 = float(xfmr.get("p1"))
@@ -274,54 +270,18 @@ def extract_dwo_xfmrs(root, is_case_a, data, vl_nomv, branches):
 
 
 def extract_hades_output(hades_output, hades_input, vl_nomv, dwo_branches):
+    """Read all output and return a dataframe."""
     tree = etree.parse(hades_output)
     root = tree.getroot()
-
     # We'll be using a dataframe, for sorting
     column_list = ["ID", "ELEMENT_TYPE", "VAR", "VALUE_B"]
     data = []
     print("   found in Hades file:", end="")
-
     # Buses: get V & angle
     extract_hds_buses(root, data, vl_nomv)
-
-    # Branches (line/xfmr/psxfmr): p & q flows (and xfmr taps)
+    # Branches (line/xfmr/psxfmr): p & q flows and xfmr taps
     extract_hds_branches(hades_input, root, dwo_branches, data)
-
     return pd.DataFrame(data, columns=column_list)
-
-
-def extract_hds_gridinfo(hades_input):
-    """Read info that's only available in the input file (branch buses; xfmr taps)."""
-    tree = etree.parse(hades_input)
-    root = tree.getroot()
-    reseau = root.find("./reseau", root.nsmap)
-    # auxiliary dict that maps "num" to "nom"
-    buses = dict()
-    donneesNoeuds = reseau.find("./donneesNoeuds", root.nsmap)
-    for bus in donneesNoeuds.iterfind("./noeud", root.nsmap):
-        buses[bus.get("num")] = bus.get("nom")
-    buses["-1"] = "DISCONNECTED"
-    # now build a dict that maps branch names to their bus1 and bus2 names
-    branch_sides = dict()
-    donneesQuadripoles = reseau.find("./donneesQuadripoles", root.nsmap)
-    for branch in donneesQuadripoles.iterfind("./quadripole", root.nsmap):
-        branch_sides[branch.get("nom")] = Branch_side(
-            bus1=buses[branch.get("nor")], bus2=buses[branch.get("nex")]
-        )
-    # now build a dict that maps "regleur" IDs to their transformer's name
-    # AND a dict that maps "dephaseur" IDs to their transformer's name
-    tap2xfmr = dict()
-    pstap2xfmr = dict()
-    for branch in donneesQuadripoles.iterfind("./quadripole", root.nsmap):
-        tap_ID = branch.get("ptrregleur")
-        if tap_ID != "0" and tap_ID is not None:
-            tap2xfmr[tap_ID] = branch.get("nom")
-        pstap_ID = branch.get("ptrdepha")
-        if pstap_ID != "0" and pstap_ID is not None:
-            pstap2xfmr[pstap_ID] = branch.get("nom")
-
-    return branch_sides, tap2xfmr, pstap2xfmr
 
 
 def extract_hds_buses(root, data, vl_nomv):
@@ -343,41 +303,14 @@ def extract_hds_buses(root, data, vl_nomv):
 
 def extract_hds_branches(hades_input, root, dwo_branches, data):
     """Read branch flows (incl. xfmr taps), and update data."""
-
     # These aux dicts need to be read from the *input* case (it's not in the output)
     hds_branch_sides, tap2xfmr, pstap2xfmr = extract_hds_gridinfo(hades_input)
-
     # now we can read everything else from the output file
-    # first we extract tap values (used later below)
-    taps = dict()
-    reseau = root.find("./reseau", root.nsmap)
-    donneesRegleurs = reseau.find("./donneesRegleurs", root.nsmap)
-    for regleur in donneesRegleurs.iterfind("./regleur", root.nsmap):
-        quadrip_name = tap2xfmr.get(regleur.get("num"))
-        if quadrip_name is None:
-            raise ValueError(
-                f"in Hades output file: regleur {regleur.get('num')}"
-                "  has no associated transformer!"
-            )
-        taps[quadrip_name] = int(regleur.find("./variables", root.nsmap).get("plot"))
-    # and phase-shifter tap values (used later below)
-    pstaps = dict()
-    donneesDephaseurs = reseau.find("./donneesDephaseurs", root.nsmap)
-    for dephaseur in donneesDephaseurs.iterfind("./dephaseur", root.nsmap):
-        quadrip_name = pstap2xfmr.get(dephaseur.get("num"))
-        if quadrip_name is None:
-            raise ValueError(
-                f"in Hades output file: dephaseur {dephaseur.get('num')}"
-                "  has no associated transformer!"
-            )
-        pstaps[quadrip_name] = int(
-            dephaseur.find("./variables", root.nsmap).get("plot")
-        )
+    # first we extract tap and phase-shifter tap values (used below)
+    taps, pstaps = extract_hds_taps(root, tap2xfmr, pstap2xfmr)
     # and now we extract the branch (quadripole) data
-    lctr = 0
-    xctr = 0
-    psctr = 0
-    bad_ctr = 0
+    lctr, xctr, psctr, bad_ctr = [0, 0, 0, 0]
+    reseau = root.find("./reseau", root.nsmap)
     donneesQuadripoles = reseau.find("./donneesQuadripoles", root.nsmap)
     for quadrip in donneesQuadripoles.iterfind("./quadripole", root.nsmap):
         quadrip_name = quadrip.get("nom")
@@ -438,7 +371,70 @@ def extract_hds_branches(hades_input, root, dwo_branches, data):
     )
 
 
-def save_extracted_events(df_a, df_b, output_file, errors_a_file, errors_b_file):
+def extract_hds_gridinfo(hades_input):
+    """Read info that's only available in the input file (branch buses; xfmr taps)."""
+    tree = etree.parse(hades_input)
+    root = tree.getroot()
+    reseau = root.find("./reseau", root.nsmap)
+    # auxiliary dict that maps "num" to "nom"
+    buses = dict()
+    donneesNoeuds = reseau.find("./donneesNoeuds", root.nsmap)
+    for bus in donneesNoeuds.iterfind("./noeud", root.nsmap):
+        buses[bus.get("num")] = bus.get("nom")
+    buses["-1"] = "DISCONNECTED"
+    # now build a dict that maps branch names to their bus1 and bus2 names
+    branch_sides = dict()
+    donneesQuadripoles = reseau.find("./donneesQuadripoles", root.nsmap)
+    for branch in donneesQuadripoles.iterfind("./quadripole", root.nsmap):
+        branch_sides[branch.get("nom")] = Branch_side(
+            bus1=buses[branch.get("nor")], bus2=buses[branch.get("nex")]
+        )
+    # now build a dict that maps "regleur" IDs to their transformer's name
+    # AND a dict that maps "dephaseur" IDs to their transformer's name
+    tap2xfmr = dict()
+    pstap2xfmr = dict()
+    for branch in donneesQuadripoles.iterfind("./quadripole", root.nsmap):
+        tap_ID = branch.get("ptrregleur")
+        if tap_ID != "0" and tap_ID is not None:
+            tap2xfmr[tap_ID] = branch.get("nom")
+        pstap_ID = branch.get("ptrdepha")
+        if pstap_ID != "0" and pstap_ID is not None:
+            pstap2xfmr[pstap_ID] = branch.get("nom")
+
+    return branch_sides, tap2xfmr, pstap2xfmr
+
+
+def extract_hds_taps(root, tap2xfmr, pstap2xfmr):
+    """Read tap values and return them in two dicts indexed by name (taps, pstaps)."""
+    taps = dict()
+    reseau = root.find("./reseau", root.nsmap)
+    donneesRegleurs = reseau.find("./donneesRegleurs", root.nsmap)
+    for regleur in donneesRegleurs.iterfind("./regleur", root.nsmap):
+        quadrip_name = tap2xfmr.get(regleur.get("num"))
+        if quadrip_name is None:
+            raise ValueError(
+                f"in Hades output file: regleur {regleur.get('num')}"
+                "  has no associated transformer!"
+            )
+        taps[quadrip_name] = int(regleur.find("./variables", root.nsmap).get("plot"))
+    # now phase-shifter taps
+    pstaps = dict()
+    donneesDephaseurs = reseau.find("./donneesDephaseurs", root.nsmap)
+    for dephaseur in donneesDephaseurs.iterfind("./dephaseur", root.nsmap):
+        quadrip_name = pstap2xfmr.get(dephaseur.get("num"))
+        if quadrip_name is None:
+            raise ValueError(
+                f"in Hades output file: dephaseur {dephaseur.get('num')}"
+                "  has no associated transformer!"
+            )
+        pstaps[quadrip_name] = int(
+            dephaseur.find("./variables", root.nsmap).get("plot")
+        )
+    return taps, pstaps
+
+
+def save_extracted_values(df_a, df_b, output_file):
+    """Save the values for all elements that are matched in both outputs."""
     # Merge (inner join) the two dataframes, checking for duplicates (just in case)
     key_fields = ["ELEMENT_TYPE", "ID", "VAR"]
     df = pd.merge(df_a, df_b, how="inner", on=key_fields, validate="one_to_one")
@@ -468,6 +464,10 @@ def save_extracted_events(df_a, df_b, output_file, errors_a_file, errors_b_file)
     df.to_csv(output_file, index=False, sep=";", encoding="utf-8", compression="xz")
     print(f"Saved output to file: {output_file}... ")
 
+
+def save_nonmatching_elements(df_a, df_b, errors_a_file, errors_b_file):
+    """Save the elements that did not match. Some may be due to threshold flows."""
+    key_fields = ["ELEMENT_TYPE", "ID", "VAR"]
     # Output the diffs. Newer versions of Pandas support df.compare(), but here we do
     # it in a more backwards-compatible way.
     set_A = frozenset(df_a["ID"].add(df_a["ELEMENT_TYPE"]))
