@@ -128,24 +128,18 @@ def extract_dynawo_output(dynawo_output, vl_nomv=None, branches=None):
     else:
         is_case_A = False
         value_col = "VALUE_B"
-
     # We'll be using a dataframe, for sorting
     column_list = ["ID", "ELEMENT_TYPE", "VOLT_LEVEL", "VAR", value_col]
     data = []
     print("   found in Dynawo file:", end="")
-
     # Buses: get V & angle
     extract_dwo_buses(root, is_case_A, data, vl_nomv)
-
     # Lines: p & q flows
     extract_dwo_lines(root, is_case_A, data, vl_nomv, branches)
-
     # Transformers and phase shifters: p & q flows
     extract_dwo_xfmrs(root, is_case_A, data, vl_nomv, branches)
-
     # Aggregate bus injections (loads, generators, shunts, VSCs)
     extract_dwo_bus_inj(root, data, vl_nomv)
-
     return pd.DataFrame(data, columns=column_list), vl_nomv, branches
 
 
@@ -302,7 +296,6 @@ def extract_dwo_bus_inj(root, data, vl_nomv):
             if bus_name is not None:
                 p_inj[bus_name] = p_inj.get(bus_name, 0.0) + float(vsc.get("p"))
                 q_inj[bus_name] = q_inj.get(bus_name, 0.0) + float(vsc.get("q"))
-
     # update data
     for bus_name in p_inj:
         p = p_inj[bus_name]
@@ -312,8 +305,9 @@ def extract_dwo_bus_inj(root, data, vl_nomv):
         q = q_inj[bus_name]
         if abs(q) > ZEROPQ_TOL:
             data.append([bus_name, "bus", vl_nomv[bus_name], "q", q])
-    print(f" {len(p_inj):5d} P injections", end="")
-    print(f" {len(q_inj):5d} Q injections")
+    print("                         ", end="")  # Hades has extra output here
+    print(f" {len(p_inj):5d} P-injections", end="")
+    print(f" {len(q_inj):5d} Q-injections")
 
 
 def extract_hades_output(hades_output, hades_input, vl_nomv, dwo_branches):
@@ -328,6 +322,8 @@ def extract_hades_output(hades_output, hades_input, vl_nomv, dwo_branches):
     extract_hds_buses(root, vl_nomv, data)
     # Branches (line/xfmr/psxfmr): p & q flows and xfmr taps
     extract_hds_branches(hades_input, root, dwo_branches, data)
+    # Aggregate bus injections (loads, generators, shunts, VSCs)
+    extract_hds_bus_inj(root, data)
     return pd.DataFrame(data, columns=column_list)
 
 
@@ -414,7 +410,7 @@ def extract_hds_branches(hades_input, root, dwo_branches, data):
             bad_ctr += 1
     print(
         f" {lctr:5d} lines {xctr:5d} xfmrs {psctr:3d} psxfmrs"
-        f" ({bad_ctr} quadrip. not in Dynawo)"
+        f" ({bad_ctr} quadrip. not in Dwo)", end=""
     )
 
 
@@ -447,7 +443,6 @@ def extract_hds_gridinfo(hades_input):
         pstap_ID = branch.get("ptrdepha")
         if pstap_ID != "0" and pstap_ID is not None:
             pstap2xfmr[pstap_ID] = branch.get("nom")
-
     return branch_sides, tap2xfmr, pstap2xfmr
 
 
@@ -480,12 +475,38 @@ def extract_hds_taps(root, tap2xfmr, pstap2xfmr):
     return taps, pstaps
 
 
+def extract_hds_bus_inj(root, data):
+    """Aggregate injections (loads, gens, shunts, VSCs) by bus, and update data."""
+    # Conveniently, Hades provides the bus injections in the bus output
+    reseau = root.find("./reseau", root.nsmap)
+    donneesNoeuds = reseau.find("./donneesNoeuds", root.nsmap)
+    pctr, qctr = [0, 0]
+    for bus in donneesNoeuds.iterfind("./noeud", root.nsmap):
+        bus_name = bus.get("nom")
+        bus_vars = bus.find("./variables", root.nsmap)
+        if (
+            bus_vars.get("v") == "999999.000000000000000"
+            and bus_vars.get("ph") == "999999.000000000000000"
+        ):
+            continue  # skip inactive buses
+        # update data (note the opposite sign convention w.r.t. Dynawo)
+        p = - float(bus_vars.get("injact"))
+        if abs(p) > ZEROPQ_TOL:
+            data.append([bus_name, "bus", "p", p])
+            pctr += 1
+        q = - float(bus_vars.get("injrea"))
+        if abs(q) > ZEROPQ_TOL:
+            data.append([bus_name, "bus", "q", q])
+            qctr += 1
+    print(f" {pctr:5d} P-injections", end="")
+    print(f" {qctr:5d} Q-injections")
+
+
 def save_extracted_values(df_a, df_b, output_file):
     """Save the values for all elements that are matched in both outputs."""
     # Merge (inner join) the two dataframes, checking for duplicates (just in case)
     key_fields = ["ELEMENT_TYPE", "ID", "VAR"]
     df = pd.merge(df_a, df_b, how="inner", on=key_fields, validate="one_to_one")
-
     # Print some summaries
     print("   common to both files:", end="")
     bus_angles = (df["ELEMENT_TYPE"] == "bus") & (df["VAR"] == "angle")
@@ -496,13 +517,11 @@ def save_extracted_values(df_a, df_b, output_file):
     print(f" {len(df.loc[xfmr_p1]):5d} xfmrs", end="")
     psxfmr_p1 = (df["ELEMENT_TYPE"] == "psxfmr") & (df["VAR"] == "p1")
     print(f" {len(df.loc[psxfmr_p1]):3d} psxfmrs")
-
     # Adjust the bus angles to those of solution A
     swing_idx = df.loc[bus_angles, "VALUE_A"].abs().idxmin()
     angle_offset = df.at[swing_idx, "VALUE_B"] - df.at[swing_idx, "VALUE_A"]
     df.loc[bus_angles, "VALUE_B"] -= angle_offset
     print(f'   (angle offset adjusted; zero angle at bus: {df.at[swing_idx, "ID"]})')
-
     # Sort and save to file
     sort_order = [True, True, True]
     df.sort_values(
