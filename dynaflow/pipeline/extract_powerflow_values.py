@@ -272,37 +272,23 @@ def extract_dwo_bus_inj(root, data, vl_nomv):
     # aggregate injections in dicts indexed by bus, and then output at the end.
     p_inj = dict()
     q_inj = dict()
+    injection_types = (
+        "load",
+        "generator",
+        "shunt",
+        "vscConverterStation",
+        "staticVarCompensator",
+    )
     for vl in root.iterfind(".//voltageLevel", root.nsmap):
-        # loads
-        for load in vl.iterfind("./load", root.nsmap):
-            bus_name = load.get("bus")
+        injection_elements = [
+            e for e in vl if etree.QName(e.tag).localname in injection_types
+        ]
+        for element in injection_elements:
+            bus_name = element.get("bus")
             if bus_name is not None:
-                p_inj[bus_name] = p_inj.get(bus_name, 0.0) + float(load.get("p"))
-                q_inj[bus_name] = q_inj.get(bus_name, 0.0) + float(load.get("q"))
-        # generators
-        for gen in vl.iterfind("./generator", root.nsmap):
-            bus_name = gen.get("bus")
-            if bus_name is not None:
-                p_inj[bus_name] = p_inj.get(bus_name, 0.0) + float(gen.get("p"))
-                q_inj[bus_name] = q_inj.get(bus_name, 0.0) + float(gen.get("q"))
-        # shunts
-        for shunt in vl.iterfind("./shunt", root.nsmap):
-            bus_name = shunt.get("bus")
-            if bus_name is not None:
-                q_inj[bus_name] = q_inj.get(bus_name, 0.0) + float(shunt.get("q"))
-        # VSCs
-        for vsc in vl.iterfind("./vscConverterStation", root.nsmap):
-            bus_name = vsc.get("bus")
-            if bus_name is not None:
-                p_inj[bus_name] = p_inj.get(bus_name, 0.0) + float(vsc.get("p"))
-                q_inj[bus_name] = q_inj.get(bus_name, 0.0) + float(vsc.get("q"))
-        # SVCs
-        for vsc in vl.iterfind("./staticVarCompensator", root.nsmap):
-            bus_name = vsc.get("bus")
-            if bus_name is not None:
-                p_inj[bus_name] = p_inj.get(bus_name, 0.0) + float(vsc.get("p"))
-                q_inj[bus_name] = q_inj.get(bus_name, 0.0) + float(vsc.get("q"))
-
+                if element.get("p") is not None:  # because shunts don't have "p"
+                    p_inj[bus_name] = p_inj.get(bus_name, 0.0) + float(element.get("p"))
+                q_inj[bus_name] = q_inj.get(bus_name, 0.0) + float(element.get("q"))
     # update data
     for bus_name in p_inj:
         p = p_inj[bus_name]
@@ -417,7 +403,8 @@ def extract_hds_branches(hades_input, root, dwo_branches, data):
             bad_ctr += 1
     print(
         f" {lctr:5d} lines {xctr:5d} xfmrs {psctr:3d} psxfmrs"
-        f" ({bad_ctr} quadrip. not in Dwo)", end=""
+        f" ({bad_ctr} quadrip. not in Dwo)",
+        end="",
     )
 
 
@@ -497,11 +484,11 @@ def extract_hds_bus_inj(root, data):
         ):
             continue  # skip inactive buses
         # update data (note the opposite sign convention w.r.t. Dynawo)
-        p = - float(bus_vars.get("injact"))
+        p = -float(bus_vars.get("injact"))
         if abs(p) > ZEROPQ_TOL:
             data.append([bus_name, "bus", "p", p])
             pctr += 1
-        q = - float(bus_vars.get("injrea"))
+        q = -float(bus_vars.get("injrea"))
         if abs(q) > ZEROPQ_TOL:
             data.append([bus_name, "bus", "q", q])
             qctr += 1
