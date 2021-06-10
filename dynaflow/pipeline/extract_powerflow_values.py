@@ -296,6 +296,13 @@ def extract_dwo_bus_inj(root, data, vl_nomv):
             if bus_name is not None:
                 p_inj[bus_name] = p_inj.get(bus_name, 0.0) + float(vsc.get("p"))
                 q_inj[bus_name] = q_inj.get(bus_name, 0.0) + float(vsc.get("q"))
+        # SVCs
+        for vsc in vl.iterfind("./staticVarCompensator", root.nsmap):
+            bus_name = vsc.get("bus")
+            if bus_name is not None:
+                p_inj[bus_name] = p_inj.get(bus_name, 0.0) + float(vsc.get("p"))
+                q_inj[bus_name] = q_inj.get(bus_name, 0.0) + float(vsc.get("q"))
+
     # update data
     for bus_name in p_inj:
         p = p_inj[bus_name]
