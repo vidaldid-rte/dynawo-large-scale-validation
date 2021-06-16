@@ -60,7 +60,11 @@ ZEROPQ_TOL = 1.0e-5  # inactivity detection: flows below this (in MW) considered
 
 # named tuples
 Branch_info = namedtuple("Branch_info", ["type", "bus1", "bus2"])
-Branch_side = namedtuple("Branch_side", ["bus1", "bus2"])
+Hds_gridinfo = namedtuple(
+    "Hds_gridinfo", ["branch_sides", "tap2xfmr", "pstap2xfmr", "shunt2busname"]
+)
+Hds_branch_side = namedtuple("Hds_branch_side", ["bus1", "bus2"])
+
 verbose = True
 
 
@@ -86,11 +90,11 @@ def main():
     check_inputfiles(case_dir, HDS_SOLUTION, dwo_solution)
 
     # Extract the solution values from Dynawo results
-    df_dwo, vl_nomV, branch_info = extract_dynawo_output(case_dir + dwo_solution)
+    df_dwo, vl_nomV, branch_info = extract_dynawo_solution(case_dir + dwo_solution)
 
     # Extract the solution values from Hades results
-    df_hds = extract_hades_output(
-        case_dir + HDS_SOLUTION, case_dir + HDS_INPUT, vl_nomV, branch_info
+    df_hds = extract_hades_solution(
+        case_dir + HDS_INPUT, case_dir + HDS_SOLUTION, vl_nomV, branch_info
     )
 
     # Merge, sort, and save
@@ -111,7 +115,7 @@ def check_inputfiles(case_dir, solution_1, solution_2):
         raise ValueError(f"the expected PF solution files are missing in {case_dir}\n")
 
 
-def extract_dynawo_output(dynawo_output, vl_nomv=None, branches=None):
+def extract_dynawo_solution(dynawo_output, vl_nomv=None, branches=None):
     """Read all output and return a dataframe. If case_A, create vl_nomv & branches"""
     tree = etree.parse(dynawo_output)
     root = tree.getroot()
@@ -303,8 +307,11 @@ def extract_dwo_bus_inj(root, data, vl_nomv):
     print(f" {len(q_inj):5d} Q-injections")
 
 
-def extract_hades_output(hades_output, hades_input, vl_nomv, dwo_branches):
+def extract_hades_solution(hades_input, hades_output, vl_nomv, dwo_branches):
     """Read all output and return a dataframe."""
+    # Some structural info is not in the output; we need to get it from the Hades input
+    gridinfo = extract_hds_gridinfo(hades_input)
+    # And the rest will be obtained from the output file
     tree = etree.parse(hades_output)
     root = tree.getroot()
     # We'll be using a dataframe, for sorting
@@ -312,15 +319,59 @@ def extract_hades_output(hades_output, hades_input, vl_nomv, dwo_branches):
     data = []
     print("   found in Hades file:", end="")
     # Buses: get V & angle
-    extract_hds_buses(root, vl_nomv, data)
+    extract_hds_buses(vl_nomv, root, data)
     # Branches (line/xfmr/psxfmr): p & q flows and xfmr taps
-    extract_hds_branches(hades_input, root, dwo_branches, data)
+    extract_hds_branches(dwo_branches, gridinfo, root, data)
     # Aggregate bus injections (loads, generators, shunts, VSCs)
-    extract_hds_bus_inj(root, data)
+    extract_hds_bus_inj(gridinfo, root, data)
     return pd.DataFrame(data, columns=column_list)
 
 
-def extract_hds_buses(root, vl_nomv, data):
+def extract_hds_gridinfo(hades_input):
+    """Read info that's only available in the input file (branch buses; xfmr taps)."""
+    tree = etree.parse(hades_input)
+    root = tree.getroot()
+    reseau = root.find("./reseau", root.nsmap)
+    # an auxiliary dict that maps "num" to "nom"
+    buses = dict()
+    donneesNoeuds = reseau.find("./donneesNoeuds", root.nsmap)
+    for bus in donneesNoeuds.iterfind("./noeud", root.nsmap):
+        buses[bus.get("num")] = bus.get("nom")
+    buses["-1"] = "DISCONNECTED"
+    # Build a dict that maps branch names to their bus1 and bus2 names
+    branch_sides = dict()
+    donneesQuadripoles = reseau.find("./donneesQuadripoles", root.nsmap)
+    for branch in donneesQuadripoles.iterfind("./quadripole", root.nsmap):
+        branch_sides[branch.get("nom")] = Hds_branch_side(
+            bus1=buses[branch.get("nor")], bus2=buses[branch.get("nex")]
+        )
+    # Build a dict that maps "regleur" IDs to their transformer's name AND a dict
+    # that maps "dephaseur" IDs to their transformer's name
+    tap2xfmr = dict()
+    pstap2xfmr = dict()
+    for branch in donneesQuadripoles.iterfind("./quadripole", root.nsmap):
+        tap_ID = branch.get("ptrregleur")
+        if tap_ID != "0" and tap_ID is not None:
+            tap2xfmr[tap_ID] = branch.get("nom")
+        pstap_ID = branch.get("ptrdepha")
+        if pstap_ID != "0" and pstap_ID is not None:
+            pstap2xfmr[pstap_ID] = branch.get("nom")
+    # Build a dict that maps shunt IDs to their respective bus names
+    shunt2busname = dict()
+    donneesShunts = reseau.find("./donneesShunts", root.nsmap)
+    for shunt in donneesShunts.iterfind("./shunt", root.nsmap):
+        bus_num = shunt.get("noeud")
+        if bus_num != "-1":
+            shunt2busname[shunt.get("num")] = buses[bus_num]
+    return Hds_gridinfo(
+        branch_sides=branch_sides,
+        tap2xfmr=tap2xfmr,
+        pstap2xfmr=pstap2xfmr,
+        shunt2busname=shunt2busname,
+    )
+
+
+def extract_hds_buses(vl_nomv, root, data):
     """Read V & angles, and update data."""
     reseau = root.find("./reseau", root.nsmap)
     donneesNoeuds = reseau.find("./donneesNoeuds", root.nsmap)
@@ -337,14 +388,12 @@ def extract_hds_buses(root, vl_nomv, data):
     print(f"  {ctr:5d} buses", end="")
 
 
-def extract_hds_branches(hades_input, root, dwo_branches, data):
+def extract_hds_branches(dwo_branches, gridinfo, root, data):
     """Read branch flows (incl. xfmr taps), and update data."""
-    # These aux dicts need to be read from the *input* case (it's not in the output)
-    hds_branch_sides, tap2xfmr, pstap2xfmr = extract_hds_gridinfo(hades_input)
-    # now we can read everything else from the output file
-    # first we extract tap and phase-shifter tap values (used below)
-    taps, pstaps = extract_hds_taps(root, tap2xfmr, pstap2xfmr)
-    # and now we extract the branch (quadripole) data
+    # First we extract tap and phase-shifter tap values (used in the loop below)
+    taps, pstaps = extract_hds_taps(root, gridinfo)
+    # And now we extract the branch (quadripole) data
+    hds_branch_sides = gridinfo.branch_sides  # for checking side convention below
     lctr, xctr, psctr, bad_ctr = [0, 0, 0, 0]
     reseau = root.find("./reseau", root.nsmap)
     donneesQuadripoles = reseau.find("./donneesQuadripoles", root.nsmap)
@@ -408,40 +457,10 @@ def extract_hds_branches(hades_input, root, dwo_branches, data):
     )
 
 
-def extract_hds_gridinfo(hades_input):
-    """Read info that's only available in the input file (branch buses; xfmr taps)."""
-    tree = etree.parse(hades_input)
-    root = tree.getroot()
-    reseau = root.find("./reseau", root.nsmap)
-    # auxiliary dict that maps "num" to "nom"
-    buses = dict()
-    donneesNoeuds = reseau.find("./donneesNoeuds", root.nsmap)
-    for bus in donneesNoeuds.iterfind("./noeud", root.nsmap):
-        buses[bus.get("num")] = bus.get("nom")
-    buses["-1"] = "DISCONNECTED"
-    # now build a dict that maps branch names to their bus1 and bus2 names
-    branch_sides = dict()
-    donneesQuadripoles = reseau.find("./donneesQuadripoles", root.nsmap)
-    for branch in donneesQuadripoles.iterfind("./quadripole", root.nsmap):
-        branch_sides[branch.get("nom")] = Branch_side(
-            bus1=buses[branch.get("nor")], bus2=buses[branch.get("nex")]
-        )
-    # now build a dict that maps "regleur" IDs to their transformer's name
-    # AND a dict that maps "dephaseur" IDs to their transformer's name
-    tap2xfmr = dict()
-    pstap2xfmr = dict()
-    for branch in donneesQuadripoles.iterfind("./quadripole", root.nsmap):
-        tap_ID = branch.get("ptrregleur")
-        if tap_ID != "0" and tap_ID is not None:
-            tap2xfmr[tap_ID] = branch.get("nom")
-        pstap_ID = branch.get("ptrdepha")
-        if pstap_ID != "0" and pstap_ID is not None:
-            pstap2xfmr[pstap_ID] = branch.get("nom")
-    return branch_sides, tap2xfmr, pstap2xfmr
-
-
-def extract_hds_taps(root, tap2xfmr, pstap2xfmr):
+def extract_hds_taps(root, gridinfo):
     """Read tap values and return them in two dicts indexed by name (taps, pstaps)."""
+    # First transformer taps
+    tap2xfmr = gridinfo.tap2xfmr
     taps = dict()
     reseau = root.find("./reseau", root.nsmap)
     donneesRegleurs = reseau.find("./donneesRegleurs", root.nsmap)
@@ -453,7 +472,8 @@ def extract_hds_taps(root, tap2xfmr, pstap2xfmr):
                 "  has no associated transformer!"
             )
         taps[quadrip_name] = int(regleur.find("./variables", root.nsmap).get("plot"))
-    # now phase-shifter taps
+    # Now phase-shifter taps
+    pstap2xfmr = gridinfo.pstap2xfmr
     pstaps = dict()
     donneesDephaseurs = reseau.find("./donneesDephaseurs", root.nsmap)
     for dephaseur in donneesDephaseurs.iterfind("./dephaseur", root.nsmap):
@@ -469,10 +489,23 @@ def extract_hds_taps(root, tap2xfmr, pstap2xfmr):
     return taps, pstaps
 
 
-def extract_hds_bus_inj(root, data):
+def extract_hds_bus_inj(gridinfo, root, data):
     """Aggregate injections (loads, gens, shunts, VSCs) by bus, and update data."""
-    # Conveniently, Hades provides the bus injections in the bus output
+    # Conveniently, Hades already provides the bus injections in the bus output
+    # section Alas, Hades has a bug: these injections don't include shunts! So we
+    # first collect the shunt's Q injection here.
+    shunt2busname = gridinfo.shunt2busname
+    shunt_inj = dict()
     reseau = root.find("./reseau", root.nsmap)
+    donneesShunts = reseau.find("./donneesShunts", root.nsmap)
+    for shunt in donneesShunts.iterfind("./shunt", root.nsmap):
+        shunt_vars = shunt.find("./variables", root.nsmap)
+        q = shunt_vars.get("q")
+        if q == "999999":
+            continue  # skip inactive shunts
+        bus_name = shunt2busname[shunt.get("num")]
+        shunt_inj[bus_name] = shunt_inj.get(bus_name, 0.0) - float(q)
+    # Now we collect all the injection data
     donneesNoeuds = reseau.find("./donneesNoeuds", root.nsmap)
     pctr, qctr = [0, 0]
     for bus in donneesNoeuds.iterfind("./noeud", root.nsmap):
@@ -490,7 +523,7 @@ def extract_hds_bus_inj(root, data):
             pctr += 1
         q = -float(bus_vars.get("injrea"))
         if abs(q) > ZEROPQ_TOL:
-            data.append([bus_name, "bus", "q", q])
+            data.append([bus_name, "bus", "q", q + shunt_inj.get(bus_name, 0)])
             qctr += 1
     print(f" {pctr:5d} P-injections", end="")
     print(f" {qctr:5d} Q-injections")
