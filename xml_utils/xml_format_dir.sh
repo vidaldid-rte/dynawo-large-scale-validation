@@ -1,10 +1,11 @@
 #!/bin/bash
 #
 #
-# xml_format_dir.sh: given a base directory containing Dynawo+Astre
-# cases, format all of them using xmllint. This is useful so that we
-# can later parse with lxml ignoring whitespace and always obtaining
-# the same indentation (for the benefit of seeing clean diffs).
+# xml_format_dir.sh: given a base directory containing any Dynawo,
+# Astre, or Hades cases, cases, format all XML files using
+# xmllint. This is useful so that we can later parse with lxml
+# ignoring whitespace and always obtaining the same indentation (for
+# the benefit of obtaining clean diffs!).
 #
 # (c) Grupo AIA
 # marinjl@aia.es
@@ -27,7 +28,7 @@ Usage: $0 XMLCASEDIR
 
   NOTE: you can control the indentation with the environment variable XMLLINT_INDENT.
   Example: XMLLINT_INDENT="   " $0 PtFige-Lille/20190410_1200
-     (will indent using three spaces)
+     (will indent using three spaces, instead of two which is the default)
 
 EOF
 }
@@ -41,11 +42,19 @@ fi
 
 
 DEST="$1.FORMATTED"
-rm -rf $DEST
+rm -rf "$DEST"
 cp -a "$1" "$DEST"
 
-find "$DEST" -type f -iname '*.xml' |  while read XMLFILE; do
-    xmllint --format "$XMLFILE" > "$XMLFILE.FMT"
-    mv "$XMLFILE.FMT" "$XMLFILE"
+find "$DEST" -type f | while read -r FILE; do
+    if (file -b "$FILE" | grep -qiw "XML"); then
+        echo -ne "Formatting: $FILE\\t\\t\\t... "
+        xmllint --format "$FILE" > "$FILE.FMT"
+        mv "$FILE.FMT" "$FILE"
+        echo "(OK)"
+    fi
 done
+
+
+
+
 
