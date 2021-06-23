@@ -56,12 +56,15 @@ DYNAWO_OUTPUTS_DIR = "/outputs"  # TODO: extract from JOB file instead
 OUTPUT_FILE = "/pfsolution_AB.csv.xz"
 ERRORS_A_FILE = "/FILTERED-elements_not_in_caseA.csv.xz"
 ERRORS_B_FILE = "/FILTERED-elements_not_in_caseB.csv.xz"
+HDS_INACT_BUS = "999999.000000000000000"  # "magic" value used in Hades
+HDS_INACT_SHUNT = "999999"
 ZEROPQ_TOL = 1.0e-5  # inactivity detection: flows below this (in MW) considered zero
 
 # named tuples
 Branch_info = namedtuple("Branch_info", ["type", "bus1", "bus2"])
 Hds_gridinfo = namedtuple(
-    "Hds_gridinfo", ["branch_sides", "tap2xfmr", "pstap2xfmr", "shunt2busname"]
+    "Hds_gridinfo",
+    ["branch_sides", "tap2xfmr", "pstap2xfmr", "shunt2busname", "svc_qfixed"],
 )
 Hds_branch_side = namedtuple("Hds_branch_side", ["bus1", "bus2"])
 
@@ -363,11 +366,21 @@ def extract_hds_gridinfo(hades_input):
         bus_num = shunt.get("noeud")
         if bus_num != "-1":
             shunt2busname[shunt.get("num")] = buses[bus_num]
+    # Build a dict that maps bus names to total QFixed originated from SVCs (if any)
+    svc_qfixed = dict()
+    donneesCsprs = reseau.find("./donneesCsprs", root.nsmap)
+    for cspr in donneesCsprs.iterfind("./cspr", root.nsmap):
+        bus_num = cspr.get("conbus")
+        if bus_num != "-1":
+            svc_qfixed[buses[bus_num]] = svc_qfixed.get(buses[bus_num], 0) + float(
+                cspr.get("shunt")
+            )
     return Hds_gridinfo(
         branch_sides=branch_sides,
         tap2xfmr=tap2xfmr,
         pstap2xfmr=pstap2xfmr,
         shunt2busname=shunt2busname,
+        svc_qfixed=svc_qfixed,
     )
 
 
@@ -380,7 +393,7 @@ def extract_hds_buses(vl_nomv, root, data):
         bus_name = bus.get("nom")
         v = bus[0].get("v")
         angle = bus[0].get("ph")
-        if v == "999999.000000000000000" and angle == "999999.000000000000000":
+        if v == HDS_INACT_BUS and angle == HDS_INACT_BUS:
             continue  # skip inactive buses
         data.append([bus_name, "bus", "v", float(v) * vl_nomv[bus_name] / 100])
         data.append([bus_name, "bus", "angle", float(angle) * 180 / math.pi])
@@ -492,38 +505,45 @@ def extract_hds_taps(root, gridinfo):
 def extract_hds_bus_inj(gridinfo, root, data):
     """Aggregate injections (loads, gens, shunts, VSCs) by bus, and update data."""
     # Conveniently, Hades already provides the bus injections in the bus output
-    # section Alas, Hades has a bug: these injections don't include shunts! So we
-    # first collect the shunt's Q injection here.
+    # section Alas, Hades has two bugs:
+    #   1) these injections don't include shunts!
+    #   2) these injections don't include the fixed part of Static Var Compensators
+    # So we'll correct for these two things here.
+    # First collect shunt's Q injections
     shunt2busname = gridinfo.shunt2busname
-    shunt_inj = dict()
+    shunt_qcorr = dict()
     reseau = root.find("./reseau", root.nsmap)
     donneesShunts = reseau.find("./donneesShunts", root.nsmap)
     for shunt in donneesShunts.iterfind("./shunt", root.nsmap):
         shunt_vars = shunt.find("./variables", root.nsmap)
         q = shunt_vars.get("q")
-        if q == "999999":
+        if q == HDS_INACT_SHUNT:
             continue  # skip inactive shunts
         bus_name = shunt2busname[shunt.get("num")]
-        shunt_inj[bus_name] = shunt_inj.get(bus_name, 0.0) - float(q)
-    # Now we collect all the injection data
-    donneesNoeuds = reseau.find("./donneesNoeuds", root.nsmap)
+        shunt_qcorr[bus_name] = shunt_qcorr.get(bus_name, 0.0) - float(q)
+    # The fixed part of SVCs will need to be calculated inside the loop below
+    svc_qfixed = gridinfo.svc_qfixed
+    # Finally, we collect all the injection data, making the appropriate corrections
     pctr, qctr = [0, 0]
+    donneesNoeuds = reseau.find("./donneesNoeuds", root.nsmap)
     for bus in donneesNoeuds.iterfind("./noeud", root.nsmap):
         bus_name = bus.get("nom")
         bus_vars = bus.find("./variables", root.nsmap)
-        if (
-            bus_vars.get("v") == "999999.000000000000000"
-            and bus_vars.get("ph") == "999999.000000000000000"
-        ):
+        if bus_vars.get("v") == HDS_INACT_BUS and bus_vars.get("ph") == HDS_INACT_BUS:
             continue  # skip inactive buses
         # update data (note the opposite sign convention w.r.t. Dynawo)
         p = -float(bus_vars.get("injact"))
         if abs(p) > ZEROPQ_TOL:
             data.append([bus_name, "bus", "p", p])
             pctr += 1
-        q = -float(bus_vars.get("injrea"))
+        # SVC's fixed shunt Q values are calculated here because we need the bus V
+        q = (
+            -float(bus_vars.get("injrea"))
+            + shunt_qcorr.get(bus_name, 0)
+            - (svc_qfixed.get(bus_name, 0) * float(bus_vars.get("v")) ** 2)
+        )
         if abs(q) > ZEROPQ_TOL:
-            data.append([bus_name, "bus", "q", q + shunt_inj.get(bus_name, 0)])
+            data.append([bus_name, "bus", "q", q])
             qctr += 1
     print(f" {pctr:5d} P-injections", end="")
     print(f" {qctr:5d} Q-injections")
