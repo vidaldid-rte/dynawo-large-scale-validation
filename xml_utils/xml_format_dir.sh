@@ -39,11 +39,11 @@ if [ $# -ne 1 ]; then
     usage
     exit -1
 fi
+ORIG=${1%/}  # remove possible trailing slash
 
-
-DEST="$1.FORMATTED"
+DEST="$ORIG.FORMATTED"
 rm -rf "$DEST"
-cp -a "$1" "$DEST"
+cp -a "$ORIG" "$DEST"
 
 find "$DEST" -type f | while read -r FILE; do
     if (file -b "$FILE" | grep -qiw "XML"); then
@@ -53,8 +53,4 @@ find "$DEST" -type f | while read -r FILE; do
         echo "(OK)"
     fi
 done
-
-
-
-
 
