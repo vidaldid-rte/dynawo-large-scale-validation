@@ -12,15 +12,15 @@
 # "tFin/fic_DYD.xml", "tFin/outputs", etc., as well as some key parameters such as
 # simulation times.
 #
-#   * is_astdwo() and is_dwodwo() are used to detect whether the case is an
-#     Astre-vs-Dynawo or a Dynawo-vs-Dynawo case.
+#   * is_astdwo(), is_dwohds, and is_dwodwo() are used to detect whether the given case
+#     is an Astre-vs-Dynawo, Dynawo-vs-Hades, or a Dynawo-vs-Dynawo case, respectively.
 #
-#   * If it is an Astre-vs-Dynawo case:
+#   * If it is an Astre-vs-Dynawo or a Dynawo-vs-Hades case:
 #       - get_dwo_jobpaths() looks for the Dynawo JOB file and returns all relevant
 #         paths to the output files (from the *last* job inside the JOB file).
 #       - get_dwo_tparams() looks for the Dynawo JOB file and returns the three time
 #         parameters of the simulation: "startTime", "stopTime", and "event_tEvent"
-#         (again, for the *last* job inside the JOB file)
+#         (again, for the *last* job inside the JOB file).
 #
 #   * If it is a Dynawo-vs-Dynawo case: do the same thing as above, but for *two*
 #     Dynawo job files which are expected to be named "*JOB_A*.xml" and "*JOB_B*.xml".
@@ -34,44 +34,57 @@ from collections import namedtuple
 from pathlib import Path
 from lxml import etree
 
+Dwo_jobpaths = namedtuple(
+    "Dwo_jobpaths",
+    "job_file, solver_parFile, network_parFile, iidmFile, dydFile, parFile, "
+    "curves_inputFile, outputs_directory",
+)
+Dwo_tparams = namedtuple("Dwo_tparams", "startTime, stopTime, event_tEvent")
+
 
 def is_astdwo(case):
+    """Return true if an Astre subdirectory exists (Astre-vs-Dynawo case)"""
     casedir = Path(case)
     if not os.path.isdir(casedir):
         raise ValueError("Case directory %s not found" % casedir)
-    # If an Astre subdirectory exists, then it is an Astre-vs-Dynawo case
-    if os.path.isdir(casedir / "Astre"):
-        return True
-    else:
-        return False
+    return os.path.isdir(casedir / "Astre")
+
+
+def is_dwohds(case):
+    """Return true if an Hades subdirectory exists (Dynawo-vs-Hades case)"""
+    casedir = Path(case)
+    if not os.path.isdir(casedir):
+        raise ValueError("Case directory %s not found" % casedir)
+    return os.path.isdir(casedir / "Hades")
 
 
 def is_dwodwo(case):
+    """Return true if one JOB_A and one JOB_B files exist (Dynawo-vs-Dynawo case)"""
     casedir = Path(case)
     if not os.path.isdir(casedir):
         raise ValueError("Case directory %s not found" % casedir)
-    # If *only* one JOB_A and one JOB_B files exist, then it is a Dynawo-vs-Dynawo case
     jobfile_patternA = re.compile(r"JOB_A.*?\.xml$", re.IGNORECASE)
     match_A = [n for n in os.listdir(casedir) if jobfile_patternA.search(n)]
     jobfile_patternB = re.compile(r"JOB_B.*?\.xml$", re.IGNORECASE)
     match_B = [n for n in os.listdir(casedir) if jobfile_patternB.search(n)]
-    if len(match_A) == 1 and len(match_B) == 1:
-        return True
-    else:
-        return False
+    return len(match_A) == 1 and len(match_B) == 1
 
 
-def get_jobpaths(job_file):
+def get_jobpaths(case, job_file):
+    """Retrieve all paths from the JOB file and return them in a namedtuple"""
     tree = etree.parse(str(job_file), etree.XMLParser(remove_blank_text=True))
     root = tree.getroot()
     ns = etree.QName(root).namespace
     jobs = root.findall("{%s}job" % ns)
     last_job = jobs[-1]  # contemplate only the *last* job, in case there are several
 
+    solver = last_job.find("{%s}solver" % ns)
+    solver_parFile = solver.get("parFile")
+
     modeler = last_job.find("{%s}modeler" % ns)
     network = modeler.find("{%s}network" % ns)
     iidmFile = network.get("iidmFile")
-    parFile = network.get("parFile")
+    network_parFile = network.get("parFile")
 
     dynModels = modeler.find("{%s}dynModels" % ns)
     dydFile = dynModels.get("dydFile")
@@ -80,24 +93,36 @@ def get_jobpaths(job_file):
     outputs_directory = outputs.get("directory")
 
     curves = outputs.find("{%s}curves" % ns)
-    curves_inputFile = curves.get("inputFile")
+    if curves is not None:
+        curves_inputFile = curves.get("inputFile")
+    else:
+        curves_inputFile = None
 
-    Dwo_jobpaths = namedtuple(
-        "Dwo_jobpaths",
-        "job_file, iidmFile, parFile, dydFile, curves_inputFile, outputs_directory",
-    )
+    # Read the DYD file to obtain the parFile used by the dynamic models
+    casedir = Path(case)
+    dyd_file = casedir / dydFile
+    tree = etree.parse(str(dyd_file), etree.XMLParser(remove_blank_text=True))
+    root = tree.getroot()
+    ns = etree.QName(root).namespace
+    first_bbm = root.find("./{%s}blackBoxModel" % ns)
+    if first_bbm is None:
+        raise ValueError("No blackBoxModel found in Dynawo DYD file %s" % dyd_file)
+    parFile = first_bbm.get("parFile")
 
     return Dwo_jobpaths(
         job_file=job_file,
+        solver_parFile=solver_parFile,
+        network_parFile=network_parFile,
         iidmFile=iidmFile,
-        parFile=parFile,
         dydFile=dydFile,
+        parFile=parFile,
         curves_inputFile=curves_inputFile,
         outputs_directory=outputs_directory,
     )
 
 
 def get_tparams(case, dwo_jobpaths):
+    """Retrieve relevant time parameters and return them in a namedtuple"""
     # Read the JOB file to obtain the start and stop times of the simulation
     job_file = dwo_jobpaths.job_file
     tree = etree.parse(str(job_file), etree.XMLParser(remove_blank_text=True))
@@ -143,8 +168,6 @@ def get_tparams(case, dwo_jobpaths):
             "No tEvent found in Dynawo PAR file %s (for parID=%s)" % (par_file, parId)
         )
 
-    Dwo_tparams = namedtuple("Dwo_tparams", "startTime, stopTime, event_tEvent")
-
     return Dwo_tparams(
         startTime=startTime, stopTime=stopTime, event_tEvent=event_tEvent
     )
@@ -161,7 +184,7 @@ def get_dwo_jobpaths(case):
     if len(matches) > 1:
         raise ValueError("More than one JOB file found in %s: %s" % (casedir, matches))
     job_file = casedir / matches[0]
-    return get_jobpaths(job_file)
+    return get_jobpaths(case, job_file)
 
 
 def get_dwodwo_jobpaths(case):
@@ -176,7 +199,7 @@ def get_dwodwo_jobpaths(case):
         raise ValueError("There should be only a JOB_A and JOB_B file in %s" % casedir)
     job_fileA = casedir / match_A[0]
     job_fileB = casedir / match_B[0]
-    return get_jobpaths(job_fileA), get_jobpaths(job_fileB)
+    return get_jobpaths(case, job_fileA), get_jobpaths(case, job_fileB)
 
 
 def get_dwo_tparams(case):
@@ -190,10 +213,13 @@ def get_dwodwo_tparams(case):
 
 
 def print_jobinfo(jobpaths, tparams, label=""):
+    """Output the jobpaths in structured form, for bash scripts to parse easily"""
     print(f"job_file{label}={jobpaths.job_file}")
+    print(f"solver_parFile{label}={jobpaths.solver_parFile}")
+    print(f"network_parFile{label}={jobpaths.network_parFile}")
     print(f"iidmFile{label}={jobpaths.iidmFile}")
-    print(f"parFile{label}={jobpaths.parFile}")
     print(f"dydFile{label}={jobpaths.dydFile}")
+    print(f"parFile{label}={jobpaths.parFile}")
     print(f"curves_inputFile{label}={jobpaths.curves_inputFile}")
     print(f"outputs_directory{label}={jobpaths.outputs_directory}")
     print(f"startTime{label}={tparams.startTime}")
@@ -213,6 +239,11 @@ def main():
     case = sys.argv[1]
     if is_astdwo(case):
         print("CASE_TYPE=astdwo")
+        jobpaths = get_dwo_jobpaths(case)
+        tparams = get_dwo_tparams(case)
+        print_jobinfo(jobpaths, tparams)
+    elif is_dwohds(case):
+        print("CASE_TYPE=dwohds")
         jobpaths = get_dwo_jobpaths(case)
         tparams = get_dwo_tparams(case)
         print_jobinfo(jobpaths, tparams)
