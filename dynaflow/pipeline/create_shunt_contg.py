@@ -120,7 +120,9 @@ def main():
     if dwohds:
         dynawo_shunts = extract_dynawo_shunts(parsed_case.iidmTree, verbose)
         # And reduce the list to those SHUNTS that are matched in Hades
-        dynawo_shunts = matching_in_hades(parsed_case.asthdsTree, dynawo_shunts, verbose)
+        dynawo_shunts = matching_in_hades(
+            parsed_case.asthdsTree, dynawo_shunts, verbose
+        )
     else:
         dynawo_shunts = extract_dynawo_shunts(parsed_case.A.iidmTree, verbose)
         dynawo_shuntsB = extract_dynawo_shunts(parsed_case.B.iidmTree, verbose)
@@ -197,9 +199,7 @@ def main():
                 dynawo_shunts[shunt_name],
             )
             # Get the disconnected generation (Q) for case B
-            processed_shunts[shunt_name] = (
-                dynawo_shuntsB[shunt_name].Q,
-            )
+            processed_shunts[shunt_name] = (dynawo_shuntsB[shunt_name].Q,)
 
     # Finally, save the (P,Q) values of disconnected shunts in all *processed* cases
     save_total_shuntpq(dirname, dwohds, dynawo_shunts, processed_shunts)
@@ -249,7 +249,9 @@ def matching_in_hades(hades_tree, dynawo_shunts, verbose=False):
 
     print("\nFound %d shunts in Hades file" % len(hades_shunts))
     if verbose:
-        print("Sample list of all SHUNTS in Hades file: (total: %d)" % len(hades_shunts))
+        print(
+            "Sample list of all SHUNTS in Hades file: (total: %d)" % len(hades_shunts)
+        )
         shunt_list = sorted(hades_shunts)
         if len(shunt_list) < 10:
             print(shunt_list)
@@ -287,12 +289,9 @@ def config_dynawo_shunt_contingency(
     cnx_var2 = shunt_name + "_state_value"
     disconn_eventmodel = "EventConnectedStatus"
     param_eventname = "event_open"
-    '''
+    """
     # Generators with vs. without a dynamic model in the DYD file:
     # they need to be disconnected differently.
-    
-    
-    
     for dyn_shunt in root.iterfind(f"./{{{ns}}}blackBoxModel"):
         # Note we rely on dynamic model names *starting* with "Shunt"
         if (
@@ -304,7 +303,7 @@ def config_dynawo_shunt_contingency(
             cnx_var2 = "shunt_switchOffSignal2_value"
             param_eventname = "event_stateEvent1"
             break
-    '''
+    """
     # Erase all existing Event models (keep the IDs to remove their
     # connections later below)
     old_eventIds = []
@@ -458,19 +457,9 @@ def save_total_shuntpq(dirname, dwohds, dynawo_shunts, processed_shunts):
     file_name = dirname + "/total_shuntQ_per_shunts.csv"
     # Using a dataframe for sorting
     if dwohds:
-        column_list = [
-            "SHUNT",
-            "Q_dwo",
-            "Q_hds",
-            "Qdiff_pct",
-        ]
+        column_list = ["SHUNT", "Q_dwo", "Q_hds", "Qdiff_pct"]
     else:
-        column_list = [
-            "SHUNT",
-            "Q_dwoA",
-            "Q_dwoB",
-            "Qdiff_pct",
-        ]
+        column_list = ["SHUNT", "Q_dwoA", "Q_dwoB", "Qdiff_pct"]
     # The processed_shunts dict (which contains B case data) contains only the cases
     # that have actually been processed (we may have skipped some in the main loop)
     data_list = []
@@ -478,19 +467,10 @@ def save_total_shuntpq(dirname, dwohds, dynawo_shunts, processed_shunts):
         Q_dwo = dynawo_shunts[shunt_name].Q
         Q_proc = processed_shunts[shunt_name]
         Qdiff_pct = 100 * (Q_dwo - Q_proc) / max(abs(Q_proc), 0.001)
-        data_list.append(
-            [
-                shunt_name,
-                Q_dwo,
-                Q_proc,
-                Qdiff_pct,
-            ]
-        )
+        data_list.append([shunt_name, Q_dwo, Q_proc, Qdiff_pct])
 
     df = pd.DataFrame(data_list, columns=column_list)
-    df.sort_values(
-        by=["Qdiff_pct"], inplace=True, ascending=False, na_position="first"
-    )
+    df.sort_values(by=["Qdiff_pct"], inplace=True, ascending=False, na_position="first")
     df.to_csv(file_name, index=False, sep=";", float_format="%.3f", encoding="utf-8")
 
     return 0
