@@ -29,9 +29,9 @@
 # On output, the script generates one main output file and (possibly) two error files:
 #
 #   CASE_DIR/
-#   ├── pfsolution_AB.csv.xz
-#   ├── ERRORS-elements_not_in_caseA.csv.xz
-#   └── ERRORS-elements_not_in_caseB.csv.xz
+#   ├── pfsolution_AB.csv
+#   ├── elements_not_in_caseA.csv
+#   └── elements_not_in_caseB.csv
 #
 # The output file has the following columns:
 #
@@ -53,9 +53,9 @@ HDS_INPUT = "/Hades/donneesEntreeHADES2.xml"
 HDS_SOLUTION = "/Hades/out.xml"
 DYNAWO_SOLUTION = "/finalState/outputIIDM.xml"
 DYNAWO_OUTPUTS_DIR = "/outputs"  # TODO: extract from JOB file instead
-OUTPUT_FILE = "/pfsolution_AB.csv.xz"
-ERRORS_A_FILE = "/FILTERED-elements_not_in_caseA.csv.xz"
-ERRORS_B_FILE = "/FILTERED-elements_not_in_caseB.csv.xz"
+OUTPUT_FILE = "/pfsolution_AB.csv"
+ERRORS_A_FILE = "/elements_not_in_caseA.csv"
+ERRORS_B_FILE = "/elements_not_in_caseB.csv"
 HDS_INACT_BUS = "999999.000000000000000"  # "magic" value used in Hades
 HDS_INACT_SHUNT = "999999"
 ZEROPQ_TOL = 1.0e-5  # inactivity detection: flows below this (in MW) considered zero
@@ -574,7 +574,7 @@ def save_extracted_values(df_a, df_b, output_file):
     df.sort_values(
         by=key_fields, ascending=sort_order, inplace=True, na_position="first"
     )
-    df.to_csv(output_file, index=False, sep=";", encoding="utf-8", compression="xz")
+    df.to_csv(output_file, index=False, sep=";", encoding="utf-8")
     print(f"Saved output to file: {output_file}... ")
 
 
@@ -592,7 +592,7 @@ def save_nonmatching_elements(df_a, df_b, errors_a_file, errors_b_file):
             (df_b["ID"] + df_b["ELEMENT_TYPE"]).isin(elements_not_in_A)
         ]
         df_not_in_A.sort_values(by=key_fields, ascending=[True, True, True]).to_csv(
-            errors_a_file, index=False, sep=";", encoding="utf-8", compression="xz"
+            errors_a_file, index=False, sep=";", encoding="utf-8"
         )
         print(
             f"{len(elements_not_in_A)} elements from case B not in case A "
@@ -603,7 +603,7 @@ def save_nonmatching_elements(df_a, df_b, errors_a_file, errors_b_file):
             (df_a["ID"] + df_a["ELEMENT_TYPE"]).isin(elements_not_in_B)
         ]
         df_not_in_B.sort_values(by=key_fields, ascending=[True, True, True]).to_csv(
-            errors_b_file, index=False, sep=";", encoding="utf-8", compression="xz"
+            errors_b_file, index=False, sep=";", encoding="utf-8"
         )
         print(
             f"{len(elements_not_in_B)} elements from case A not in case B "
