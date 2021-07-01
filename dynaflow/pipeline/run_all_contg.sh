@@ -1,0 +1,1 @@
+../../contingency-validations/run_all_contg.sh
