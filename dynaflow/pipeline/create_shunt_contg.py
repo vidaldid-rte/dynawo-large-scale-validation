@@ -289,21 +289,7 @@ def config_dynawo_shunt_contingency(
     cnx_var2 = shunt_name + "_state_value"
     disconn_eventmodel = "EventConnectedStatus"
     param_eventname = "event_open"
-    """
-    # Generators with vs. without a dynamic model in the DYD file:
-    # they need to be disconnected differently.
-    for dyn_shunt in root.iterfind(f"./{{{ns}}}blackBoxModel"):
-        # Note we rely on dynamic model names *starting* with "Shunt"
-        if (
-            dyn_shunt.get("lib")[0:9] == "Generator"
-            and dyn_shunt.get("staticId") == shunt_name
-        ):
-            disconn_eventmodel = "EventSetPointBoolean"
-            cnx_id2 = dyn_shunt.get("id")
-            cnx_var2 = "shunt_switchOffSignal2_value"
-            param_eventname = "event_stateEvent1"
-            break
-    """
+
     # Erase all existing Event models (keep the IDs to remove their
     # connections later below)
     old_eventIds = []
