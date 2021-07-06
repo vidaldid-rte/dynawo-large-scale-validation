@@ -47,6 +47,8 @@ Now, you have a self-contained directory tree that contains a Python installatio
 
 	- pip install plotly
 
+	- pip install frozendict
+
 (By the moment, I haven't found a way to install packages in venv without using pip.)
 
 ## IDE configuration
