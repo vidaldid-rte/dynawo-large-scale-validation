@@ -5,11 +5,11 @@
 #     marinjl@aia.es
 #
 #
-# create_load_contg.py:
+# create_branch_contg.py:
 #
 # Takes a given base case, consisting of EITHER two corresponding DynaFlow and Hades
-# cases OR two corresponding DynaFlow cases, and, enumerating all LOADs that can be
-# matched in the two, generates the files for running all possible single-LOAD
+# cases OR two corresponding DynaFlow cases, and, enumerating all BRANCHes that can be
+# matched in the two, generates the files for running all possible single-BRANCH
 # contingency cases (or a provided list of them).
 #
 # On *input*, the files are expected to have a structure that typically looks as
@@ -38,7 +38,7 @@
 # actual paths to the IIDM, DYD, etc. (see module dwo_jobinfo).
 #
 # On *output*, the script generates new dirs sibling to basecase:
-# load_LABEL1, load_LABEL2, etc.
+# branch_LABEL1, branch_LABEL2, etc.
 #
 
 import os
@@ -49,7 +49,6 @@ from collections import namedtuple
 from common_funcs import copy_dwohds_basecase, copy_dwodwo_basecase, parse_basecase
 from lxml import etree
 import pandas as pd
-from frozendict import frozendict
 
 # Relative imports only work for proper Python packages, but we do not want (yet) to
 # structure all these as a package; we'd like to keep them as a collection of loose
@@ -73,21 +72,6 @@ MAX_NCASES = 5  # limits the no. of contingency cases (via random sampling)
 RNG_SEED = 42
 HADES_PATH = "/Hades/donneesEntreeHADES2.xml"
 
-# This dictionary refers to the possible load models. Depending on each of them, the
-# variable for the disconnection event can be one or another.
-LOAD_MODELS = frozendict(
-    {
-        "DYNModelLoadAlphaBeta": "switchOffSignal2",
-        "DYNModelLoadRestorativeWithLimits": "switchOff2_value",
-        "LoadAlphaBeta": "load_switchOffSignal2_value",
-        "LoadAlphaBetaRestorative": "load_switchOffSignal2_value",
-        "LoadAlphaBetaRestorativeLimitsRecalc": "load_switchOffSignal2_value",
-        "LoadPQCompensation": "load_switchOffSignal2_value",
-        "LoadPQ": "load_switchOffSignal2_value",
-        "LoadZIP": "load_switchOffSignal2_value",
-    }
-)
-
 
 def main():
     verbose = False
@@ -106,6 +90,14 @@ def main():
     # remove a possible trailing slash
     if base_case[-1] == "/":
         base_case = base_case[:-1]
+
+    # Select disconnection mode from how the script is named:
+    disconn_mode = "BOTH_ENDS"
+    called_as = os.path.basename(sys.argv[0])
+    if called_as[:7] == "branchF":
+        disconn_mode = "FROM"
+    elif called_as[:7] == "branchT":
+        disconn_mode = "TO"
 
     # Contingency cases will be created under the same dir as the basecase
     dirname = os.path.dirname(os.path.abspath(base_case))
@@ -132,25 +124,21 @@ def main():
         base_case, dwo_paths, HADES_PATH, dwo_pathsA, dwo_pathsB
     )
 
-    # Extract the list of all (active) LOADS in the Dynawo case
+    # Extract the list of all (active) BRANCHES in the Dynawo case
     if dwohds:
-        dynawo_loads = extract_dynawo_loads(
-            parsed_case.dydTree, parsed_case.iidmTree, verbose
+        dynawo_branches = extract_dynawo_branches(parsed_case.iidmTree, verbose)
+        # And reduce the list to those BRANCHES that are matched in Hades
+        dynawo_branches = matching_in_hades(
+            parsed_case.asthdsTree, dynawo_branches, verbose
         )
-        # And reduce the list to those LOADS that are matched in Hades
-        dynawo_loads = matching_in_hades(parsed_case.asthdsTree, dynawo_loads, verbose)
     else:
-        dynawo_loads = extract_dynawo_loads(
-            parsed_case.A.dydTree, parsed_case.A.iidmTree, verbose
-        )
-        dynawo_loadsB = extract_dynawo_loads(
-            parsed_case.B.dydTree, parsed_case.B.iidmTree, verbose
-        )
-        # And reduce the list to those LOADS that are matched in the Dynawo B case
-        dynawo_loads = matching_in_dwoB(dynawo_loads, dynawo_loadsB)
+        dynawo_branches = extract_dynawo_branches(parsed_case.A.iidmTree, verbose)
+        dynawo_branchesB = extract_dynawo_branches(parsed_case.B.iidmTree, verbose)
+        # And reduce the list to those BRANCHES that are matched in the Dynawo B case
+        dynawo_branches = matching_in_dwoB(dynawo_branches, dynawo_branchesB)
 
     # Prepare for random sampling if there's too many
-    sampling_ratio = MAX_NCASES / len(dynawo_loads)
+    sampling_ratio = MAX_NCASES / len(dynawo_branches)
     random.seed(RNG_SEED)
     if len(filter_list) == 0 and sampling_ratio < 1:
         print(
@@ -159,15 +147,15 @@ def main():
         )
 
     # This dict will keep track of which contingencies are actually processed
-    # It will also keep Hades's (P,Q) of each load
-    processed_loadsPQ = dict()
+    # It will also keep Hades's (P,Q) of each branch
+    processed_branchesPQ = dict()
 
     # Main loop: generate the contingency cases
-    for load_name in dynawo_loads:
+    for branch_name in dynawo_branches:
 
-        # If the script was passed a list of load, filter for them here
-        load_name_matches = [r.search(load_name) for r in filter_list]
-        if len(filter_list) != 0 and not any(load_name_matches):
+        # If the script was passed a list of generators, filter for them here
+        branch_name_matches = [r.search(branch_name) for r in filter_list]
+        if len(filter_list) != 0 and not any(branch_name_matches):
             continue
 
         # Limit the number of cases to approximately MAX_NCASES
@@ -175,162 +163,203 @@ def main():
             continue
 
         print(
-            "Generating contingency case for load %s (at bus: %s)"
-            % (load_name, dynawo_loads[load_name].bus)
+            "Generating conting. case for branch %s (busFrom: %s, busTo: %s), mode: %s"
+            % (
+                branch_name,
+                dynawo_branches[branch_name].busFrom,
+                dynawo_branches[branch_name].busTo,
+                disconn_mode,
+            )
         )
 
         # We fix any device names with slashes in them (illegal filenames)
-        contg_casedir = dirname + "/load_" + load_name.replace("/", "+")
+        contg_casedir = (
+            dirname + "/branch" + disconn_mode[0] + "_" + branch_name.replace("/", "+")
+        )
 
         if dwohds:
             # Copy the basecase (unchanged files and dir structure)
             copy_dwohds_basecase(base_case, dwo_paths, contg_casedir)
             # Modify the Dynawo case (DYD,PAR,CRV)
-            config_dynawo_load_contingency(
+            config_dynawo_branch_contingency(
                 contg_casedir,
                 parsed_case,
                 dwo_paths,
                 dwo_tparams,
-                dynawo_loads[load_name],
+                branch_name,
+                dynawo_branches[branch_name],
+                disconn_mode,
             )
             # Modify the Hades case, and obtain the disconnected generation (P,Q)
-            processed_loadsPQ[load_name] = config_hades_load_contingency(
-                contg_casedir, parsed_case.asthdsTree, load_name
+            processed_branchesPQ[branch_name] = config_hades_branch_contingency(
+                contg_casedir, parsed_case.asthdsTree, branch_name, disconn_mode
             )
         else:
             # Copy the basecase (unchanged files and dir structure)
             copy_dwodwo_basecase(base_case, dwo_pathsA, dwo_pathsB, contg_casedir)
             # Modify the Dynawo A & B cases (DYD,PAR,CRV)
-            config_dynawo_load_contingency(
+            config_dynawo_branch_contingency(
                 contg_casedir,
                 parsed_case.A,
                 dwo_pathsA,
                 dwo_tparamsA,
-                dynawo_loads[load_name],
+                branch_name,
+                dynawo_branches[branch_name],
+                disconn_mode,
             )
-            config_dynawo_load_contingency(
+            config_dynawo_branch_contingency(
                 contg_casedir,
                 parsed_case.B,
                 dwo_pathsB,
                 dwo_tparamsB,
-                dynawo_loads[load_name],
+                branch_name,
+                dynawo_branches[branch_name],
+                disconn_mode,
             )
             # Get the disconnected generation (P,Q) for case B
-            processed_loadsPQ[load_name] = (
-                dynawo_loadsB[load_name].P,
-                dynawo_loadsB[load_name].Q,
+            processed_branchesPQ[branch_name] = (
+                dynawo_branchesB[branch_name].P,
+                dynawo_branchesB[branch_name].Q,
             )
 
-    # Finally, save the (P,Q) values of disconnected loads in all *processed* cases
-    save_total_loadpq(dirname, dwohds, dynawo_loads, processed_loadsPQ)
+    # Finally, save the (P,Q) values of disconnected branches in all *processed* cases
+    save_total_branchpq(dirname, dwohds, dynawo_branches, processed_branchesPQ)
 
     return 0
 
 
-def extract_dynawo_loads(dyd_tree, iidm_tree, verbose=False):
-    dyd_root = dyd_tree.getroot()
-    dmloads = dict()
-    # We first enumerate all loads from the DYD and keep their model type and IDs
-    DMload_info = namedtuple("DMload_info", "dydId modelLib")
-    ns_dyd = etree.QName(dyd_root).namespace
-    for bbm in dyd_root.iter("{%s}blackBoxModel" % ns_dyd):
-        if bbm.get("lib") in LOAD_MODELS:
-            dmloads[bbm.get("staticId")] = DMload_info(
-                dydId=bbm.get("id"), modelLib=bbm.get("lib")
-            )
-    # We enumerate all loads and extract their properties
-    Load_info = namedtuple("Load_info", "P Q dydId modelLib loadType bus busTopology")
+def extract_dynawo_branches(iidm_tree, verbose=False):
     root = iidm_tree.getroot()
     ns = etree.QName(root).namespace
-    loads = dict()
-    for load in root.iter("{%s}load" % ns):
-        load_name = load.get("id")
-        if load_name not in dmloads:
-            continue
-        P_val = float(load.get("p0"))
-        Q_val = float(load.get("q0"))
-        dydId = dmloads[load_name].dydId
-        modelLib = dmloads[load_name].modelLib
-        load_type = load.get("loadType")
-        # Find the bus (depends on the topology of its voltageLevel)
-        topo_val = load.getparent().get("topologyKind")
-        if topo_val == "BUS_BREAKER":
-            bus_name = load.get("bus")
-        elif topo_val == "NODE_BREAKER":
-            # don't try to resolve the topology, just take the first active busbar
-            bus_name = None
-            vl = load.getparent()
-            topology = vl.find("./nodeBreakerTopology", root.nsmap)
-            for node in topology:
-                node_type = etree.QName(node).localname
-                if node_type == "busbarSection" and node.get("v") is not None:
-                    bus_name = node.get("id")
-                    break
-        else:
-            raise ValueError("TopologyKind not found for load: %s" % load_name)
+    branches = dict()
+    Branch_info = namedtuple("Branch_info", "P Q branchType busFrom busTo")
 
-        # Collect all info
-        loads[load_name] = Load_info(
-            P=P_val,
-            Q=Q_val,
-            dydId=dydId,
-            modelLib=modelLib,
-            loadType=load_type,
-            bus=bus_name,
-            busTopology=topo_val,
+    # We enumerate all branches and extract their properties
+    nlines = 0
+    ntransf = 0
+    npshifters = 0
+    for branch in root.iter("{%s}line" % ns, "{%s}twoWindingsTransformer" % ns):
+        if (float(branch.get("p1")) == 0.0 and float(branch.get("q1")) == 0.0) or (
+            float(branch.get("p2")) == 0.0 and float(branch.get("q2")) == 0.0
+        ):
+            continue
+        branch_name = branch.get("id")
+        P_flow = float(branch.get("p1"))
+        Q_flow = float(branch.get("q1"))
+        # Find its type (line, xfmer, phase-shifter)
+        xml_tag = etree.QName(branch).localname
+        if xml_tag == "line":
+            branch_type = "Line"
+            nlines += 1
+        elif xml_tag == "twoWindingsTransformer":
+            if branch.find("{%s}phaseTapChanger" % ns) is None:
+                branch_type = "Transformer"
+                ntransf += 1
+            else:
+                branch_type = "PhaseShitfer"
+                npshifters += 1
+        else:
+            print("   WARNING: unknown branch type %s (skipping)" % branch_name)
+            continue
+        # Find its FROM and TO buses
+        bus_from = get_endbus(root, branch, branch_type, side="1")
+        bus_to = get_endbus(root, branch, branch_type, side="2")
+        if bus_from is None or bus_to is None:  # skip branch
+            print(
+                "   WARNING: couldn't find bus FROM/TO for %s %s (skipping)"
+                % (branch_type, branch_name)
+            )
+            continue
+
+        branches[branch_name] = Branch_info(
+            P=P_flow, Q=Q_flow, branchType=branch_type, busFrom=bus_from, busTo=bus_to
         )
 
-    print("\nFound %d ACTIVE loads in the Dynawo IIDM file" % len(loads))
+    print("\nFound %d ACTIVE branches" % len(branches), end=",")
+    print(
+        " (%d lines, %d transformers, %d phase shifters) in the Dynawo IIDM file"
+        % (nlines, ntransf, npshifters)
+    )
+
     if verbose:
-        print("List of all loads in Dynawo DYD file: (total: %d)" % len(loads))
-        load_list = sorted(loads.keys())
-        if len(load_list) < 10:
-            print(load_list)
+        print(
+            "List of all ACTIVE branches in the Dynawo IIDM file: (total: %d)"
+            % len(branches)
+        )
+        branch_list = sorted(branches.keys())
+        if len(branch_list) < 10:
+            print(branch_list)
         else:
-            print(load_list[:5] + ["..."] + load_list[-5:])
+            print(branch_list[:5] + ["..."] + branch_list[-5:])
         print()
 
-    return loads
+    return branches
 
 
-def matching_in_hades(hades_tree, dynawo_loads, verbose=False):
-    # Retrieve the list of Hades loads
+def get_endbus(root, branch, branch_type, side):
+    ns = etree.QName(root).namespace
+    end_bus = branch.get("bus" + side)
+    if end_bus is None:
+        end_bus = branch.get("connectableBus" + side)
+    if end_bus is None:
+        # bummer, the bus is NODE_BREAKER
+        topo = []
+        #  for xfmers, we only need to search the VLs within the substation
+        if branch_type == "Line":
+            pnode = root
+        else:
+            pnode = branch.getparent()
+        for vl in pnode.iter("{%s}voltageLevel" % ns):
+            if vl.get("id") == branch.get("voltageLevelId" + side):
+                topo = vl.find("{%s}nodeBreakerTopology" % ns)
+                break
+        # we won't resolve the actual topo connectivity; just take the first busbar
+        for node in topo:
+            node_type = etree.QName(node).localname
+            if node_type == "busbarSection" and node.get("v") is not None:
+                end_bus = node.get("id")
+                break
+    return end_bus
+
+
+def matching_in_hades(hades_tree, dynawo_branches, verbose=False):
+    # Retrieve the list of Hades branches
+    hades_branches = set()  # for faster matching below
     root = hades_tree.getroot()
     reseau = root.find("./reseau", root.nsmap)
-    donneesConsos = reseau.find("./donneesConsos", root.nsmap)
-    hades_loads = set()  # for faster matching below
-    for load in donneesConsos.iterfind("./conso", root.nsmap):
-        # Discard loads having noeud="-1"
-        if load.get("noeud") != "-1":
-            hades_loads.add(load.get("nom"))
+    donneesQuadripoles = reseau.find("./donneesQuadripoles", root.nsmap)
+    for branch in donneesQuadripoles.iterfind("./quadripole", root.nsmap):
+        hades_branches.add(branch.get("nom"))
 
-    print("\nFound %d loads in Hades file" % len(hades_loads))
+    print("\nFound %d branches in Hades file" % len(hades_branches))
     if verbose:
-        print("List of all loads in Hades file: (total: %d)" % len(hades_loads))
-        load_list = sorted(hades_loads)
-        if len(load_list) < 10:
-            print(load_list)
+        print(
+            "Sample list of all BRANCHES in Hades file: (total: %d)"
+            % len(hades_branches)
+        )
+        branch_list = sorted(hades_branches)
+        if len(branch_list) < 10:
+            print(branch_list)
         else:
-            print(load_list[:5] + ["..."] + load_list[-5:])
+            print(branch_list[:5] + ["..."] + branch_list[-5:])
         print()
 
     # Match:
-    new_list = [x for x in dynawo_loads.items() if x[0] in hades_loads]
-    print("   (matched %d loads against Dynawo file)\n" % len(new_list))
+    new_list = [x for x in dynawo_branches.items() if x[0] in hades_branches]
+    print("   (matched %d branches against Dynawo file)\n" % len(new_list))
 
     return dict(new_list)
 
 
-def matching_in_dwoB(dynawo_loadsA, dynawo_loadsB):
+def matching_in_dwoB(dynawo_branchesA, dynawo_branchesB):
     # Match:
-    new_list = [x for x in dynawo_loadsA.items() if x[0] in dynawo_loadsB]
-    print("   (matched %d loads against Dynawo A case)\n" % len(new_list))
-
+    new_list = [x for x in dynawo_branchesA.items() if x[0] in dynawo_branchesB]
+    print("   (matched %d branches against Dynawo A case)\n" % len(new_list))
     return dict(new_list)
 
 
-def config_dynawo_load_contingency(
-    casedir, case_trees, dwo_paths, dwo_tparams, load_info
+def config_dynawo_branch_contingency(
+    casedir, case_trees, dwo_paths, dwo_tparams, branch_name, branch_info, disc_mode
 ):
     ###########################################################
     # DYD file: configure an event model for the disconnection
@@ -341,10 +370,11 @@ def config_dynawo_load_contingency(
     root = dyd_tree.getroot()
     ns = etree.QName(root).namespace
 
-    disconn_eventmodel = "EventSetPointBoolean"
-    cnx_id2 = load_info.dydId
-    cnx_var2 = LOAD_MODELS[load_info.modelLib]
-    param_eventname = "event_stateEvent1"
+    # Branches with vs. without a dynamic model in the DYD file:
+    # they need to be disconnected differently.
+    disconn_eventmodel = "EventQuadripoleDisconnection"
+    cnx_id2 = "NETWORK"
+    cnx_var2 = branch_name + "_state_value"
 
     # Erase all existing Event models (keep the IDs to remove their
     # connections later below)
@@ -358,7 +388,7 @@ def config_dynawo_load_contingency(
 
     # Declare a new Event
     event = etree.SubElement(root, f"{{{ns}}}blackBoxModel")
-    event_id = "Disconnect my load"
+    event_id = "Disconnect my branch"
     event.set("id", event_id)
     event.set("lib", disconn_eventmodel)
     event.set("parFile", dwo_paths.parFile)
@@ -369,7 +399,7 @@ def config_dynawo_load_contingency(
         if cnx.get("id1") in old_eventIds or cnx.get("id2") in old_eventIds:
             cnx.getparent().remove(cnx)
 
-    # Declare a new Connect between the Event model and the load
+    # Declare a new Connect between the Event model and the branch
     cnx = etree.SubElement(root, f"{{{ns}}}connect")
     cnx.set("id1", event_id)
     cnx.set("var1", "event_state1_value")
@@ -408,8 +438,21 @@ def config_dynawo_load_contingency(
             "{%s}par" % ns, type="DOUBLE", name="event_tEvent", value=event_tEvent
         )
     )
+    open_F = "true"
+    open_T = "true"
+    if disc_mode == "FROM":
+        open_T = "false"
+    if disc_mode == "TO":
+        open_F = "false"
     new_parset.append(
-        etree.Element("{%s}par" % ns, type="BOOL", name=param_eventname, value="true")
+        etree.Element(
+            "{%s}par" % ns, type="BOOL", name="event_disconnectOrigin", value=open_F
+        )
+    )
+    new_parset.append(
+        etree.Element(
+            "{%s}par" % ns, type="BOOL", name="event_disconnectExtremity", value=open_T
+        )
     )
     root.append(new_parset)
 
@@ -429,14 +472,15 @@ def config_dynawo_load_contingency(
     # variables that make sense to have in the output. The base case
     # is expected to have the variables that monitor the behavior of
     # the SVC (pilot point voltage, K level, and P,Q of participating
-    # load).  We will keep these, and add new ones.
+    # branches).  We will keep these, and add new ones.
     #
     # For now we'll just add the voltage at the contingency bus. To do
-    # this, we would use the IIDM file, where the load has an
+    # this, we would use the IIDM file, where the branch has an
     # attribute that directly provides the bus it is connected to. We
-    # already stored this value in the Load_info tuple before.
+    # already stored this value in the branch_info tuple before.
 
-    bus_label = load_info.bus
+    bus_from = branch_info.busFrom
+    bus_to = branch_info.busTo
 
     # Add the corresponding curve to the CRV file
     crv_file = casedir + "/" + dwo_paths.curves_inputFile
@@ -445,9 +489,13 @@ def config_dynawo_load_contingency(
     root = crv_tree.getroot()
     ns = etree.QName(root).namespace
     new_crv1 = etree.Element(
-        "{%s}curve" % ns, model="NETWORK", variable=bus_label + "_Upu_value"
+        "{%s}curve" % ns, model="NETWORK", variable=bus_from + "_Upu_value"
+    )
+    new_crv2 = etree.Element(
+        "{%s}curve" % ns, model="NETWORK", variable=bus_to + "_Upu_value"
     )
     root.append(new_crv1)
+    root.append(new_crv2)
     # Write out the CRV file, preserving the XML format
     crv_tree.write(
         crv_file,
@@ -455,38 +503,49 @@ def config_dynawo_load_contingency(
         xml_declaration='<?xml version="1.0" encoding="UTF-8"?>',
         encoding="UTF-8",
     )
-    # And erase the curve we've just added, because we'll be reusing the parsed tree
+    # And erase the 2 curves we've just added, because we'll be reusing the parsed tree
     root.remove(new_crv1)
+    root.remove(new_crv2)
 
-    return
+    return 0
 
 
-def config_hades_load_contingency(casedir, hades_tree, load_name):
+def config_hades_branch_contingency(casedir, hades_tree, branch_name, disc_mode):
     hades_file = casedir + HADES_PATH
     print("   Configuring file %s" % hades_file)
     root = hades_tree.getroot()
-
     # Since Hades is a powerflow program, there is no "event" to configure. We simply
-    # disconnect the generator by setting its noeud to "-1".
-    # Find the load in Hades
-    hades_load = None
+    # disconnect the branch by setting its noeud to "-1".
+    # First find the branch in Hades and keep its P, Q values (for comnparing vs Dynawo)
+
+    hades_branch = None
     reseau = root.find("./reseau", root.nsmap)
-    donneesConsos = reseau.find("./donneesConsos", root.nsmap)
-    for g in donneesConsos.iterfind("./conso", root.nsmap):
-        if g.get("nom") == load_name:
-            hades_load = g
+    donneesGroupes = reseau.find("./donneesQuadripoles", root.nsmap)
+    for g in donneesGroupes.iterfind("./quadripole", root.nsmap):
+        if g.get("nom") == branch_name:
+            hades_branch = g
             break
-    load_vars = hades_load.find("./variables", root.nsmap)
-    if hades_load.get("fixe") == "true":
-        load_P = float(load_vars.get("peFixe"))
-        load_Q = float(load_vars.get("qeFixe"))
-    else:
-        load_P = float(load_vars.get("peAff"))
-        load_Q = float(load_vars.get("qeAff"))
+
+    busID_from = hades_branch.get("nor")
+    busID_to = hades_branch.get("nex")
+    if busID_from == "-1" or busID_to == "-1":
+        raise ValueError("this branch is disconnected in Astre!!!")
+    # the branch should always be found, because they have been previously matched
+
+    branch_vars = hades_branch.find("./variables", root.nsmap)
+    branch_P = float(branch_vars.get("por"))
+    branch_Q = float(branch_vars.get("qor"))
 
     # Now disconnect it
-    bus_id = hades_load.get("noeud")
-    hades_load.set("noeud", "-1")
+    bus_id1 = hades_branch.get("nor")
+    bus_id2 = hades_branch.get("nex")
+    if disc_mode == "FROM":
+        hades_branch.set("nor", "-1")
+    elif disc_mode == "TO":
+        hades_branch.set("nex", "-1")
+    else:
+        hades_branch.set("nex", "-1")
+        hades_branch.set("nor", "-1")
 
     # Write out the Hades file, preserving the XML format
     hades_tree.write(
@@ -497,17 +556,17 @@ def config_hades_load_contingency(casedir, hades_tree, load_name):
         standalone=False,
     )
     # IMPORTANT: undo the changes we made, as we'll be reusing this parsed tree!
-    hades_load.set("noeud", bus_id)
+    hades_branch.set("nor", bus_id1)
+    hades_branch.set("nex", bus_id2)
+    return branch_P, branch_Q
 
-    return load_P, load_Q
 
-
-def save_total_loadpq(dirname, dwohds, dynawo_loads, processed_loads):
-    file_name = dirname + "/total_PQ_per_load.csv"
+def save_total_branchpq(dirname, dwohds, dynawo_branches, processed_branches):
+    file_name = dirname + "/total_PQ_per_branch.csv"
     # Using a dataframe for sorting
     if dwohds:
         column_list = [
-            "LOAD",
+            "BRANCH",
             "P_dwo",
             "P_hds",
             "Pdiff_pct",
@@ -518,7 +577,7 @@ def save_total_loadpq(dirname, dwohds, dynawo_loads, processed_loads):
         ]
     else:
         column_list = [
-            "LOAD",
+            "BRANCH",
             "P_dwoA",
             "P_dwoB",
             "Pdiff_pct",
@@ -527,20 +586,20 @@ def save_total_loadpq(dirname, dwohds, dynawo_loads, processed_loads):
             "Qdiff_pct",
             "sumPQdiff_pct",
         ]
-    # The processed_loads dict (which contains B case data) contains only the cases
+    # The processed_branches dict (which contains B case data) contains only the cases
     # that have actually been processed (we may have skipped some in the main loop)
     data_list = []
-    for load_name in processed_loads:
-        P_dwo = dynawo_loads[load_name].P
-        P_proc = processed_loads[load_name][0]
+    for branch_name in processed_branches:
+        P_dwo = dynawo_branches[branch_name].P
+        P_proc = processed_branches[branch_name][0]
         Pdiff_pct = 100 * (P_dwo - P_proc) / max(abs(P_proc), 0.001)
-        Q_dwo = dynawo_loads[load_name].Q
-        Q_proc = processed_loads[load_name][1]
+        Q_dwo = dynawo_branches[branch_name].Q
+        Q_proc = processed_branches[branch_name][1]
         Qdiff_pct = 100 * (Q_dwo - Q_proc) / max(abs(Q_proc), 0.001)
         sumPQdiff_pct = abs(Pdiff_pct) + abs(Qdiff_pct)
         data_list.append(
             [
-                load_name,
+                branch_name,
                 P_dwo,
                 P_proc,
                 Pdiff_pct,
