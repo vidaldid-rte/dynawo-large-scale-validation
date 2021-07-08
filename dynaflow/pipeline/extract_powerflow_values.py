@@ -58,6 +58,7 @@ ERRORS_A_FILE = "/elements_not_in_caseA.csv"
 ERRORS_B_FILE = "/elements_not_in_caseB.csv"
 HDS_INACT_BUS = "999999.000000000000000"  # "magic" value used in Hades
 HDS_INACT_SHUNT = "999999"
+HDS_INACT_SHUNT2 = "0"  # we found a few cases where Hades uses this instead!
 ZEROPQ_TOL = 1.0e-5  # inactivity detection: flows below this (in MW) considered zero
 
 # named tuples
@@ -517,7 +518,7 @@ def extract_hds_bus_inj(gridinfo, root, data):
     for shunt in donneesShunts.iterfind("./shunt", root.nsmap):
         shunt_vars = shunt.find("./variables", root.nsmap)
         q = shunt_vars.get("q")
-        if q == HDS_INACT_SHUNT:
+        if q in (HDS_INACT_SHUNT, HDS_INACT_SHUNT2):
             continue  # skip inactive shunts
         bus_name = shunt2busname[shunt.get("num")]
         shunt_qcorr[bus_name] = shunt_qcorr.get(bus_name, 0.0) - float(q)
