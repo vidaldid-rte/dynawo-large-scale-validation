@@ -8,7 +8,7 @@
 #
 # This script creates a graph corresponding to the components of the xiidm file,
 # rendering the buses as nodes and the lines, transforms and the HVDCLines as edges.
-import copy
+
 import math
 import sys
 from lxml import etree
@@ -18,12 +18,29 @@ from pyvis.network import Network
 
 def main():
     if len(sys.argv) < 2:
-        print("\nUsage: %s xiidm_file [id_node_subgraph]\n" % sys.argv[0])
+        print(
+            "\nUsage: %s xiidm_file [id_node_subgraph] [layered subgraph = 0, "
+            "subgraph by Dijkstra = 1] [layers/threshold]\n" % sys.argv[0]
+        )
         return 2
     subgraph = False
     if len(sys.argv) > 2:
         id_node_subgraph = sys.argv[2]
         subgraph = True
+        if 3 < len(sys.argv):
+            subgraph_type = int(sys.argv[3])
+            if subgraph_type != 0 and subgraph_type != 1:
+                raise NameError("Invalid subgraph type")
+            if 4 < len(sys.argv):
+                subgraph_value = float(sys.argv[4])
+            else:
+                print("\nDefault subgraph layers = 4\n")
+                subgraph_value = 4
+        else:
+            print("\nDefault subgraph type = 0")
+            print("Default subgraph layers = 4\n")
+            subgraph_type = 0
+            subgraph_value = 4
 
     xiidm_file = sys.argv[1]
 
@@ -57,7 +74,7 @@ def main():
 
     # Call a function that allows us to du a subgraph focusing on a node
     if subgraph:
-        C = make_subgraph(G, id_node_subgraph)
+        C = make_subgraph(G, id_node_subgraph, subgraph_type, subgraph_value)
         # Visualize th graph
         visualize_graph(C, False, id_node_subgraph)
     else:
@@ -76,7 +93,7 @@ def insert_buses(iidm_tree, G):
         idb = bus.get("id")
         if idb is not None:
             G.add_node(idb)
-    print("Number of buses found in the iidm file: %d\n" % G.number_of_nodes())
+    print("\nNumber of buses found in the iidm file: %d\n" % G.number_of_nodes())
 
     return G
 
@@ -93,8 +110,19 @@ def insert_lines(iidm_tree, G):
             if bus2 is not None:
                 imp = complex(float(line.get("r")), float(line.get("x")))
                 adm = 1 / (math.sqrt(pow(imp.real, 2) + pow(imp.imag, 2)))
+                p1 = abs(float(line.get("p1")))
                 line_id = line.get("id")
-                G.add_edge(bus1, bus2, weight=adm, id=line_id)
+                if (bus1, bus2) not in G.edges:
+                    G.add_edge(bus1, bus2, value=adm, id=line_id, pa=p1)
+                else:
+                    prev_dict = G.get_edge_data(bus1, bus2)
+                    G.add_edge(
+                        bus1,
+                        bus2,
+                        value=adm + prev_dict["value"],
+                        id=prev_dict["id"] + "__" + line_id,
+                        pa=p1 + prev_dict["pa"],
+                    )
 
     print("Number of lines found in the iidm file: %d\n" % G.number_of_edges())
 
@@ -114,7 +142,18 @@ def insert_transformers(iidm_tree, G, n_edges):
                 imp = complex(float(trans.get("r")), float(trans.get("x")))
                 adm = 1 / (math.sqrt(pow(imp.real, 2) + pow(imp.imag, 2)))
                 trans_id = trans.get("id")
-                G.add_edge(bus1, bus2, weight=adm, id=trans_id)
+                p1 = abs(float(trans.get("p1")))
+                if (bus1, bus2) not in G.edges:
+                    G.add_edge(bus1, bus2, value=adm, id=trans_id, pa=p1)
+                else:
+                    prev_dict = G.get_edge_data(bus1, bus2)
+                    G.add_edge(
+                        bus1,
+                        bus2,
+                        value=adm + prev_dict["value"],
+                        id=prev_dict["id"] + "__" + trans_id,
+                        pa=p1 + prev_dict["pa"],
+                    )
 
     print(
         "Number of transformers found in the iidm file: %d\n"
@@ -151,7 +190,18 @@ def insert_HVDCLines(iidm_tree, G, n_edges):
                     if connected:
                         adm = 1 / float(hvdc.get("r"))
                         hvdc_id = hvdc.get("id")
-                        G.add_edge(bus1, bus2, weight=adm, id=hvdc_id)
+                        p1 = abs(float(hvdc.get("maxP")))
+                        if (bus1, bus2) not in G.edges:
+                            G.add_edge(bus1, bus2, value=adm, id=hvdc_id, pa=p1)
+                        else:
+                            prev_dict = G.get_edge_data(bus1, bus2)
+                            G.add_edge(
+                                bus1,
+                                bus2,
+                                value=adm + prev_dict["value"],
+                                id=prev_dict["id"] + "__" + hvdc_id,
+                                pa=p1 + prev_dict["pa"],
+                            )
 
     print(
         "Number of HVDCLines found in the iidm file: %d\n"
@@ -160,34 +210,72 @@ def insert_HVDCLines(iidm_tree, G, n_edges):
     return G
 
 
-def make_subgraph(G, id_node_subgraph):
-    Cedges = list(G.edges(id_node_subgraph))
+def make_subgraph(G, id_node_subgraph, subgraph_type, subgraph_value):
+    if subgraph_type == 0:
+        # Expand subgraph from node
+        Cedges = list(G.edges(id_node_subgraph))
+        nearnodes = []
+        for e in Cedges:
+            if e[0] not in nearnodes:
+                nearnodes.append(e[0])
+            if e[1] not in nearnodes:
+                nearnodes.append(e[1])
+        for i in range(int(subgraph_value) - 1):
+            for n in nearnodes:
+                Cnedges = G.edges(n)
+                for en in Cnedges:
+                    if en not in Cedges:
+                        Cedges.append(en)
+            for e in Cedges:
+                if e[0] not in nearnodes:
+                    nearnodes.append(e[0])
+                if e[1] not in nearnodes:
+                    nearnodes.append(e[1])
 
-    nearnodes = []
-    for e in Cedges:
-        if e[0] not in nearnodes:
-            nearnodes.append(e[0])
-        if e[1] not in nearnodes:
-            nearnodes.append(e[1])
-    nnearnodes = copy.deepcopy(nearnodes)
-    for n in nearnodes:
-        Cnedges = G.edges(n)
-        for en in Cnedges:
-            if en not in Cedges:
-                Cedges.append(en)
-                if en[0] not in nnearnodes:
-                    nnearnodes.append(en[0])
-                if en[1] not in nnearnodes:
-                    nnearnodes.append(en[1])
-    nearnodes = nnearnodes
-    for n in nearnodes:
-        Cnedges = G.edges(n)
-        for en in Cnedges:
-            if en not in Cedges:
-                Cedges.append(en)
-    C = nx.Graph()
-    C.add_nodes_from(nearnodes)
-    C.add_edges_from(Cedges)
+        C = nx.Graph()
+        C.add_nodes_from(nearnodes)
+        C.add_edges_from(Cedges)
+
+        # Get edge properties
+        for s, d in C.edges():
+            prev_dict = G.get_edge_data(s, d)
+
+            c = prev_dict["pa"] * 1000
+            r = math.floor(c / (256 * 256))
+            g = math.floor(c / 256) % 256
+            b = c % 256
+
+            str_rgb = "rgb(" + str(r) + "," + str(g) + "," + str(b) + ")"
+
+            C.add_edge(
+                s, d, value=prev_dict["value"], id=prev_dict["id"], color=str_rgb
+            )
+
+        for n in nearnodes:
+            title = ""
+            Cnedges = C.edges(n)
+            for e in Cnedges:
+                prev_dict = G.get_edge_data(e[0], e[1])
+                title = (
+                    title
+                    + "("
+                    + e[0]
+                    + ","
+                    + e[1]
+                    + "): id = "
+                    + prev_dict["id"]
+                    + ", Y = "
+                    + str(prev_dict["value"])
+                    + ", Pa = "
+                    + str(prev_dict["pa"])
+                    + "<br>"
+                )
+            C.nodes[n]["title"] = title
+
+    if subgraph_type == 1:
+        # Dijkstra
+        C = G
+
     return C
 
 
@@ -196,8 +284,11 @@ def visualize_graph(G, all, idnode=None):
     net.from_nx(G)
     if all:
         net.save_graph("graph_all.html")
+        net.show("graph_all.html")
     else:
+        net.show_buttons()
         net.save_graph("graph_" + idnode + ".html")
+        net.show("graph_" + idnode + ".html")
 
 
 if __name__ == "__main__":
