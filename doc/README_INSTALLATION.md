@@ -49,7 +49,11 @@ Now, you have a self-contained directory tree that contains a Python installatio
 
 	- pip install frozendict
 
-(By the moment, I haven't found a way to install packages in venv without using pip.)
+	- pip install networkx
+
+	- pip install pyvis
+
+
 
 ## IDE configuration
 	
