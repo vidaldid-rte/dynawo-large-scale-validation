@@ -21,7 +21,7 @@ def main():
     if len(sys.argv) < 2:
         print(
             "\nUsage: %s xiidm_file [id_node_subgraph] [layered subgraph = 0, "
-            "subgraph by Dijkstra = 1] [layers/imp_threshold]\n" % sys.argv[0]
+            "subgraph by Dijkstra = 1] [layers, imp_threshold]\n" % sys.argv[0]
         )
         return 2
     subgraph = False
@@ -270,6 +270,7 @@ def make_subgraph(G, id_node_subgraph, subgraph_type, subgraph_value):
                 s, d, value=prev_dict["value"], id=prev_dict["id"], color=str_rgb
             )
 
+        print("Subgraph buses:", nearnodes,"\n")
         for n in nearnodes:
             title = ""
             Cnedges = C.edges(n)
@@ -341,6 +342,7 @@ def make_subgraph(G, id_node_subgraph, subgraph_type, subgraph_value):
                 s, d, value=prev_dict["value"], id=prev_dict["id"], color=str_rgb
             )
 
+        print("Subgraph buses:", list(nearnodes.keys()),"\n")
         for n, v in nearnodes.items():
             title = "Impedance from the root = " + str(v) + "<br>"
             Cnedges = C.edges(n)
