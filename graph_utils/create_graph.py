@@ -270,7 +270,7 @@ def make_subgraph(G, id_node_subgraph, subgraph_type, subgraph_value):
                 s, d, value=prev_dict["value"], id=prev_dict["id"], color=str_rgb
             )
 
-        print("Subgraph buses:", nearnodes,"\n")
+        print("Subgraph buses:", nearnodes, "\n")
         for n in nearnodes:
             title = ""
             Cnedges = C.edges(n)
@@ -342,7 +342,7 @@ def make_subgraph(G, id_node_subgraph, subgraph_type, subgraph_value):
                 s, d, value=prev_dict["value"], id=prev_dict["id"], color=str_rgb
             )
 
-        print("Subgraph buses:", list(nearnodes.keys()),"\n")
+        print("Subgraph buses:", list(nearnodes.keys()), "\n")
         for n, v in nearnodes.items():
             title = "Impedance from the root = " + str(v) + "<br>"
             Cnedges = C.edges(n)
