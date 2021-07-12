@@ -17,10 +17,11 @@ from pyvis.network import Network
 
 
 def main():
+    # Parameter management
     if len(sys.argv) < 2:
         print(
             "\nUsage: %s xiidm_file [id_node_subgraph] [layered subgraph = 0, "
-            "subgraph by Dijkstra = 1] [layers/threshold]\n" % sys.argv[0]
+            "subgraph by Dijkstra = 1] [layers/imp_threshold]\n" % sys.argv[0]
         )
         return 2
     subgraph = False
@@ -44,7 +45,7 @@ def main():
 
     xiidm_file = sys.argv[1]
 
-    # remove a possible trailing slash
+    # Remove a possible trailing slash
     if xiidm_file[-1] == "/":
         xiidm_file = xiidm_file[:-1]
 
@@ -113,7 +114,7 @@ def insert_lines(iidm_tree, G):
                 p1 = abs(float(line.get("p1")))
                 line_id = line.get("id")
                 if (bus1, bus2) not in G.edges:
-                    G.add_edge(bus1, bus2, value=adm, id=line_id, pa=p1)
+                    G.add_edge(bus1, bus2, value=adm, id=line_id, pa=p1, imp=1 / adm)
                 else:
                     prev_dict = G.get_edge_data(bus1, bus2)
                     G.add_edge(
@@ -122,6 +123,7 @@ def insert_lines(iidm_tree, G):
                         value=adm + prev_dict["value"],
                         id=prev_dict["id"] + "__" + line_id,
                         pa=p1 + prev_dict["pa"],
+                        imp=1 / (adm + prev_dict["value"]),
                     )
 
     print("Number of lines found in the iidm file: %d\n" % G.number_of_edges())
@@ -144,7 +146,7 @@ def insert_transformers(iidm_tree, G, n_edges):
                 trans_id = trans.get("id")
                 p1 = abs(float(trans.get("p1")))
                 if (bus1, bus2) not in G.edges:
-                    G.add_edge(bus1, bus2, value=adm, id=trans_id, pa=p1)
+                    G.add_edge(bus1, bus2, value=adm, id=trans_id, pa=p1, imp=1 / adm)
                 else:
                     prev_dict = G.get_edge_data(bus1, bus2)
                     G.add_edge(
@@ -153,6 +155,7 @@ def insert_transformers(iidm_tree, G, n_edges):
                         value=adm + prev_dict["value"],
                         id=prev_dict["id"] + "__" + trans_id,
                         pa=p1 + prev_dict["pa"],
+                        imp=1 / (adm + prev_dict["value"]),
                     )
 
     print(
@@ -192,7 +195,9 @@ def insert_HVDCLines(iidm_tree, G, n_edges):
                         hvdc_id = hvdc.get("id")
                         p1 = abs(float(hvdc.get("maxP")))
                         if (bus1, bus2) not in G.edges:
-                            G.add_edge(bus1, bus2, value=adm, id=hvdc_id, pa=p1)
+                            G.add_edge(
+                                bus1, bus2, value=adm, id=hvdc_id, pa=p1, imp=1 / adm
+                            )
                         else:
                             prev_dict = G.get_edge_data(bus1, bus2)
                             G.add_edge(
@@ -201,6 +206,7 @@ def insert_HVDCLines(iidm_tree, G, n_edges):
                                 value=adm + prev_dict["value"],
                                 id=prev_dict["id"] + "__" + hvdc_id,
                                 pa=p1 + prev_dict["pa"],
+                                imp=1 / (adm + prev_dict["value"]),
                             )
 
     print(
@@ -211,6 +217,8 @@ def insert_HVDCLines(iidm_tree, G, n_edges):
 
 
 def make_subgraph(G, id_node_subgraph, subgraph_type, subgraph_value):
+
+    # Choose if we are going to use layers or Dijkstra
     if subgraph_type == 0:
         # Expand subgraph from node
         Cedges = list(G.edges(id_node_subgraph))
@@ -237,13 +245,24 @@ def make_subgraph(G, id_node_subgraph, subgraph_type, subgraph_value):
         C.add_edges_from(Cedges)
 
         # Get edge properties
+        # Get range color
+        max_pa = 0
+        min_pa = 99999999
+        for s, d in C.edges():
+            prev_dict = G.get_edge_data(s, d)
+            if prev_dict["pa"] > max_pa:
+                max_pa = prev_dict["pa"]
+            if prev_dict["pa"] < min_pa:
+                min_pa = prev_dict["pa"]
+
+        max_pa -= min_pa
         for s, d in C.edges():
             prev_dict = G.get_edge_data(s, d)
 
-            c = prev_dict["pa"] * 1000
-            r = math.floor(c / (256 * 256))
-            g = math.floor(c / 256) % 256
-            b = c % 256
+            c = prev_dict["pa"] - min_pa
+            g = 256 - (c / max_pa) * 256
+            r = 255
+            b = 0
 
             str_rgb = "rgb(" + str(r) + "," + str(g) + "," + str(b) + ")"
 
@@ -274,15 +293,86 @@ def make_subgraph(G, id_node_subgraph, subgraph_type, subgraph_value):
 
     if subgraph_type == 1:
         # Dijkstra
-        C = G
+        nearnodes = dict()
+        shortest_paths = nx.shortest_path_length(
+            G, source=id_node_subgraph, weight="imp"
+        )
+
+        for k, v in shortest_paths.items():
+            if v <= subgraph_value:
+                nearnodes[k] = v
+
+        Edges = []
+        for node in nearnodes.keys():
+            Edges += list(G.edges(node))
+
+        Cedges = []
+        for e in Edges:
+            if e[0] in nearnodes.keys() and e[1] in nearnodes.keys():
+                Cedges.append(e)
+
+        C = nx.Graph()
+        C.add_nodes_from(nearnodes)
+        C.add_edges_from(Cedges)
+
+        # Get edge properties
+        # Get range color
+        max_pa = 0
+        min_pa = 99999999
+        for s, d in C.edges():
+            prev_dict = G.get_edge_data(s, d)
+            if prev_dict["pa"] > max_pa:
+                max_pa = prev_dict["pa"]
+            if prev_dict["pa"] < min_pa:
+                min_pa = prev_dict["pa"]
+
+        max_pa -= min_pa
+        for s, d in C.edges():
+            prev_dict = G.get_edge_data(s, d)
+
+            c = prev_dict["pa"] - min_pa
+            g = 256 - (c / max_pa) * 256
+            r = 255
+            b = 0
+
+            str_rgb = "rgb(" + str(r) + "," + str(g) + "," + str(b) + ")"
+
+            C.add_edge(
+                s, d, value=prev_dict["value"], id=prev_dict["id"], color=str_rgb
+            )
+
+        for n, v in nearnodes.items():
+            title = "Impedance from the root = " + str(v) + "<br>"
+            Cnedges = C.edges(n)
+            for e in Cnedges:
+                prev_dict = G.get_edge_data(e[0], e[1])
+                title = (
+                    title
+                    + "("
+                    + e[0]
+                    + ","
+                    + e[1]
+                    + "): id = "
+                    + prev_dict["id"]
+                    + ", Y = "
+                    + str(prev_dict["value"])
+                    + ", Pa = "
+                    + str(prev_dict["pa"])
+                    + "<br>"
+                )
+            C.nodes[n]["title"] = title
 
     return C
 
 
 def visualize_graph(G, all, idnode=None):
+    # Create a pyvis library network
     net = Network(height="100%", width="100%", bgcolor="#222222", font_color="white")
     net.from_nx(G)
+
+    # Define the name according if it is a subgraph or not
     if all:
+        net.show_buttons()
         net.save_graph("graph_all.html")
         net.show("graph_all.html")
     else:
