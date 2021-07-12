@@ -73,7 +73,7 @@ def main():
 
     print("Number of edges found in the iidm file: %d\n" % G.number_of_edges())
 
-    # Call a function that allows us to du a subgraph focusing on a node
+    # Call a function that allows us to do a subgraph focusing on a node
     if subgraph:
         C = make_subgraph(G, id_node_subgraph, subgraph_type, subgraph_value)
         # Visualize th graph
