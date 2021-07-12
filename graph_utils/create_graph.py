@@ -178,6 +178,7 @@ def insert_HVDCLines(iidm_tree, G, n_edges):
                 if converterStation1 == converterStation.get("id"):
                     bus1 = converterStation.get("bus")
                     if bus1 is not None:
+                        p1 = abs(float(converterStation.get("p")))
                         connected = True
 
             if connected:
@@ -193,7 +194,6 @@ def insert_HVDCLines(iidm_tree, G, n_edges):
                     if connected:
                         adm = 1 / float(hvdc.get("r"))
                         hvdc_id = hvdc.get("id")
-                        p1 = abs(float(hvdc.get("maxP")))
                         if (bus1, bus2) not in G.edges:
                             G.add_edge(
                                 bus1, bus2, value=adm, id=hvdc_id, pa=p1, imp=1 / adm
