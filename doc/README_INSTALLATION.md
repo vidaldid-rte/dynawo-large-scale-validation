@@ -1,5 +1,5 @@
 
-# Instructions for development requirements
+# Instructions for execution/development requirements
 
 ## OS, development software and utilities
 
@@ -17,9 +17,12 @@
 
 - Install Jupyter and some other python debs for DS: apt-get install jupyter python-numpy python3-numpy
 
-- Install a python IDE. (for ex. PyCharm: https://www.jetbrains.com/help/pycharm/installation-guide.html#requirements)
+- Only for development:
 
-- Install python development utilities: apt-get install black flake8 python3-pytest
+	- Install a python IDE. (for ex. PyCharm: https://www.jetbrains.com/help/pycharm/installation-guide.html#requirements)
+
+	- Install python development utilities: apt-get install black flake8 python3-pytest
+
 
 ## Virtual environment creation
 
@@ -32,6 +35,7 @@ Now you should have the name of your virtual environment in parentheses before t
 - Deactivate virtual environment: deactivate
 
 - Remove virtual environment: rm -rf /path/to/new/virtual/environment
+
 
 ## Virtual environment configuration (venv must be actived to proceed)
 
@@ -54,11 +58,6 @@ Now, you have a self-contained directory tree that contains a Python installatio
 	- pip install pyvis
 
 
-
-## IDE configuration
-	
-To use the virtual environment interpreter in our IDE we have to open our Python IDE (for example, PyCharm) and go to Interpreter Configuration (in the case of PyCharm, we have the direct option to Add Interpreter). We must choose the option that allows us to add a new interpreter and then, we only have to select the Python interpreter from the path where we have installed the Virtual Environment (in /bin directory).
-
 ## Jupyter Notebooks configuration
 
 To use the virtual environment interpreter in Jupyter Notebooks, we have to do the following steps:
@@ -70,4 +69,14 @@ To use the virtual environment interpreter in Jupyter Notebooks, we have to do t
 	3. Add your virtual environment to Jupyter: python -m ipykernel install --user --name=NAME-OF-INTERPRETER
 
 	4. Open Jupyter and, in Kernel Options, select your new Kernel.
+
+
+## IDE configuration (only for development)
+	
+To use the virtual environment interpreter in our IDE we have to open our Python IDE (for example, PyCharm) and go to Interpreter Configuration (in the case of PyCharm, we have the direct option to Add Interpreter). We must choose the option that allows us to add a new interpreter and then, we only have to select the Python interpreter from the path where we have installed the Virtual Environment (in /bin directory).
+
+
+## Install Dynawo
+
+- Follow the instructions of this website: https://dynawo.github.io/install/
 
