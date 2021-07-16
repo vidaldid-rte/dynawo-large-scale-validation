@@ -36,7 +36,9 @@ def main():
     Path(PF_METRICS_DIR).mkdir(parents=False, exist_ok=True)
 
     for filepath in tqdm(files):
-        cont = filepath.split('_')[3].split('-')[0]
+        # Depending on the path
+        # cont = filepath.split('_')[3].split('-')[0]
+        cont = filepath.split('_')[2].split('-')[0]
         # print(cont)
         delta = pd.read_csv(filepath, sep=";", index_col=False, compression="infer")
         delta['diff'] = abs(delta.VALUE_A - delta.VALUE_B)
@@ -44,6 +46,7 @@ def main():
         delta_mean = delta.groupby('VAR').mean()
         res1 = [cont] + list(delta_max['diff'].values) + list(delta_mean['diff'].values)
         res = res + [res1]
+
 
     df = pd.DataFrame(res, columns=['cont'] + list(delta_max.index + '_max') + list(delta_mean.index + '_mean'))
     df.to_csv(PF_METRICS_DIR + '/metrics.csv.xz', compression='xz')

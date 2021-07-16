@@ -80,3 +80,8 @@ To use the virtual environment interpreter in our IDE we have to open our Python
 
 - Follow the instructions of this website: https://dynawo.github.io/install/
 
+
+## Install Hades
+
+- To compare between Hades, it is assumed that you already have Hades installed in your environment.
+
