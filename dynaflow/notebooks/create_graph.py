@@ -17,7 +17,6 @@ from pyvis.network import Network
 
 
 def get_graph(xiidm_file, id_node_subgraph, subgraph_type, subgraph_value):
-    subgraph = True
     # Remove a possible trailing slash
     if xiidm_file[-1] == "/":
         xiidm_file = xiidm_file[:-1]
@@ -43,9 +42,12 @@ def get_graph(xiidm_file, id_node_subgraph, subgraph_type, subgraph_value):
     G = insert_HVDCLines(iidmTree, G, n_edges)
 
     # Call a function that allows us to do a subgraph focusing on a node
-    if subgraph:
-        C = make_subgraph(G, id_node_subgraph, subgraph_type, subgraph_value)
 
+    return G, get_subgraph(G, id_node_subgraph, subgraph_type, subgraph_value)
+
+
+def get_subgraph(G, id_node_subgraph, subgraph_type, subgraph_value):
+    C = make_subgraph(G, id_node_subgraph, subgraph_type, subgraph_value)
     net = Network(bgcolor="#222222", font_color="white", notebook=True)
     net.from_nx(C)
 
