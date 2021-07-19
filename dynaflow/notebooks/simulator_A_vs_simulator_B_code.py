@@ -7,14 +7,15 @@ from ipywidgets import widgets
 import networkx as nx
 from pyvis.network import Network
 import warnings
-import os
 
 
+# Read the metric file
 def read_csv_metrics(pf_dir):
     data = pd.read_csv(pf_dir + "/pf_metrics/metrics.csv.xz", index_col=0)
     return data
 
 
+# Create the first graph
 def get_initial_graph(xiidm_file, value, t, c):
     return create_graph.get_graph(xiidm_file, value, t, c)
 
@@ -50,6 +51,7 @@ def do_displaybutton():
     display(button)
 
 
+# Calculate absolute and relative error
 def calculate_error(df1):
     REL_ERR_CLIPPING = 0.1
     # df1["VOLT_LEVEL"] = df1["VOLT_LEVEL"].astype(str)
@@ -59,6 +61,7 @@ def calculate_error(df1):
     return df1
 
 
+# Read a specific contingency
 def read_case(name, PF_SOL_DIR, PREFIX):
     file_name = PF_SOL_DIR + "/pf_sol/" + PREFIX + "_" + name + "-pfsolution_AB.csv.xz"
     data = pd.read_csv(file_name, sep=";", index_col=False, compression="infer")
@@ -67,6 +70,7 @@ def read_case(name, PF_SOL_DIR, PREFIX):
     return data
 
 
+# Create the general graphic of simulator A vs B
 def create_general_trace(data, x, y):
     trace = go.Scatter(
         x=data[x], y=data[y], mode="markers", text=data["cont"], name=x + "_" + y
@@ -74,6 +78,7 @@ def create_general_trace(data, x, y):
     return trace
 
 
+# Create the individual graphic of simulator A vs B
 def create_individual_trace(data, x, y, DATA_LIMIT):
     if data.shape[0] > DATA_LIMIT:
         data = data.sample(DATA_LIMIT)
@@ -83,6 +88,7 @@ def create_individual_trace(data, x, y, DATA_LIMIT):
     return trace
 
 
+# Generate all dropdowns of the output
 def create_dropdowns(
     df, contg_cases, contg_case0, data_first_case, vars_case, bus_list
 ):
@@ -128,6 +134,7 @@ def create_dropdowns(
     return varx, vary, dev, dropdown1, dropdown2, dropdown3, dropdown4, graph
 
 
+# Create all the containers of the output
 def create_containers(
     varx, vary, dev, dropdown1, dropdown2, dropdown3, dropdown4, graph
 ):
@@ -140,6 +147,7 @@ def create_containers(
     return container1, container2, container3
 
 
+# Create all the layouts of the output
 def create_layouts(varx, vary, HEIGHT, WIDTH, contg_case0, dropdown1, dropdown2):
     layout1 = go.Layout(
         title=dict(text="Simulator A vs Simulator B"),
@@ -160,6 +168,7 @@ def create_layouts(varx, vary, HEIGHT, WIDTH, contg_case0, dropdown1, dropdown2)
     return layout1, layout2
 
 
+# Show the output
 def show_displays(sdf, container1, g, container2, c, s, container3, C, dev):
     display(sdf)
     display(container1)
@@ -172,6 +181,7 @@ def show_displays(sdf, container1, g, container2, c, s, container3, C, dev):
     return html_graph
 
 
+# Run the program
 def run_all(RESULTS_DIR, ELEMENTS, PREFIX, PF_SOL_DIR, DATA_LIMIT):
     warnings.simplefilter(action="ignore", category=FutureWarning)
 
@@ -187,7 +197,7 @@ def run_all(RESULTS_DIR, ELEMENTS, PREFIX, PF_SOL_DIR, DATA_LIMIT):
         )
     )
 
-    # Callbacks
+    # Management the selection of dropdown parameters and on_click options
     def response(change):
         df1 = df
         # PERF: Plotly starts showing horrible performance with more than 5,000 points
@@ -237,24 +247,26 @@ def run_all(RESULTS_DIR, ELEMENTS, PREFIX, PF_SOL_DIR, DATA_LIMIT):
         with g.batch_update():
             C = create_graph.get_subgraph(G, graph.value, 0, 4)
             html_graph.update(C.show("subgraph.html"))
-            
 
     do_displaybutton()
 
     df = read_csv_metrics(PF_SOL_DIR)
-    sdf = qgrid.QgridWidget(df=df)
 
+    # Get list of contingency cases
     contg_cases = list(df["cont"].unique())
     contg_case0 = contg_cases[0]
 
+    # Read the first contingency to put default data
     data_first_case = read_case(contg_case0, PF_SOL_DIR, PREFIX)
 
     vars_case = data_first_case.columns[1:]
 
+    # Get the bus list for subgraph selection
     bus_list = sorted(
         list(set(data_first_case.loc[(data_first_case.ELEMENT_TYPE == "bus")]["ID"]))
     )
 
+    # Get all the dropdowns
     (
         varx,
         vary,
@@ -268,6 +280,7 @@ def run_all(RESULTS_DIR, ELEMENTS, PREFIX, PF_SOL_DIR, DATA_LIMIT):
         df, contg_cases, contg_case0, data_first_case, vars_case, bus_list
     )
 
+    # Get all the containers
     container1, container2, container3 = create_containers(
         varx, vary, dev, dropdown1, dropdown2, dropdown3, dropdown4, graph
     )
@@ -275,6 +288,7 @@ def run_all(RESULTS_DIR, ELEMENTS, PREFIX, PF_SOL_DIR, DATA_LIMIT):
     HEIGHT = 600  # Adapt as needed
     WIDTH = 1600  # but make sure that width > height
 
+    # Get all the layouts
     layout1, layout2 = create_layouts(
         varx, vary, HEIGHT, WIDTH, contg_case0, dropdown1, dropdown2
     )
@@ -284,6 +298,9 @@ def run_all(RESULTS_DIR, ELEMENTS, PREFIX, PF_SOL_DIR, DATA_LIMIT):
     current_individual_trace = create_individual_trace(
         data_first_case, dropdown1.value, dropdown2.value, DATA_LIMIT
     )
+
+    # Create the required widgets for visualization
+    sdf = qgrid.QgridWidget(df=df)
 
     g = go.FigureWidget(data=[current_general_trace], layout=layout1)
 
@@ -296,10 +313,13 @@ def run_all(RESULTS_DIR, ELEMENTS, PREFIX, PF_SOL_DIR, DATA_LIMIT):
         + "20210422_0930.BASECASE"
         + "/recollement_20210422_0930.xiidm"
     )
+    # Get default graph
     G, C = get_initial_graph(xiidm_file, graph.value, 0, 4)
 
+    # Display all the objects and get html subgraph id
     html_graph = show_displays(sdf, container1, g, container2, c, s, container3, C, dev)
 
+    # Observe selection events to update graphics
     varx.observe(response, names="value")
     vary.observe(response, names="value")
 

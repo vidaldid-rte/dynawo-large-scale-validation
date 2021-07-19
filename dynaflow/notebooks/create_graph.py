@@ -48,7 +48,7 @@ def get_graph(xiidm_file, id_node_subgraph, subgraph_type, subgraph_value):
 
 def get_subgraph(G, id_node_subgraph, subgraph_type, subgraph_value):
     C = make_subgraph(G, id_node_subgraph, subgraph_type, subgraph_value)
-    net = Network(bgcolor="#222222", font_color="white", notebook=True)
+    net = Network(bgcolor="#222222", font_color="white", notebook=True, width="100%")
     net.from_nx(C)
 
     return net
