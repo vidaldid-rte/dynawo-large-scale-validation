@@ -250,7 +250,7 @@ def paint_graph(C, data, nodetype, nodemetrictype, edgetype, edgemetrictype):
         if len(list(data1.loc[(data1.ID == node["id"])][nodemetrictype])) != 0:
             plasma = cm.get_cmap('plasma', 12)
             c = list(data1.loc[(data1.ID == node["id"])][nodemetrictype])[0] - data1_min
-            c = round(c / data1_max, 2)
+            c = c / data1_max
             r = plasma(c)[0]*256
             g = plasma(c)[1]*256
             b = plasma(c)[2]*256
@@ -290,7 +290,7 @@ def paint_graph(C, data, nodetype, nodemetrictype, edgetype, edgemetrictype):
         if len(list(data2.loc[(data2.ID == edge["id"])][edgemetrictype])) != 0:
             viridis = cm.get_cmap('viridis', 12)
             c = list(data2.loc[(data2.ID == edge["id"])][edgemetrictype])[0] - data2_min
-            c = round(c / data2_max, 2)
+            c = c / data2_max
             r = viridis(c)[0]*256
             g = viridis(c)[1]*256
             b = viridis(c)[2]*256

@@ -14,6 +14,7 @@ import sys
 from lxml import etree
 import networkx as nx
 from pyvis.network import Network
+from matplotlib import cm
 
 
 def main():
@@ -258,11 +259,13 @@ def make_subgraph(G, id_node_subgraph, subgraph_type, subgraph_value):
         max_pa -= min_pa
         for s, d in C.edges():
             prev_dict = G.get_edge_data(s, d)
-
+	   
+            viridis = cm.get_cmap('viridis', 12)
             c = prev_dict["pa"] - min_pa
-            g = 256 - (c / max_pa) * 256
-            r = 255
-            b = 0
+            c = c / max_pa
+            r = viridis(c)[0]*256
+            g = viridis(c)[1]*256
+            b = viridis(c)[2]*256
 
             str_rgb = "rgb(" + str(r) + "," + str(g) + "," + str(b) + ")"
 
@@ -331,10 +334,12 @@ def make_subgraph(G, id_node_subgraph, subgraph_type, subgraph_value):
         for s, d in C.edges():
             prev_dict = G.get_edge_data(s, d)
 
+            viridis = cm.get_cmap('viridis', 12)
             c = prev_dict["pa"] - min_pa
-            g = 256 - (c / max_pa) * 256
-            r = 255
-            b = 0
+            c = c / max_pa
+            r = viridis(c)[0]*256
+            g = viridis(c)[1]*256
+            b = viridis(c)[2]*256
 
             str_rgb = "rgb(" + str(r) + "," + str(g) + "," + str(b) + ")"
 
