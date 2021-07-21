@@ -41,10 +41,10 @@ def main():
         cont = filepath.split('_')[2].split('-')[0]
         # print(cont)
         delta = pd.read_csv(filepath, sep=";", index_col=False, compression="infer")
-        delta['diff'] = abs(delta.VALUE_A - delta.VALUE_B)
+        delta['DIFF'] = delta.VALUE_A - delta.VALUE_B
         delta_max = delta.groupby('VAR').max()
         delta_mean = delta.groupby('VAR').mean()
-        res1 = [cont] + list(delta_max['diff'].values) + list(delta_mean['diff'].values)
+        res1 = [cont] + list(delta_max['DIFF'].values) + list(delta_mean['DIFF'].values)
         res = res + [res1]
 
 

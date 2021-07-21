@@ -7,6 +7,9 @@ from ipywidgets import widgets
 import networkx as nx
 from pyvis.network import Network
 import warnings
+from matplotlib import pylab
+import pylab as pl
+import numpy as np
 
 
 # Read the metric file
@@ -65,7 +68,7 @@ def calculate_error(df1):
 def read_case(name, PF_SOL_DIR, PREFIX):
     file_name = PF_SOL_DIR + "/pf_sol/" + PREFIX + "_" + name + "-pfsolution_AB.csv.xz"
     data = pd.read_csv(file_name, sep=";", index_col=False, compression="infer")
-    data["diff"] = abs(data.VALUE_A - data.VALUE_B)
+    data["DIFF"] = data.VALUE_A - data.VALUE_B
     data = calculate_error(data)
     return data
 
@@ -90,7 +93,16 @@ def create_individual_trace(data, x, y, DATA_LIMIT):
 
 # Generate all dropdowns of the output
 def create_dropdowns(
-    df, contg_cases, contg_case0, data_first_case, vars_case, bus_list
+    df,
+    contg_cases,
+    contg_case0,
+    data_first_case,
+    vars_case,
+    bus_list,
+    nodetypes,
+    nodemetrictypes,
+    edgetypes,
+    edgemetrictypes,
 ):
 
     varx = widgets.Dropdown(
@@ -129,20 +141,68 @@ def create_dropdowns(
         description="Var: ",
     )
 
-    graph = widgets.Dropdown(options=bus_list, value=bus_list[0], description="Var: ")
+    graph = widgets.Dropdown(
+        options=bus_list, value=bus_list[0], description="Node ID: "
+    )
 
-    return varx, vary, dev, dropdown1, dropdown2, dropdown3, dropdown4, graph
+    nodetype = widgets.Dropdown(
+        options=nodetypes, value=nodetypes[0], description="Node var: "
+    )
+
+    nodemetrictype = widgets.Dropdown(
+        options=nodemetrictypes,
+        value=nodemetrictypes[0],
+        description="Node metric var: ",
+    )
+
+    edgetype = widgets.Dropdown(
+        options=edgetypes, value=edgetypes[0], description="Edge var: "
+    )
+
+    edgemetrictype = widgets.Dropdown(
+        options=edgemetrictypes,
+        value=edgemetrictypes[0],
+        description="Edge metric var: ",
+    )
+
+    return (
+        varx,
+        vary,
+        dev,
+        dropdown1,
+        dropdown2,
+        dropdown3,
+        dropdown4,
+        graph,
+        nodetype,
+        nodemetrictype,
+        edgetype,
+        edgemetrictype,
+    )
 
 
 # Create all the containers of the output
 def create_containers(
-    varx, vary, dev, dropdown1, dropdown2, dropdown3, dropdown4, graph
+    varx,
+    vary,
+    dev,
+    dropdown1,
+    dropdown2,
+    dropdown3,
+    dropdown4,
+    graph,
+    nodetype,
+    nodemetrictype,
+    edgetype,
+    edgemetrictype,
 ):
     container1 = widgets.HBox([varx, vary])
 
     container2 = widgets.HBox([dev, dropdown1, dropdown2, dropdown3, dropdown4])
 
-    container3 = widgets.HBox([graph])
+    container3 = widgets.HBox(
+        [graph, nodetype, nodemetrictype, edgetype, edgemetrictype]
+    )
 
     return container1, container2, container3
 
@@ -168,23 +228,94 @@ def create_layouts(varx, vary, HEIGHT, WIDTH, contg_case0, dropdown1, dropdown2)
     return layout1, layout2
 
 
-# Show the output
-def show_displays(sdf, container1, g, container2, c, s, container3, C, dev):
-    display(sdf)
-    display(container1)
-    display(g)
-    display(container2)
-    display(c)
-    display(s)
-    display(container3)
-    html_graph = display(C.show("subgraph.html"), display_id=True)
-    return html_graph
+# Paint the node colors of the graph
+def paint_graph(C, data, nodetype, nodemetrictype, edgetype, edgemetrictype):
+    # Node color
+    data1 = data.loc[(data.VAR == nodetype) & (data.ELEMENT_TYPE == "bus")]
+    """
+    data1_max = 0
+    data1_min = 99999999
+    for node in C.nodes:
+        value = list(data1.loc[(data1.ID == node["id"])][nodemetrictype])[0]
+        if value > data1_max:
+            data1_max = value
+        if value < data1_min:
+            data1_min = value
+    """
+    data1_max = data1[nodemetrictype].max()
+    data1_min = data1[nodemetrictype].min()
+
+    data1_max -= data1_min
+    for node in C.nodes:
+        if len(list(data1.loc[(data1.ID == node["id"])][nodemetrictype])) != 0:
+            c = list(data1.loc[(data1.ID == node["id"])][nodemetrictype])[0] - data1_min
+            g = (c / data1_max) * 256
+            b = 255
+            r = 0
+            node["color"] = "rgb(" + str(r) + "," + str(g) + "," + str(b) + ")"
+        else:
+            c = 0
+            r = 255
+            b = 255
+            g = 255
+            node["color"] = "rgb(" + str(r) + "," + str(g) + "," + str(b) + ")"
+
+    rangecolor = np.array([[data1_min, data1_max + data1_min]])
+    pl.figure(num=23, figsize=(10, 5))
+    pl.imshow(rangecolor, cmap="winter")
+    pl.gca().set_visible(False)
+    pl.colorbar(orientation="horizontal")
+    pl.savefig("legend1.png")
+    pl.close()
+
+    # Edge color
+    data2 = data.loc[(data.VAR == edgetype) & (data.ELEMENT_TYPE != "bus")]
+    """
+    data2_max = 0
+    data2_min = 99999999
+    for edge in C.edges:
+        value = list(data2.loc[(data2.ID == edge["id"])][edgemetrictype])[0]
+        if value > data2_max:
+            data2_max = value
+        if value < data2_min:
+            data2_min = value
+    """
+    data2_max = data2[edgemetrictype].max()
+    data2_min = data2[edgemetrictype].min()
+
+    data2_max -= data2_min
+    for edge in C.edges:
+        if len(list(data2.loc[(data2.ID == edge["id"])][edgemetrictype])) != 0:
+            c = list(data2.loc[(data2.ID == edge["id"])][edgemetrictype])[0] - data2_min
+            g = (c / data2_max) * 256
+            r = 255
+            b = 0
+            edge["color"] = "rgb(" + str(r) + "," + str(g) + "," + str(b) + ")"
+        else:
+            c = 0
+            r = 255
+            b = 255
+            g = 255
+            edge["color"] = "rgb(" + str(r) + "," + str(g) + "," + str(b) + ")"
+
+    rangecolor = np.array([[data2_min, data2_max + data2_min]])
+    pl.figure(num=33, figsize=(10, 5))
+    pl.imshow(rangecolor, cmap="autumn")
+    pl.gca().set_visible(False)
+    pl.colorbar(orientation="horizontal")
+    pl.savefig("legend2.png")
+    pl.close()
+
+    legend1 = pl.imread("legend1.png")
+    legend2 = pl.imread("legend2.png")
+    pl.imsave("legend1.png", legend1[250:, :, :])
+    pl.imsave("legend2.png", legend2[250:, :, :])
+
+    return C
 
 
-# Run the program
-def run_all(RESULTS_DIR, ELEMENTS, PREFIX, PF_SOL_DIR, DATA_LIMIT):
-    warnings.simplefilter(action="ignore", category=FutureWarning)
-
+# Define the structure of the output
+def show_displays(sdf, container1, g, container2, c, s, container3, C, dev, container4):
     display(
         HTML(
             data="""
@@ -196,10 +327,46 @@ def run_all(RESULTS_DIR, ELEMENTS, PREFIX, PF_SOL_DIR, DATA_LIMIT):
     """
         )
     )
+    display(sdf)
+    display(container1)
+    display(g)
+    display(container2)
+    display(c)
+    display(s)
+    display(container3)
+    html_graph = display(C.show("subgraph.html"), display_id=True)
+    display(container4)
+    print(
+        "If a node is white it means that the selected metric is not available",
+        " for that node.",
+    )
+    print(
+        "If an edge is white it means that the metric does not exist or it is a "
+        "double/triple, edge and should be calculated manually."
+    )
+    return html_graph
+
+
+# Run the program
+def run_all(
+    RESULTS_DIR,
+    BASECASE,
+    ELEMENTS,
+    PREFIX,
+    PF_SOL_DIR,
+    DATA_LIMIT,
+    HEIGHT,
+    WIDTH,
+    SUBGRAPH_TYPE,
+    SUBGRAPH_VALUE,
+):
+
+    # We have to supress a numpy warning
+    warnings.simplefilter(action="ignore", category=FutureWarning)
 
     # Management the selection of dropdown parameters and on_click options
     def response(change):
-        df1 = df
+        df1 = df.sort_values("ID")
         # PERF: Plotly starts showing horrible performance with more than 5,000 points
         if df1.shape[0] > DATA_LIMIT:
             df1 = df1.sample(DATA_LIMIT)
@@ -227,7 +394,7 @@ def run_all(RESULTS_DIR, ELEMENTS, PREFIX, PF_SOL_DIR, DATA_LIMIT):
                         df1 = df1.loc[(df1.VAR == dropdown4.value)]
             if df1.shape[0] > DATA_LIMIT:
                 df1 = df1.sample(DATA_LIMIT)
-            s.df = df1
+            s.df = df1.sort_values("ID")
             c.data[0].x = df1[dropdown1.value]
             c.data[0].y = df1[dropdown2.value]
             c.data[0].name = dropdown1.value + "_" + dropdown2.value
@@ -244,9 +411,23 @@ def run_all(RESULTS_DIR, ELEMENTS, PREFIX, PF_SOL_DIR, DATA_LIMIT):
         individual_case(dev.value)
 
     def response3(change):
-        with g.batch_update():
-            C = create_graph.get_subgraph(G, graph.value, 0, 4)
+        with c.batch_update():
+            C = create_graph.get_subgraph(G, graph.value, SUBGRAPH_TYPE, SUBGRAPH_VALUE)
+            C = paint_graph(
+                C,
+                data_first_case,
+                nodetype.value,
+                nodemetrictype.value,
+                edgetype.value,
+                edgemetrictype.value,
+            )
             html_graph.update(C.show("subgraph.html"))
+            file1 = open("legend1.png", "rb")
+            legend1 = file1.read()
+            file2 = open("legend2.png", "rb")
+            legend2 = file2.read()
+            legend1widget.value = legend1
+            legend2widget.value = legend2
 
     do_displaybutton()
 
@@ -266,6 +447,14 @@ def run_all(RESULTS_DIR, ELEMENTS, PREFIX, PF_SOL_DIR, DATA_LIMIT):
         list(set(data_first_case.loc[(data_first_case.ELEMENT_TYPE == "bus")]["ID"]))
     )
 
+    nodetypes = ["v", "angle", "p", "q"]
+
+    nodemetrictypes = ["DIFF", "ABS_ERR", "REL_ERR", "VALUE_A", "VALUE_B"]
+
+    edgetypes = ["p1", "p2", "q1", "q2"]
+
+    edgemetrictypes = ["DIFF", "ABS_ERR", "REL_ERR", "VALUE_A", "VALUE_B"]
+
     # Get all the dropdowns
     (
         varx,
@@ -276,17 +465,38 @@ def run_all(RESULTS_DIR, ELEMENTS, PREFIX, PF_SOL_DIR, DATA_LIMIT):
         dropdown3,
         dropdown4,
         graph,
+        nodetype,
+        nodemetrictype,
+        edgetype,
+        edgemetrictype,
     ) = create_dropdowns(
-        df, contg_cases, contg_case0, data_first_case, vars_case, bus_list
+        df,
+        contg_cases,
+        contg_case0,
+        data_first_case,
+        vars_case,
+        bus_list,
+        nodetypes,
+        nodemetrictypes,
+        edgetypes,
+        edgemetrictypes,
     )
 
     # Get all the containers
     container1, container2, container3 = create_containers(
-        varx, vary, dev, dropdown1, dropdown2, dropdown3, dropdown4, graph
+        varx,
+        vary,
+        dev,
+        dropdown1,
+        dropdown2,
+        dropdown3,
+        dropdown4,
+        graph,
+        nodetype,
+        nodemetrictype,
+        edgetype,
+        edgemetrictype,
     )
-
-    HEIGHT = 600  # Adapt as needed
-    WIDTH = 1600  # but make sure that width > height
 
     # Get all the layouts
     layout1, layout2 = create_layouts(
@@ -308,16 +518,44 @@ def run_all(RESULTS_DIR, ELEMENTS, PREFIX, PF_SOL_DIR, DATA_LIMIT):
 
     s = qgrid.QgridWidget(df=data_first_case)
 
-    xiidm_file = (
-        "../../../cases/"
-        + "20210422_0930.BASECASE"
-        + "/recollement_20210422_0930.xiidm"
-    )
+    xiidm_file = RESULTS_DIR + BASECASE + "/recollement_20210422_0930.xiidm"
     # Get default graph
-    G, C = get_initial_graph(xiidm_file, graph.value, 0, 4)
+    G, C = get_initial_graph(xiidm_file, graph.value, SUBGRAPH_TYPE, SUBGRAPH_VALUE)
+
+    C = paint_graph(
+        C,
+        data_first_case,
+        nodetype.value,
+        nodemetrictype.value,
+        edgetype.value,
+        edgemetrictype.value,
+    )
+
+    file1 = open("legend1.png", "rb")
+    legend1 = file1.read()
+    file2 = open("legend2.png", "rb")
+    legend2 = file2.read()
+
+    legend1widget = widgets.Image(
+        value=legend1,
+        format="png",
+        width=WIDTH / 2,
+        height=HEIGHT / 2,
+    )
+
+    legend2widget = widgets.Image(
+        value=legend2,
+        format="png",
+        width=WIDTH / 2,
+        height=HEIGHT / 2,
+    )
+
+    container4 = widgets.HBox([legend1widget, legend2widget])
 
     # Display all the objects and get html subgraph id
-    html_graph = show_displays(sdf, container1, g, container2, c, s, container3, C, dev)
+    html_graph = show_displays(
+        sdf, container1, g, container2, c, s, container3, C, dev, container4
+    )
 
     # Observe selection events to update graphics
     varx.observe(response, names="value")
@@ -334,3 +572,8 @@ def run_all(RESULTS_DIR, ELEMENTS, PREFIX, PF_SOL_DIR, DATA_LIMIT):
     dropdown4.observe(response2, names="value")
 
     graph.observe(response3, names="value")
+
+    nodetype.observe(response3, names="value")
+    nodemetrictype.observe(response3, names="value")
+    edgetype.observe(response3, names="value")
+    edgemetrictype.observe(response3, names="value")
