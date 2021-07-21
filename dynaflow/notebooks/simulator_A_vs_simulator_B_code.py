@@ -371,7 +371,6 @@ def run_all(
 
     # Management the selection of dropdown parameters and on_click options
     def response(change):
-        df1 = df.sort_values("ID")
         # PERF: Plotly starts showing horrible performance with more than 5,000 points
         if df1.shape[0] > DATA_LIMIT:
             df1 = df1.sample(DATA_LIMIT)
