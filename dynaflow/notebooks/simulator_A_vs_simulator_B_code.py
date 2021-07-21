@@ -7,7 +7,7 @@ from ipywidgets import widgets
 import networkx as nx
 from pyvis.network import Network
 import warnings
-from matplotlib import pylab
+from matplotlib import pylab, cm
 import pylab as pl
 import numpy as np
 
@@ -248,10 +248,12 @@ def paint_graph(C, data, nodetype, nodemetrictype, edgetype, edgemetrictype):
     data1_max -= data1_min
     for node in C.nodes:
         if len(list(data1.loc[(data1.ID == node["id"])][nodemetrictype])) != 0:
+            plasma = cm.get_cmap('plasma', 12)
             c = list(data1.loc[(data1.ID == node["id"])][nodemetrictype])[0] - data1_min
-            g = (c / data1_max) * 256
-            b = 255
-            r = 0
+            c = round(c / data1_max, 2)
+            r = plasma(c)[0]*256
+            g = plasma(c)[1]*256
+            b = plasma(c)[2]*256
             node["color"] = "rgb(" + str(r) + "," + str(g) + "," + str(b) + ")"
         else:
             c = 0
@@ -262,7 +264,7 @@ def paint_graph(C, data, nodetype, nodemetrictype, edgetype, edgemetrictype):
 
     rangecolor = np.array([[data1_min, data1_max + data1_min]])
     pl.figure(num=23, figsize=(10, 5))
-    pl.imshow(rangecolor, cmap="winter")
+    pl.imshow(rangecolor, cmap="plasma")
     pl.gca().set_visible(False)
     pl.colorbar(orientation="horizontal")
     pl.savefig("legend1.png")
@@ -286,10 +288,13 @@ def paint_graph(C, data, nodetype, nodemetrictype, edgetype, edgemetrictype):
     data2_max -= data2_min
     for edge in C.edges:
         if len(list(data2.loc[(data2.ID == edge["id"])][edgemetrictype])) != 0:
+            viridis = cm.get_cmap('viridis', 12)
             c = list(data2.loc[(data2.ID == edge["id"])][edgemetrictype])[0] - data2_min
-            g = (c / data2_max) * 256
-            r = 255
-            b = 0
+            c = round(c / data2_max, 2)
+            r = viridis(c)[0]*256
+            g = viridis(c)[1]*256
+            b = viridis(c)[2]*256
+            
             edge["color"] = "rgb(" + str(r) + "," + str(g) + "," + str(b) + ")"
         else:
             c = 0
@@ -300,7 +305,7 @@ def paint_graph(C, data, nodetype, nodemetrictype, edgetype, edgemetrictype):
 
     rangecolor = np.array([[data2_min, data2_max + data2_min]])
     pl.figure(num=33, figsize=(10, 5))
-    pl.imshow(rangecolor, cmap="autumn")
+    pl.imshow(rangecolor, cmap="viridis")
     pl.gca().set_visible(False)
     pl.colorbar(orientation="horizontal")
     pl.savefig("legend2.png")
@@ -338,7 +343,7 @@ def show_displays(sdf, container1, g, container2, c, s, container3, C, dev, cont
     display(container4)
     print(
         "If a node is white it means that the selected metric is not available",
-        " for that node.",
+        "for that node.",
     )
     print(
         "If an edge is white it means that the metric does not exist or it is a "
