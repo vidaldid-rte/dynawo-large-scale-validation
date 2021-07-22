@@ -74,7 +74,9 @@ def read_case(name, PF_SOL_DIR, PREFIX):
 
 
 # Create the general graphic of simulator A vs B
-def create_general_trace(data, x, y):
+def create_general_trace(data, x, y, DATA_LIMIT):
+    if data.shape[0] > DATA_LIMIT:
+        data = data.sample(DATA_LIMIT)
     trace = go.Scatter(
         x=data[x], y=data[y], mode="markers", text=data["cont"], name=x + "_" + y
     )
@@ -248,12 +250,12 @@ def paint_graph(C, data, nodetype, nodemetrictype, edgetype, edgemetrictype):
     data1_max -= data1_min
     for node in C.nodes:
         if len(list(data1.loc[(data1.ID == node["id"])][nodemetrictype])) != 0:
-            plasma = cm.get_cmap('plasma', 12)
+            plasma = cm.get_cmap("plasma", 12)
             c = list(data1.loc[(data1.ID == node["id"])][nodemetrictype])[0] - data1_min
             c = c / data1_max
-            r = plasma(c)[0]*256
-            g = plasma(c)[1]*256
-            b = plasma(c)[2]*256
+            r = plasma(c)[0] * 256
+            g = plasma(c)[1] * 256
+            b = plasma(c)[2] * 256
             node["color"] = "rgb(" + str(r) + "," + str(g) + "," + str(b) + ")"
         else:
             c = 0
@@ -288,20 +290,49 @@ def paint_graph(C, data, nodetype, nodemetrictype, edgetype, edgemetrictype):
     data2_max -= data2_min
     for edge in C.edges:
         if len(list(data2.loc[(data2.ID == edge["id"])][edgemetrictype])) != 0:
-            viridis = cm.get_cmap('viridis', 12)
+            viridis = cm.get_cmap("viridis", 12)
             c = list(data2.loc[(data2.ID == edge["id"])][edgemetrictype])[0] - data2_min
             c = c / data2_max
-            r = viridis(c)[0]*256
-            g = viridis(c)[1]*256
-            b = viridis(c)[2]*256
-            
+            r = viridis(c)[0] * 256
+            g = viridis(c)[1] * 256
+            b = viridis(c)[2] * 256
+
             edge["color"] = "rgb(" + str(r) + "," + str(g) + "," + str(b) + ")"
         else:
-            c = 0
-            r = 255
-            b = 255
-            g = 255
-            edge["color"] = "rgb(" + str(r) + "," + str(g) + "," + str(b) + ")"
+            edge_split = edge["id"].split("_")
+            if len(edge_split) > 1:
+                max_edge = 0
+                enter = False
+                for edge_sp in edge_split:
+                    if len(list(data2.loc[(data2.ID == edge_sp)][edgemetrictype])) != 0:
+                        if abs(max_edge) < abs(
+                            list(data2.loc[(data2.ID == edge_sp)][edgemetrictype])[0]
+                        ):
+                            max_edge = list(
+                                data2.loc[(data2.ID == edge_sp)][edgemetrictype]
+                            )[0]
+                            enter = True
+                if enter:
+                    viridis = cm.get_cmap("viridis", 12)
+                    c = max_edge - data2_min
+                    c = c / data2_max
+                    r = viridis(c)[0] * 256
+                    g = viridis(c)[1] * 256
+                    b = viridis(c)[2] * 256
+
+                    edge["color"] = "rgb(" + str(r) + "," + str(g) + "," + str(b) + ")"
+                else:
+                    c = 0
+                    r = 255
+                    b = 255
+                    g = 255
+                    edge["color"] = "rgb(" + str(r) + "," + str(g) + "," + str(b) + ")"
+            else:
+                c = 0
+                r = 255
+                b = 255
+                g = 255
+                edge["color"] = "rgb(" + str(r) + "," + str(g) + "," + str(b) + ")"
 
     rangecolor = np.array([[data2_min, data2_max + data2_min]])
     pl.figure(num=33, figsize=(10, 5))
@@ -340,14 +371,11 @@ def show_displays(sdf, container1, g, container2, c, s, container3, C, dev, cont
     display(s)
     display(container3)
     html_graph = display(C.show("subgraph.html"), display_id=True)
+    print("Node - Edge Legend")
     display(container4)
     print(
-        "If a node is white it means that the selected metric is not available",
-        "for that node.",
-    )
-    print(
-        "If an edge is white it means that the metric does not exist or it is a "
-        "double/triple, edge and should be calculated manually."
+        "If a node/edge is white it means that the selected metric is not available",
+        "for that node/edge.",
     )
     return html_graph
 
@@ -372,6 +400,7 @@ def run_all(
     # Management the selection of dropdown parameters and on_click options
     def response(change):
         # PERF: Plotly starts showing horrible performance with more than 5,000 points
+        df1 = df
         if df1.shape[0] > DATA_LIMIT:
             df1 = df1.sample(DATA_LIMIT)
         with g.batch_update():
@@ -409,7 +438,7 @@ def run_all(
             dev.value = case
 
     def update_case(trace, points, selector):
-        individual_case(contg_cases[points.point_inds[0]])
+        individual_case(trace.text[points.point_inds[0]])
 
     def response2(change):
         individual_case(dev.value)
@@ -507,7 +536,7 @@ def run_all(
         varx, vary, HEIGHT, WIDTH, contg_case0, dropdown1, dropdown2
     )
 
-    current_general_trace = create_general_trace(df, varx.value, vary.value)
+    current_general_trace = create_general_trace(df, varx.value, vary.value, DATA_LIMIT)
 
     current_individual_trace = create_individual_trace(
         data_first_case, dropdown1.value, dropdown2.value, DATA_LIMIT
