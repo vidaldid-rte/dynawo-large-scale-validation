@@ -95,7 +95,7 @@ parser.add_argument(
     "--txt",
     help="enter regular expressions or contingencies in text form, by default, "
     "all possible contingencies will be generated (if below MAX_NCASES; "
-    "otherwise a random sample is generated).",
+    "otherwise a random sample is generated)",
 )
 parser.add_argument(
     "-v", "--verbose", help="increase output verbosity", action="store_true"

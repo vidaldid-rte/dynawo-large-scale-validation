@@ -15,36 +15,46 @@ from lxml import etree
 import networkx as nx
 from pyvis.network import Network
 from matplotlib import cm
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    "-id", "--id_node_subgraph", help="enter the central node id of the subgraph "
+                                      "(default dijkstra option)"
+)
+parser.add_argument(
+    "-l",
+    "--layers",
+    help="option of a subgraph using layers: enter the number of layers (id required)",
+)
+parser.add_argument(
+    "-d",
+    "--dijkstra",
+    help="option of a subgraph using Dijkstra: enter the impedance threshold (id required)",
+)
+parser.add_argument("xiidm_file", help="option for a subgraph using layers: enter the number of layers")
+args = parser.parse_args()
 
 
 def main():
     # Parameter management
-    if len(sys.argv) < 2:
-        print(
-            "\nUsage: %s xiidm_file [id_node_subgraph] [layered subgraph = 0, "
-            "subgraph by Dijkstra = 1] [layers, imp_threshold]\n" % sys.argv[0]
-        )
-        return 2
     subgraph = False
-    if len(sys.argv) > 2:
-        id_node_subgraph = sys.argv[2]
+    if args.id_node_subgraph:
+        id_node_subgraph = args.id_node_subgraph
         subgraph = True
-        if 3 < len(sys.argv):
-            subgraph_type = int(sys.argv[3])
-            if subgraph_type != 0 and subgraph_type != 1:
-                raise NameError("Invalid subgraph type")
-            if 4 < len(sys.argv):
-                subgraph_value = float(sys.argv[4])
-            else:
-                print("\nDefault subgraph layers = 4\n")
-                subgraph_value = 4
-        else:
-            print("\nDefault subgraph type = 0")
-            print("Default subgraph layers = 4\n")
+        if args.dijkstra:
+            subgraph_type = 1
+            subgraph_value = float(args.dijkstra)
+        if args.layers:
             subgraph_type = 0
-            subgraph_value = 4
+            subgraph_value = int(args.layers)
+    if not args.dijkstra and not args.layers and args.id_node_subgraph:
+        print("\nDefault subgraph type = 0")
+        print("Default subgraph layers = 4\n")
+        subgraph_type = 0
+        subgraph_value = 4
 
-    xiidm_file = sys.argv[1]
+    xiidm_file = args.xiidm_file
 
     # Remove a possible trailing slash
     if xiidm_file[-1] == "/":
