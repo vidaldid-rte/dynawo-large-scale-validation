@@ -1,36 +1,34 @@
 #!/bin/bash
 #
 #
-# convert_dflow2dwoAdwoB.sh: given a base directory containing a DynaFlow
-# case that follows RTE filename conventions, rearrange filenames and
-# paths in order to prepare a case with separate A/B subdirectories
-# and A/B JOB files, suitable for the dynawo-vs-dynawo pipeline.
+# convert_dflow2dwoAdwoB.sh: given a base directory containing a
+# DynaFlow case that follows RTE filename conventions, rearrange
+# filenames and paths in order to prepare a new case with separate A/B
+# subdirectories and A/B JOB files, suitable for the dynawo-vs-dynawo
+# pipeline. Note that you will have to run this script twice: once for
+# A and another time for B (this is to allow for the usage of
+# different cases).
 #
 # (c) Grupo AIA
-# marinjl@aia.es
+#     marinjl@aia.es
 #
 #
 # NOTES:
 # The script performs the following steps:
 #
-#   0. The new case will be under "<inputcase>.DWODWO"
+#   0. The new case will be created under "<inputcase>.DWODWO"
 #
-#   1. Create the A or B subdir, then:
-#        - copy the iidm, dyd, par, crv files there
-#        - copy the Solver.par there
-#        - copy the Diagrams dir there (renamed to "Diagrams")
+#   1. Copies the case files to the A or B subdir, as chosen:
+#        - copies the iidm, dyd, par, crv files there
+#        - copies the Diagrams dir there
 #
-#  2. Copy the job file to file JOB_A.xml or JOB_B.xml.  Then edit
-#     the paths to the iidm, dyd, par, crv files.
+#   2. Copies the job file to either "JOB_A.xml" or "JOB_B.xml", and
+#      edits its contents to reflect the new path to the iidm, dyd,
+#      par, crv files.
 #
-#  3. Copy the content of Network.par to the end of A/*.par or B/*.par
-#     file. Then edit the JOB files to reflect that change.
+#   3. In the dyd file, edits the paths to the par file
 #
-#  4. In the dyd file, edit the paths to the par file, as in this example:
-#       sed -i.BAK 's%parFile="recollement_20210422_0930.par"%parFile="A/recollement_20210422_0930.par"%' recollement_20210422_0930.dyd
-#
-#  5. In the par file, edit the paths to the Diagram subdir, as in this example:
-#       sed -i.BAK 's%value="recollement_20210422_0930_Diagram/%value="A/Diagrams/%' recollement_20210422_0930.par
+#   4. In the par file, edits the paths to the Diagram subdir
 #
 
 
@@ -43,7 +41,7 @@ usage()
 {
     cat <<EOF
 
-Usage: $0 CASEDIR A|B
+Usage: $0 CASE_DIR A|B
 
   Example: $0 20210422_0930/ A
     (will prepare the case as case A in directory 20210422_0930.DWODWO)
@@ -57,10 +55,10 @@ if [ $# -ne 2 ]; then
     usage
     exit -1
 fi
-CASEDIR="$1"
+CASE_DIR="${1%/}"  # remove a possible trailing slash
 LABEL="$2"
-if ! [ -d "$CASEDIR" ]; then
-    echo "Case directory $CASEDIR not found"
+if ! [ -d "$CASE_DIR" ]; then
+    echo "Case directory $CASE_DIR not found"
     usage
     exit -1
 fi
@@ -72,53 +70,63 @@ fi
 
 
 ########################################################################
-#  Step 0: The new case will be under "<inputcase>.DWODWO"
+#  Step 0: The new case will be created under "<inputcase>.DWODWO"
 ########################################################################
-DWODWO_CASE="$CASEDIR".DWODWO
-
-
-########################################################################
-#   1. Create the A or B subdir, then:
-#        - copy the iidm, dyd, crv files there (par file later below)
-#        - copy the solver.par there
-#        - copy the _Diagram dir there (renamed to "Diagrams")
-########################################################################
+DWODWO_CASE="$CASE_DIR".DWODWO
 mkdir -p "$DWODWO_CASE/$LABEL"
-CASENAME=$(basename "$CASEDIR"/*.jobs ".jobs")
-cp -a "$CASEDIR/$CASENAME".{xiidm,dyd,crv} "$DWODWO_CASE/$LABEL"/
-cp -a "$CASEDIR"/solver.par "$DWODWO_CASE/$LABEL"/
-cp -a "$CASEDIR/$CASENAME"_Diagram "$DWODWO_CASE/$LABEL"/Diagrams
+echo "Preparing $LABEL case under:   $DWODWO_CASE/$LABEL"
 
 
 ########################################################################
-#  2. Copy the job file to either JOB_A.xml or JOB_B.xml.  Then edit the
-#     paths to the iidm, dyd, par, crv files.
+#   1. Copy all case files (except the job file):
+#        - the iidm, dyd, par, crv files
+#        - the *_Diagram directory
 ########################################################################
-sed -e "s%parFile=\"solver.par\"%parFile=\"$LABEL/solver.par\"%" \
-    -e "s%compileDir=\"outputs/compilation\"%compileDir=\"$LABEL/outputs/compilation\"%" \
-    -e "s%iidmFile=\"$CASENAME.xiidm\"%iidmFile=\"$LABEL/$CASENAME.xiidm\"%" \
-    -e "s%parFile=\"Network.par\"%parFile=\"$LABEL/$CASENAME.par\"%" \
-    -e "s%dydFile=\"$CASENAME.dyd\"%dydFile=\"$LABEL/$CASENAME.dyd\"%" \
-    -e "s%directory=\"outputs\"%directory=\"$LABEL/outputs\"%" \
-    -e "s%inputFile=\"$CASENAME.crv\"%inputFile=\"$LABEL/$CASENAME.crv\"%" \
-    "$CASEDIR/$CASENAME".jobs > "$DWODWO_CASE/JOB_$LABEL".xml
+echo -n "Copying iidm, dyd, par, crv, and Diagrams... "
+find "$CASE_DIR" -type f \
+     \( -iname '*.*iidm' -o -iname '*.dyd' -o -iname '*.par' -o -iname '*.crv' \) \
+     -exec cp -a '{}' "$DWODWO_CASE/$LABEL"/ \;
+find "$CASE_DIR" -type d -iname '*_Diagram' -exec cp -a '{}' "$DWODWO_CASE/$LABEL"/ \;
+echo "OK."
 
 
 ########################################################################
-#  3. Merge the contents of Network.par and $CASENAME.par into the
-#     A/*.par or B/*.par file.
+#  2. Copy the job file to either JOB_A.xml or JOB_B.xml, while editing
+#     the internal paths to the iidm, dyd, par, crv files.
 ########################################################################
-awk '/<\/parametersSet>/ {p=1}; {if(p!=1) print}' "$CASEDIR/$CASENAME".par > "$DWODWO_CASE/$LABEL/$CASENAME".par
-awk '/<set / {p=1}; {if(p==1) print}' "$CASEDIR"/Network.par >> "$DWODWO_CASE/$LABEL/$CASENAME".par
+echo -n "Editing the JOB file... "
+ORIG_JOB_FILE=$(find "$CASE_DIR" -type f \( -iname '*.jobs' -o -iname 'JOB*.xml' \) | head -n1)
+sed -e "s%compileDir=\"%compileDir=\"$LABEL/%" \
+    -e "s%iidmFile=\"%iidmFile=\"$LABEL/%" \
+    -e "s%parFile=\"%parFile=\"$LABEL/%" \
+    -e "s%dydFile=\"%dydFile=\"$LABEL/%" \
+    -e "s%directory=\"%directory=\"$LABEL/%" \
+    -e "s%inputFile=\"%inputFile=\"$LABEL/%" \
+    "$ORIG_JOB_FILE" > "$DWODWO_CASE"/JOB_"$LABEL".xml
+echo "OK."
 
 
-########################################################################
-#  4. In the dyd file, edit the paths to the par file, as in this example:
-########################################################################
-sed -i -e "s%parFile=\"$CASENAME.par\"%parFile=\"$LABEL/$CASENAME.par\"%" "$DWODWO_CASE/$LABEL/$CASENAME".dyd
 
 ########################################################################
-#  5. In the par file, edit the paths to the Diagram subdir, as in this example:
+#  3. In the dyd file, edit the paths to the par file
 ########################################################################
-sed -i -e "s%value=\"$CASENAME""_Diagram/%value=\"$LABEL/Diagrams/%" "$DWODWO_CASE/$LABEL/$CASENAME".par
+echo -n "Editing the DYD file... "
+DYD_FILE=$(find "$DWODWO_CASE/$LABEL" -type f -iname '*.dyd')
+sed -i -e "s%parFile=\"%parFile=\"$LABEL/%" "$DYD_FILE"
+echo "OK."
+
+
+
+########################################################################
+#  4. In the par file, edit the paths to the Diagram subdir
+########################################################################
+echo -n "Editing the PAR file... "
+# there may be several par files; make sure we get only the main one
+# we do it by searching the DYD for the first instance of parFile="somefilename.par"
+parFileAttr=$(grep -P -m1 -o 'parFile=\".*?\"' "$DYD_FILE")
+PAR_FILE=$DWODWO_CASE/$(echo "$parFileAttr" | cut -d\" -f2)
+DIAGRAM_DIR=$(find "$CASE_DIR" -type d -iname '*_Diagram')
+DIAGRAM_DIR=$(basename "$DIAGRAM_DIR")
+sed -i -e "s%value=\"$DIAGRAM_DIR/%value=\"$LABEL/$DIAGRAM_DIR/%" "$PAR_FILE"
+echo "OK."
 
