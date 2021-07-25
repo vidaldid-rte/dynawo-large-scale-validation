@@ -20,9 +20,16 @@ by RTE:
   
        * edit the simulation stopTime (double it, for the disconnection)
        
-       * enable the timeline file (`<dyn:timeline exportMode="XML"/>`)
-       
        * enable the constraints file (`<dyn:constraints exportMode="XML"/>`)
+       
+       * enable the timeline file (`<dyn:timeline exportMode="XML"/>`)
+
+       * enable the curves file (`<dyn:curves inputFile="recollement_summer.crv" exportMode="CSV"/>`)
+       
+       * enable the PF output (`<dyn:finalState exportIIDMFile="true" exportDumpFile="false"/>`)
+       
+       * set the desired log level ("DEBUG" is too verbose for a full contingency run)
+
 
   5. Introduce a dummy disconnection in DynaFlow, which will become
      the reference for the disconnection time (typically, set the
