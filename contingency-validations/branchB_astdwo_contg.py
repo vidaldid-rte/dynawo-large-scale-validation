@@ -49,9 +49,10 @@ import random
 import re
 import sys
 from collections import namedtuple
-from common_funcs import check_inputfiles, copy_basecase, parse_basecase
+from common_funcs import copy_astdwo_basecase, copy_dwodwo_basecase, parse_basecase
 from lxml import etree
 import pandas as pd
+import argparse
 
 # Relative imports only work for proper Python packages, but we do not want to
 # structure all these as a package; we'd like to keep them as a collection of loose
@@ -59,28 +60,61 @@ import pandas as pd
 # the following hack is ugly, but needed:
 sys.path.insert(1, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Alternatively, you could set PYTHONPATH to PYTHONPATH="/<dir>/dynawo-validation-AIA"
-from xml_utils.dwo_jobinfo import get_dwo_jobpaths  # noqa: E402
-from xml_utils.dwo_jobinfo import get_dwo_tparams  # noqa: E402
+from xml_utils.dwo_jobinfo import (
+    is_astdwo,
+    is_dwodwo,
+    get_dwo_jobpaths,
+    get_dwo_tparams,
+    get_dwodwo_jobpaths,
+    get_dwodwo_tparams,
+)  # noqa: E402
 
 
 MAX_NCASES = 5  # limits the no. of contingency cases (via random sampling)
 RNG_SEED = 42
 ASTRE_PATH = "/Astre/donneesModelesEntree.xml"
 
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    "-t",
+    "--txt",
+    help="enter regular expressions or contingencies in text form, by default, "
+    "all possible contingencies will be generated (if below MAX_NCASES; "
+    "otherwise a random sample is generated)",
+)
+parser.add_argument(
+    "-v", "--verbose", help="increase output verbosity", action="store_true"
+)
+parser.add_argument(
+    "-l",
+    "--list",
+    help="enter regular expressions or contingencies in "
+    "string form separated with pipe(|)",
+)
+parser.add_argument("base_case", help="enter base case directory")
+args = parser.parse_args()
 
 def main():
+    filter_list = []
     verbose = False
-    if len(sys.argv) < 2:
-        print("\nUsage: %s BASECASE [element1 element2 element3 ...]\n" % sys.argv[0])
-        print(
-            "\nThe optional list may include regular expressions. "
-            "If the list is empty, all possible contingencies will be generated "
-            "(if below MAX_NCASES=%d; otherwise a random sample is generated).\n"
-            % MAX_NCASES
-        )
-        return 2
-    base_case = sys.argv[1]
-    filter_list = [re.compile(x) for x in sys.argv[2:]]
+    if args.verbose:
+        verbose = args.verbose
+    base_case = args.base_case
+    if args.list:
+        temp_list = args.list.split("|")
+        filter_list = [re.compile(x) for x in temp_list]
+        while re.compile("") in filter_list:
+            filter_list.remove(re.compile(""))
+    if args.txt:
+        with open(args.txt) as f:
+            filter_list = [re.compile(x) for x in f.read().split(os.linesep)]
+            while re.compile("") in filter_list:
+                filter_list.remove(re.compile(""))
+
+    # remove a possible trailing slash
+    if base_case[-1] == "/":
+        base_case = base_case[:-1]
+        
     # Select disconnection mode from how the script is named:
     disconn_mode = "BOTH_ENDS"
     called_as = os.path.basename(sys.argv[0])
@@ -89,23 +123,38 @@ def main():
     elif called_as[:7] == "branchT":
         disconn_mode = "TO"
 
-    # Get Dynawo paths from the JOB file
-    dwo_paths = get_dwo_jobpaths(base_case)
-
-    # Get the simulation time parameters (from Dynawo's case)
-    dwo_tparams = get_dwo_tparams(base_case)
-
-    # Check that all needed files are in place
-    base_case, basename, dirname = check_inputfiles(base_case, dwo_paths, verbose)
+    # Check whether it's an Astre-vs-Dynawo or a Dynawo-vs-Dynawo case
+    # And get the Dynawo paths from the JOB file, and the simulation time params
+    dwo_paths, astdwo = (None, None)
+    dwo_pathsA, dwo_pathsB = (None, None)
+    if is_astdwo(base_case):
+        print(f"Creating contingencies from ASTRE-vs-DYNAWO case: {base_case}")
+        dwo_paths = get_dwo_jobpaths(base_case)
+        dwo_tparams = get_dwo_tparams(base_case)
+        astdwo = True
+    elif is_dwodwo(base_case):
+        print(f"Creating contingencies from DYNAWO-vs-DYNAWO case: {base_case}")
+        dwo_pathsA, dwo_pathsB = get_dwodwo_jobpaths(base_case)
+        dwo_tparamsA, dwo_tparamsB = get_dwodwo_tparams(base_case)
+        astdwo = False
+    else:
+        raise ValueError(f"Case {base_case} is neither an ast-dwo nor a dwo-dwo case")
 
     # Parse all XML files in the basecase
-    parsed_case = parse_basecase(base_case, dwo_paths, ASTRE_PATH)
+    parsed_case = parse_basecase(
+        base_case, dwo_paths, ASTRE_PATH, dwo_pathsA, dwo_pathsB
+    )
 
-    # Extract the list of all (active) BRANCHES in the Dynawo case
-    dynawo_branches = extract_dynawo_branches(parsed_case.iidmTree, verbose)
-
-    # Reduce the list to those BRANCHES that are matched in Astre
-    dynawo_branches = matching_in_astre(parsed_case.astreTree, dynawo_branches, verbose)
+    # Extract the list of all (active) branches in the Dynawo case
+    if astdwo:
+        dynawo_branches = extract_dynawo_dynawo_branches(parsed_case.iidmTree, verbose)
+        # And reduce the list to those branches that are matched in Astre
+        dynawo_branches = matching_in_astre(parsed_case.astreTree, dynawo_branches, verbose)
+    else:
+        dynawo_branches = extract_dynawo_branches(parsed_case.A.iidmTree, verbose)
+        dynawo_branchesB = extract_dynawo_branches(parsed_case.B.iidmTree, verbose)
+        # And reduce the list to those branches that are matched in the Dynawo B case
+        dynawo_branches = matching_in_dwoB(dynawo_branches, dynawo_branchesB)
 
     # Prepare for random sampling if there's too many
     sampling_ratio = MAX_NCASES / len(dynawo_branches)
@@ -117,7 +166,7 @@ def main():
         )
 
     # Initialize another dict to keep Astre's (P,Q)-flows of each disconnected branch
-    astre_branches = dict()
+    processed_branchesPQ = dict()
 
     # For each matching BRANCH, generate the contingency case
     for branch_name in dynawo_branches:
@@ -146,30 +195,54 @@ def main():
         contg_casedir = (
             dirname + "/branch" + disconn_mode[0] + "_" + branch_name.replace("/", "+")
         )
-        copy_basecase(base_case, dwo_paths, contg_casedir)
 
-        # Modify the Dynawo case (DYD,PAR,CRV)
-        config_dynawo_branch_contingency(
-            contg_casedir,
-            parsed_case,
-            dwo_paths,
-            dwo_tparams,
-            branch_name,
-            dynawo_branches[branch_name],
-            disconn_mode,
-        )
-
-        # Modify the Astre case, and obtain its disrupted power flows (P,Q)
-        astre_branches[branch_name] = config_astre_branch_contingency(
-            contg_casedir,
-            parsed_case.astreTree,
-            branch_name,
-            dynawo_branches[branch_name],
-            disconn_mode,
-        )
+        if astdwo:
+            # Copy the basecase (unchanged files and dir structure)
+            copy_astdwo_basecase(base_case, dwo_paths, contg_casedir)
+            # Modify the Dynawo case (DYD,PAR,CRV)
+            config_dynawo_branch_contingency(
+                contg_casedir,
+                parsed_case,
+                dwo_paths,
+                dwo_tparams,
+                branch_name,
+                dynawo_branches[branch_name],
+                disconn_mode,
+            )
+            # Modify the Astre case, and obtain the disconnected generation (P,Q)
+            processed_branchesPQ[branch_name] = config_astre_branch_contingency(
+                contg_casedir, parsed_case.astreTree, branch_name, dynawo_branches[branch_name]
+            )
+        else:
+            # Copy the basecase (unchanged files and dir structure)
+            copy_dwodwo_basecase(base_case, dwo_pathsA, dwo_pathsB, contg_casedir)
+            # Modify the Dynawo A & B cases (DYD,PAR,CRV)
+            config_dynawo_branch_contingency(
+                contg_casedir,
+                parsed_case.A,
+                dwo_pathsA,
+                dwo_tparamsA,
+                branch_name,
+                dynawo_branches[branch_name],
+                disconn_mode,
+            )
+            config_dynawo_branch_contingency(
+                contg_casedir,
+                parsed_case.B,
+                dwo_pathsB,
+                dwo_tparamsB,
+                branch_name,
+                dynawo_branches[branch_name],
+                disconn_mode,
+            )
+            # Get the disconnected generation (P,Q) for case B
+            processed_branchesPQ[branch_name] = (
+                dynawo_branchesB[branch_name].P,
+                dynawo_branchesB[branch_name].Q,
+            )
 
     # Finally, save the (P,Q) values of disconnected branches in all processed cases
-    save_total_branchpq(dirname, dynawo_branches, astre_branches)
+    save_total_branchpq(dirname, astdwo, dynawo_branches, processed_branchesPQ)
 
     return 0
 
@@ -242,6 +315,12 @@ def extract_dynawo_branches(iidm_tree, verbose=False):
 
     return branches
 
+def matching_in_dwoB(dynawo_branchesA, dynawo_branchesB):
+    # Match:
+    new_list = [x for x in dynawo_branchesA.items() if x[0] in dynawo_branchesB]
+    print("   (matched %d branches against Dynawo A case)\n" % len(new_list))
+    return dict(new_list)
+
 
 def get_endbus(root, branch, branch_type, side):
     ns = etree.QName(root).namespace
@@ -273,19 +352,19 @@ def matching_in_astre(astre_tree, dynawo_branches, verbose=False):
     root = astre_tree.getroot()
 
     # Retrieve the list of Astre branches
-    astre_branches = set()  # for faster matching below
+    processed_branchesPQ = set()  # for faster matching below
     reseau = root.find("./reseau", root.nsmap)
     donneesQuadripoles = reseau.find("./donneesQuadripoles", root.nsmap)
     for branch in donneesQuadripoles.iterfind("./quadripole", root.nsmap):
-        astre_branches.add(branch.get("nom"))
+        processed_branchesPQ.add(branch.get("nom"))
 
-    print("\nFound %d branches in Astre file" % len(astre_branches))
+    print("\nFound %d branches in Astre file" % len(processed_branchesPQ))
     if verbose:
         print(
             "Sample list of all BRANCHES in Astre file: (total: %d)"
-            % len(astre_branches)
+            % len(processed_branchesPQ)
         )
-        branch_list = sorted(astre_branches)
+        branch_list = sorted(processed_branchesPQ)
         if len(branch_list) < 10:
             print(branch_list)
         else:
@@ -293,7 +372,7 @@ def matching_in_astre(astre_tree, dynawo_branches, verbose=False):
         print()
 
     # Match:
-    new_list = [x for x in dynawo_branches.items() if x[0] in astre_branches]
+    new_list = [x for x in dynawo_branches.items() if x[0] in processed_branchesPQ]
     print("   (matched %d branches against Dynawo file)\n" % len(new_list))
 
     return dict(new_list)
@@ -557,33 +636,46 @@ def config_astre_branch_contingency(
     return branch_P, branch_Q
 
 
-def save_total_branchpq(dirname, dynawo_branches, astre_branches):
+def save_total_branchpq(dirname, astdwo, dynawo_branches, processed_branchesPQ):
     file_name = dirname + "/total_PQ_per_branch.csv"
     # Using a dataframe for sorting
-    column_list = [
-        "BRANCH",
-        "P_dwo",
-        "P_ast",
-        "Pdiff_pct",
-        "Q_dwo",
-        "Q_ast",
-        "Qdiff_pct",
-        "PQdiff_pct",
-    ]
+    if astdwo:
+        column_list = [
+            "BRANCH",
+            "P_dwo",
+            "P_ast",
+            "Pdiff_pct",
+            "Q_dwo",
+            "Q_ast",
+            "Qdiff_pct",
+            "PQdiff_pct",
+        ]
+    else:
+        column_list = [
+            "BRANCH",
+            "P_dwoA",
+            "P_dwoB",
+            "Pdiff_pct",
+            "Q_dwoA",
+            "Q_dwoB",
+            "Qdiff_pct",
+            "PQdiff_pct",
+        ]
+
     data_list = []
-    # We enumerate the astre_branches dict because it contains the cases
+    # We enumerate the processed_branchesPQ dict because it contains the cases
     # that have actually been processed (because we may have skipped
     # some in the main loop).
-    for branch_name in astre_branches:
+    for branch_name in processed_branchesPQ:
         P_dwo = dynawo_branches[branch_name].P
-        P_ast = astre_branches[branch_name][0]
-        Pdiff_pct = 100 * (P_dwo - P_ast) / max(abs(P_ast), 0.001)
+        P_proc = processed_branchesPQ[branch_name][0]
+        Pdiff_pct = 100 * (P_dwo - P_proc) / max(abs(P_proc), 0.001)
         Q_dwo = dynawo_branches[branch_name].Q
-        Q_ast = astre_branches[branch_name][1]
-        Qdiff_pct = 100 * (Q_dwo - Q_ast) / max(abs(Q_ast), 0.001)
+        Q_proc = processed_branchesPQ[branch_name][1]
+        Qdiff_pct = 100 * (Q_dwo - Q_proc) / max(abs(Q_proc), 0.001)
         PQdiff_pct = abs(Pdiff_pct) + abs(Qdiff_pct)
         data_list.append(
-            [branch_name, P_dwo, P_ast, Pdiff_pct, Q_dwo, Q_ast, Qdiff_pct, PQdiff_pct]
+            [branch_name, P_dwo, P_proc, Pdiff_pct, Q_dwo, Q_proc, Qdiff_pct, PQdiff_pct]
         )
 
     df = pd.DataFrame(data_list, columns=column_list)

@@ -43,9 +43,10 @@ import random
 import re
 import sys
 from collections import namedtuple
-from common_funcs import check_inputfiles, copy_basecase, parse_basecase
+from common_funcs import copy_astdwo_basecase, copy_dwodwo_basecase, parse_basecase
 from lxml import etree
 import pandas as pd
+import argparse
 
 # Relative imports only work for proper Python packages, but we do not want to
 # structure all these as a package; we'd like to keep them as a collection of loose
@@ -53,46 +54,96 @@ import pandas as pd
 # the following hack is ugly, but needed:
 sys.path.insert(1, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Alternatively, you could set PYTHONPATH to PYTHONPATH="/<dir>/dynawo-validation-AIA"
-from xml_utils.dwo_jobinfo import get_dwo_jobpaths  # noqa: E402
-from xml_utils.dwo_jobinfo import get_dwo_tparams  # noqa: E402
+from xml_utils.dwo_jobinfo import (
+    is_astdwo,
+    is_dwodwo,
+    get_dwo_jobpaths,
+    get_dwo_tparams,
+    get_dwodwo_jobpaths,
+    get_dwodwo_tparams,
+)  # noqa: E402
 
 
 MAX_NCASES = 5  # limits the no. of contingency cases (via random sampling)
 RNG_SEED = 42
 ASTRE_PATH = "/Astre/donneesModelesEntree.xml"
 
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    "-t",
+    "--txt",
+    help="enter regular expressions or contingencies in text form, by default, "
+    "all possible contingencies will be generated (if below MAX_NCASES; "
+    "otherwise a random sample is generated)",
+)
+parser.add_argument(
+    "-v", "--verbose", help="increase output verbosity", action="store_true"
+)
+parser.add_argument(
+    "-l",
+    "--list",
+    help="enter regular expressions or contingencies in "
+    "string form separated with pipe(|)",
+)
+parser.add_argument("base_case", help="enter base case directory")
+args = parser.parse_args()
 
 def main():
+    filter_list = []
     verbose = False
-    if len(sys.argv) < 2:
-        print("\nUsage: %s base_case [element1 element2 element3 ...]\n" % sys.argv[0])
-        print(
-            "\nThe optional list may include regular expressions. "
-            "If the list is empty, all possible contingencies will be generated "
-            "(if below MAX_NCASES=%d; otherwise a random sample is generated).\n"
-            % MAX_NCASES
-        )
-        return 2
-    base_case = sys.argv[1]
-    filter_list = [re.compile(x) for x in sys.argv[2:]]
+    if args.verbose:
+        verbose = args.verbose
+    base_case = args.base_case
+    if args.list:
+        temp_list = args.list.split("|")
+        filter_list = [re.compile(x) for x in temp_list]
+        while re.compile("") in filter_list:
+            filter_list.remove(re.compile(""))
+    if args.txt:
+        with open(args.txt) as f:
+            filter_list = [re.compile(x) for x in f.read().split(os.linesep)]
+            while re.compile("") in filter_list:
+                filter_list.remove(re.compile(""))
 
-    # Get Dynawo paths from the JOB file
-    dwo_paths = get_dwo_jobpaths(base_case)
+    # remove a possible trailing slash
+    if base_case[-1] == "/":
+        base_case = base_case[:-1]
 
-    # Get the simulation time parameters (from Dynawo's case)
-    dwo_tparams = get_dwo_tparams(base_case)
+    # Contingency cases will be created under the same dir as the basecase
+    dirname = os.path.dirname(os.path.abspath(base_case))
 
-    # Check that all needed files are in place
-    base_case, basename, dirname = check_inputfiles(base_case, dwo_paths, verbose)
+    # Check whether it's an Astre-vs-Dynawo or a Dynawo-vs-Dynawo case
+    # And get the Dynawo paths from the JOB file, and the simulation time params
+    dwo_paths, astdwo = (None, None)
+    dwo_pathsA, dwo_pathsB = (None, None)
+    if is_astdwo(base_case):
+        print(f"Creating contingencies from ASTRE-vs-DYNAWO case: {base_case}")
+        dwo_paths = get_dwo_jobpaths(base_case)
+        dwo_tparams = get_dwo_tparams(base_case)
+        astdwo = True
+    elif is_dwodwo(base_case):
+        print(f"Creating contingencies from DYNAWO-vs-DYNAWO case: {base_case}")
+        dwo_pathsA, dwo_pathsB = get_dwodwo_jobpaths(base_case)
+        dwo_tparamsA, dwo_tparamsB = get_dwodwo_tparams(base_case)
+        astdwo = False
+    else:
+        raise ValueError(f"Case {base_case} is neither an ast-dwo nor a dwo-dwo case")
 
     # Parse all XML files in the basecase
-    parsed_case = parse_basecase(base_case, dwo_paths, ASTRE_PATH)
+    parsed_case = parse_basecase(
+        base_case, dwo_paths, ASTRE_PATH, dwo_pathsA, dwo_pathsB
+    )
 
     # Extract the list of all (active) SHUNTS in the Dynawo case
-    dynawo_shunts = extract_dynawo_shunts(parsed_case.iidmTree, verbose)
-
-    # Reduce the list to those SHUNTS that are matched in Astre
-    dynawo_shunts = matching_in_astre(parsed_case.astreTree, dynawo_shunts, verbose)
+    if astdwo:
+        dynawo_shunts = extract_dynawo_shunts(parsed_case.iidmTree, verbose)
+        # And reduce the list to those shunts that are matched in Astre
+        dynawo_shunts = matching_in_astre(parsed_case.astreTree, dynawo_shunts, verbose)
+    else:
+        dynawo_shunts = extract_dynawo_shunts(parsed_case.A.iidmTree, verbose)
+        dynawo_shuntsB = extract_dynawo_shunts(parsed_case.B.iidmTree, verbose)
+        # And reduce the list to those shunts that are matched in the Dynawo B case
+        dynawo_shunts = matching_in_dwoB(dynawo_shunts, dynawo_shuntsB)
 
     # Prepare for random sampling if there's too many
     sampling_ratio = MAX_NCASES / len(dynawo_shunts)
@@ -104,7 +155,7 @@ def main():
         )
 
     # Initialize another dict to keep Astre's Q of each disconnected shunt
-    astre_shunts = dict()
+    processed_shuntsPQ = dict()
 
     # For each matching SHUNT, generate the contingency case
     for shunt_name in dynawo_shunts:
@@ -126,25 +177,51 @@ def main():
         # Copy the basecase (unchanged files and dir structure)
         # Note we fix any device names with slashes in them (illegal filenames)
         contg_casedir = dirname + "/shunt_" + shunt_name.replace("/", "+")
-        copy_basecase(base_case, dwo_paths, contg_casedir)
 
-        # Modify the Dynawo case (DYD,PAR,CRV)
-        config_dynawo_shunt_contingency(
-            contg_casedir,
-            parsed_case,
-            dwo_paths,
-            dwo_tparams,
-            shunt_name,
-            dynawo_shunts[shunt_name],
-        )
-
-        # Modify the Astre case, and obtain the disconnected shunt's injection (Q)
-        astre_shunts[shunt_name] = config_astre_shunt_contingency(
-            contg_casedir, parsed_case.astreTree, shunt_name, dynawo_shunts[shunt_name]
-        )
+        if astdwo:
+            # Copy the basecase (unchanged files and dir structure)
+            copy_astdwo_basecase(base_case, dwo_paths, contg_casedir)
+            # Modify the Dynawo case (DYD,PAR,CRV)
+            config_dynawo_shunt_contingency(
+                contg_casedir,
+                parsed_case,
+                dwo_paths,
+                dwo_tparams,
+                shunt_name,
+                dynawo_shunts[shunt_name],
+            )
+            # Modify the Astre case, and obtain the disconnected generation (P,Q)
+            processed_shuntsPQ[shunt_name] = config_astre_shunt_contingency(
+                contg_casedir, parsed_case.astreTree, shunt_name, dynawo_shunts[shunt_name]
+            )
+        else:
+            # Copy the basecase (unchanged files and dir structure)
+            copy_dwodwo_basecase(base_case, dwo_pathsA, dwo_pathsB, contg_casedir)
+            # Modify the Dynawo A & B cases (DYD,PAR,CRV)
+            config_dynawo_shunt_contingency(
+                contg_casedir,
+                parsed_case.A,
+                dwo_pathsA,
+                dwo_tparamsA,
+                shunt_name,
+                dynawo_shunts[shunt_name],
+            )
+            config_dynawo_shunt_contingency(
+                contg_casedir,
+                parsed_case.B,
+                dwo_pathsB,
+                dwo_tparamsB,
+                shunt_name,
+                dynawo_shunts[shunt_name],
+            )
+            # Get the disconnected generation (P,Q) for case B
+            processed_shuntsPQ[shunt_name] = (
+                dynawo_shuntsB[shunt_name].P,
+                dynawo_shuntsB[shunt_name].Q,
+            )
 
     # Finally, save the values of disconnected shunts in all processed cases
-    save_total_shuntq(dirname, dynawo_shunts, astre_shunts)
+    save_total_shuntq(dirname, astdwo, dynawo_shunts, processed_shuntsPQ)
 
     return 0
 
@@ -185,20 +262,20 @@ def matching_in_astre(astre_tree, dynawo_shunts, verbose=False):
     root = astre_tree.getroot()
 
     # Retrieve the list of Astre shunts
-    astre_shunts = set()  # for faster matching below
+    processed_shuntsPQ = set()  # for faster matching below
     reseau = root.find("./reseau", root.nsmap)
     donneesShunts = reseau.find("./donneesShunts", root.nsmap)
     for shunt in donneesShunts.iterfind("./shunt", root.nsmap):
         # Discard disconnected shunts
         if shunt.get("noeud") != "-1":
-            astre_shunts.add(shunt.get("nom"))
+            processed_shuntsPQ.add(shunt.get("nom"))
 
-    print("\nFound %d shunts in Astre file" % len(astre_shunts))
+    print("\nFound %d shunts in Astre file" % len(processed_shuntsPQ))
     if verbose:
         print(
-            "Sample list of all SHUNTS in Astre file: (total: %d)" % len(astre_shunts)
+            "Sample list of all SHUNTS in Astre file: (total: %d)" % len(processed_shuntsPQ)
         )
-        shunt_list = sorted(astre_shunts)
+        shunt_list = sorted(processed_shuntsPQ)
         if len(shunt_list) < 10:
             print(shunt_list)
         else:
@@ -206,11 +283,16 @@ def matching_in_astre(astre_tree, dynawo_shunts, verbose=False):
         print()
 
     # Match:
-    new_list = [x for x in dynawo_shunts.items() if x[0] in astre_shunts]
+    new_list = [x for x in dynawo_shunts.items() if x[0] in processed_shuntsPQ]
     print("   (matched %d shunts against Dynawo file)\n" % len(new_list))
 
     return dict(new_list)
 
+def matching_in_dwoB(dynawo_shuntsA, dynawo_shuntsB):
+    # Match:
+    new_list = [x for x in dynawo_shuntsA.items() if x[0] in dynawo_shuntsB]
+    print("   (matched %d shunts against Dynawo A case)\n" % len(new_list))
+    return dict(new_list)
 
 def config_dynawo_shunt_contingency(
     casedir, case_trees, dwo_paths, dwo_tparams, shunt_name, shunt_info
@@ -428,19 +510,33 @@ def config_astre_shunt_contingency(casedir, astre_tree, shunt_name, shunt_info):
     return shunt_Q
 
 
-def save_total_shuntq(dirname, dynawo_shunts, astre_shunts):
+def save_total_shuntq(dirname, astdwo, dynawo_shunts, processed_shuntsPQ):
     file_name = dirname + "/total_shuntQ_per_bus.csv"
     # Using a dataframe for sorting
-    column_list = ["SHUNT", "Q_dwo", "Q_ast", "Qdiff_pct"]
+    if astdwo:
+        column_list = [
+            "SHUNT",
+            "Q_dwo",
+            "Q_ast",
+            "Qdiff_pct",
+        ]
+    else:
+        column_list = [
+            "SHUNT",
+            "Q_dwoA",
+            "Q_dwoB",
+            "Qdiff_pct",
+        ]
+
     data_list = []
-    # We enumerate the astre_shunts dict because it contains the cases
+    # We enumerate the processed_shuntsPQ dict because it contains the cases
     # that have actually been processed (because we may have skipped
     # some in the main loop).
-    for shunt_name in astre_shunts:
+    for shunt_name in processed_shuntsPQ:
         Q_dwo = dynawo_shunts[shunt_name].Q
-        Q_ast = astre_shunts[shunt_name]
-        Qdiff_pct = 100 * (Q_dwo - Q_ast) / max(abs(Q_dwo), 0.001)
-        data_list.append([shunt_name, Q_dwo, Q_ast, Qdiff_pct])
+        Q_proc = processed_shuntsPQ[shunt_name]
+        Qdiff_pct = 100 * (Q_dwo - Q_proc) / max(abs(Q_dwo), 0.001)
+        data_list.append([shunt_name, Q_dwo, Q_proc, Qdiff_pct])
 
     df = pd.DataFrame(data_list, columns=column_list)
     df.sort_values(by=["Qdiff_pct"], inplace=True, ascending=False, na_position="first")

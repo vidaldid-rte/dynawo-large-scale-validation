@@ -108,7 +108,7 @@ def main():
             filter_list.remove(re.compile(""))
     if args.txt:
         with open(args.txt) as f:
-            filter_list = [re.compile(x) for x in f.read().split("\n")]
+            filter_list = [re.compile(x) for x in f.read().split(os.linesep)]
             while re.compile("") in filter_list:
                 filter_list.remove(re.compile(""))
 

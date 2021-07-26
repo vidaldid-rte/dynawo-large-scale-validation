@@ -62,6 +62,7 @@ from collections import namedtuple
 from common_funcs import copy_astdwo_basecase, copy_dwodwo_basecase, parse_basecase
 from lxml import etree
 import pandas as pd
+import argparse
 
 # Relative imports only work for proper Python packages, but we do not want to
 # structure all these as a package; we'd like to keep them as a collection of loose
@@ -83,20 +84,43 @@ MAX_NCASES = 5  # limits the no. of contingency cases (via random sampling)
 RNG_SEED = 42
 ASTRE_PATH = "/Astre/donneesModelesEntree.xml"
 
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    "-t",
+    "--txt",
+    help="enter regular expressions or contingencies in text form, by default, "
+    "all possible contingencies will be generated (if below MAX_NCASES; "
+    "otherwise a random sample is generated)",
+)
+parser.add_argument(
+    "-v", "--verbose", help="increase output verbosity", action="store_true"
+)
+parser.add_argument(
+    "-l",
+    "--list",
+    help="enter regular expressions or contingencies in "
+    "string form separated with pipe(|)",
+)
+parser.add_argument("base_case", help="enter base case directory")
+args = parser.parse_args()
+
 
 def main():
+    filter_list = []
     verbose = False
-    if len(sys.argv) < 2:
-        print("\nUsage: %s base_case [element1 element2 element3 ...]\n" % sys.argv[0])
-        print(
-            "\nThe optional list may include regular expressions. "
-            "If the list is empty, all possible contingencies will be generated "
-            "(if below MAX_NCASES=%d; otherwise a random sample is generated).\n"
-            % MAX_NCASES
-        )
-        return 2
-    base_case = sys.argv[1]
-    filter_list = [re.compile(x) for x in sys.argv[2:]]
+    if args.verbose:
+        verbose = args.verbose
+    base_case = args.base_case
+    if args.list:
+        temp_list = args.list.split("|")
+        filter_list = [re.compile(x) for x in temp_list]
+        while re.compile("") in filter_list:
+            filter_list.remove(re.compile(""))
+    if args.txt:
+        with open(args.txt) as f:
+            filter_list = [re.compile(x) for x in f.read().split(os.linesep)]
+            while re.compile("") in filter_list:
+                filter_list.remove(re.compile(""))
 
     # remove a possible trailing slash
     if base_case[-1] == "/":

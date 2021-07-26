@@ -43,9 +43,10 @@ import random
 import re
 import sys
 from collections import namedtuple
-from common_funcs import check_inputfiles, copy_basecase, parse_basecase
+from common_funcs import copy_astdwo_basecase, copy_dwodwo_basecase, parse_basecase
 from lxml import etree
 import pandas as pd
+import argparse
 
 # Relative imports only work for proper Python packages, but we do not want to
 # structure all these as a package; we'd like to keep them as a collection of loose
@@ -53,48 +54,96 @@ import pandas as pd
 # the following hack is ugly, but needed:
 sys.path.insert(1, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Alternatively, you could set PYTHONPATH to PYTHONPATH="/<dir>/dynawo-validation-AIA"
-from xml_utils.dwo_jobinfo import get_dwo_jobpaths  # noqa: E402
-from xml_utils.dwo_jobinfo import get_dwo_tparams  # noqa: E402
+from xml_utils.dwo_jobinfo import (
+    is_astdwo,
+    is_dwodwo,
+    get_dwo_jobpaths,
+    get_dwo_tparams,
+    get_dwodwo_jobpaths,
+    get_dwodwo_tparams,
+)  # noqa: E402
 
 
 MAX_NCASES = 5  # limits the no. of contingency cases (via random sampling)
 RNG_SEED = 42
 ASTRE_PATH = "/Astre/donneesModelesEntree.xml"
 
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    "-t",
+    "--txt",
+    help="enter regular expressions or contingencies in text form, by default, "
+    "all possible contingencies will be generated (if below MAX_NCASES; "
+    "otherwise a random sample is generated)",
+)
+parser.add_argument(
+    "-v", "--verbose", help="increase output verbosity", action="store_true"
+)
+parser.add_argument(
+    "-l",
+    "--list",
+    help="enter regular expressions or contingencies in "
+    "string form separated with pipe(|)",
+)
+parser.add_argument("base_case", help="enter base case directory")
+args = parser.parse_args()
 
 def main():
+    filter_list = []
     verbose = False
-    if len(sys.argv) < 2:
-        print("\nUsage: %s base_case [element1 element2 element3 ...]\n" % sys.argv[0])
-        print(
-            "\nThe optional list may include regular expressions. "
-            "If the list is empty, all possible contingencies will be generated "
-            "(if below MAX_NCASES=%d; otherwise a random sample is generated).\n"
-            % MAX_NCASES
-        )
-        return 2
-    base_case = sys.argv[1]
-    filter_list = [re.compile(x) for x in sys.argv[2:]]
+    if args.verbose:
+        verbose = args.verbose
+    base_case = args.base_case
+    if args.list:
+        temp_list = args.list.split("|")
+        filter_list = [re.compile(x) for x in temp_list]
+        while re.compile("") in filter_list:
+            filter_list.remove(re.compile(""))
+    if args.txt:
+        with open(args.txt) as f:
+            filter_list = [re.compile(x) for x in f.read().split(os.linesep)]
+            while re.compile("") in filter_list:
+                filter_list.remove(re.compile(""))
 
-    # Get Dynawo paths from the JOB file
-    dwo_paths = get_dwo_jobpaths(base_case)
+    # remove a possible trailing slash
+    if base_case[-1] == "/":
+        base_case = base_case[:-1]
 
-    # Get the simulation time parameters (from Dynawo's case)
-    dwo_tparams = get_dwo_tparams(base_case)
+    # Contingency cases will be created under the same dir as the basecase
+    dirname = os.path.dirname(os.path.abspath(base_case))
 
-    # Check that all needed files are in place
-    base_case, basename, dirname = check_inputfiles(base_case, dwo_paths, verbose)
+    # Check whether it's an Astre-vs-Dynawo or a Dynawo-vs-Dynawo case
+    # And get the Dynawo paths from the JOB file, and the simulation time params
+    dwo_paths, astdwo = (None, None)
+    dwo_pathsA, dwo_pathsB = (None, None)
+    if is_astdwo(base_case):
+        print(f"Creating contingencies from ASTRE-vs-DYNAWO case: {base_case}")
+        dwo_paths = get_dwo_jobpaths(base_case)
+        dwo_tparams = get_dwo_tparams(base_case)
+        astdwo = True
+    elif is_dwodwo(base_case):
+        print(f"Creating contingencies from DYNAWO-vs-DYNAWO case: {base_case}")
+        dwo_pathsA, dwo_pathsB = get_dwodwo_jobpaths(base_case)
+        dwo_tparamsA, dwo_tparamsB = get_dwodwo_tparams(base_case)
+        astdwo = False
+    else:
+        raise ValueError(f"Case {base_case} is neither an ast-dwo nor a dwo-dwo case")
 
     # Parse all XML files in the basecase
-    parsed_case = parse_basecase(base_case, dwo_paths, ASTRE_PATH)
-
-    # Extract the list of all LOADS present in the Dynawo case (by staticID)
-    dynawo_loads = extract_dynawo_loads(
-        parsed_case.dydTree, parsed_case.iidmTree, verbose
+    parsed_case = parse_basecase(
+        base_case, dwo_paths, ASTRE_PATH, dwo_pathsA, dwo_pathsB
     )
 
-    # Reduce the list to those LOADS that are matched in Astre
-    dynawo_loads = matching_in_astre(parsed_case.astreTree, dynawo_loads, verbose)
+    # Extract the list of all LOADS present in the Dynawo case (by staticID)
+    if astdwo:
+        dynawo_loads = extract_dynawo_loads(parsed_case.iidmTree, verbose)
+        # And reduce the list to those loads that are matched in Astre
+        dynawo_loads = matching_in_astre(parsed_case.astreTree, dynawo_loads, verbose)
+    else:
+        dynawo_loads = extract_dynawo_loads(parsed_case.A.iidmTree, verbose)
+        dynawo_loadsB = extract_dynawo_loads(parsed_case.B.iidmTree, verbose)
+        # And reduce the list to those loads that are matched in the Dynawo B case
+        dynawo_loads = matching_in_dwoB(dynawo_loads, dynawo_loadsB)
 
     # Prepare for random sampling if there's too many
     sampling_ratio = MAX_NCASES / len(dynawo_loads)
@@ -106,7 +155,7 @@ def main():
         )
 
     # Initialize another dict to keep Astre's (P,Q) of each load
-    astre_loads = dict()
+    processed_loadsPQ = dict()
 
     # For each matching LOAD, generate the contingency cases
     for load_name in dynawo_loads:
@@ -128,25 +177,51 @@ def main():
         # Copy the basecase (unchanged files and dir structure)
         # Note we fix any device names with slashes in them (illegal filenames)
         contg_casedir = dirname + "/load_" + load_name.replace("/", "+")
-        copy_basecase(base_case, dwo_paths, contg_casedir)
 
-        # Modify the Dynawo case (DYD,PAR,CRV)
-        config_dynawo_load_contingency(
-            contg_casedir,
-            parsed_case,
-            dwo_paths,
-            dwo_tparams,
-            load_name,
-            dynawo_loads[load_name],
-        )
-
-        # Modify the Astre case, and obtain the disconnected load demand (P,Q)
-        astre_loads[load_name] = config_astre_load_contingency(
-            contg_casedir, parsed_case.astreTree, load_name, dynawo_loads[load_name]
-        )
+        if astdwo:
+            # Copy the basecase (unchanged files and dir structure)
+            copy_astdwo_basecase(base_case, dwo_paths, contg_casedir)
+            # Modify the Dynawo case (DYD,PAR,CRV)
+            config_dynawo_load_contingency(
+                contg_casedir,
+                parsed_case,
+                dwo_paths,
+                dwo_tparams,
+                load_name,
+                dynawo_loads[load_name],
+            )
+            # Modify the Astre case, and obtain the disconnected generation (P,Q)
+            processed_loadsPQ[load_name] = config_astre_load_contingency(
+                contg_casedir, parsed_case.astreTree, load_name, dynawo_loads[load_name]
+            )
+        else:
+            # Copy the basecase (unchanged files and dir structure)
+            copy_dwodwo_basecase(base_case, dwo_pathsA, dwo_pathsB, contg_casedir)
+            # Modify the Dynawo A & B cases (DYD,PAR,CRV)
+            config_dynawo_load_contingency(
+                contg_casedir,
+                parsed_case.A,
+                dwo_pathsA,
+                dwo_tparamsA,
+                load_name,
+                dynawo_loads[load_name],
+            )
+            config_dynawo_load_contingency(
+                contg_casedir,
+                parsed_case.B,
+                dwo_pathsB,
+                dwo_tparamsB,
+                load_name,
+                dynawo_loads[load_name],
+            )
+            # Get the disconnected generation (P,Q) for case B
+            processed_loadsPQ[load_name] = (
+                dynawo_loadsB[load_name].P,
+                dynawo_loadsB[load_name].Q,
+            )
 
     # Finally, save the (P,Q) values of disconnected loads in all processed cases
-    save_total_loadpq(dirname, dynawo_loads, astre_loads)
+    save_total_loadpq(dirname, astdwo, dynawo_shunts, processed_shuntsPQ)
 
     return 0
 
@@ -220,18 +295,18 @@ def matching_in_astre(astre_tree, dynawo_loads, verbose=False):
     root = astre_tree.getroot()
 
     # Retrieve the list of Astre loads
-    astre_loads = set()  # for faster matching below
+    processed_loadsPQ = set()  # for faster matching below
     reseau = root.find("./reseau", root.nsmap)
     donneesConsos = reseau.find("./donneesConsos", root.nsmap)
     for element in donneesConsos.iterfind("./conso", root.nsmap):
         # Discard loads having noeud="-1"
         if element.get("noeud") != "-1":
-            astre_loads.add(element.get("nom"))
+            processed_loadsPQ.add(element.get("nom"))
 
-    print("\nFound %d loads in Astre file" % len(astre_loads))
+    print("\nFound %d loads in Astre file" % len(processed_loadsPQ))
     if verbose:
-        print("List of all loads in Astre file: (total: %d)" % len(astre_loads))
-        load_list = sorted(astre_loads)
+        print("List of all loads in Astre file: (total: %d)" % len(processed_loadsPQ))
+        load_list = sorted(processed_loadsPQ)
         if len(load_list) < 10:
             print(load_list)
         else:
@@ -239,9 +314,16 @@ def matching_in_astre(astre_tree, dynawo_loads, verbose=False):
         print()
 
     # Match:
-    new_list = [x for x in dynawo_loads.items() if x[0] in astre_loads]
+    new_list = [x for x in dynawo_loads.items() if x[0] in processed_loadsPQ]
     print("   (matched %d loads against Dynawo file)\n" % len(new_list))
 
+    return dict(new_list)
+
+
+def matching_in_dwoB(dynawo_loadsA, dynawo_loadssB):
+    # Match:
+    new_list = [x for x in dynawo_loadsA.items() if x[0] in dynawo_loadssB]
+    print("   (matched %d loads against Dynawo A case)\n" % len(new_list))
     return dict(new_list)
 
 
@@ -469,33 +551,46 @@ def config_astre_load_contingency(casedir, astre_tree, load_name, load_info):
     return load_P, load_Q
 
 
-def save_total_loadpq(dirname, dynawo_loads, astre_loads):
+def save_total_loadpq(dirname, dynawo_loads, processed_loadsPQ):
     file_name = dirname + "/total_PQ_per_load.csv"
     # Using a dataframe for sorting
-    column_list = [
-        "LOAD",
-        "P_dwo",
-        "P_ast",
-        "Pdiff_pct",
-        "Q_dwo",
-        "Q_ast",
-        "Qdiff_pct",
-        "sumPQdiff_pct",
-    ]
+    if astdwo:
+        column_list = [
+            "LOAD",
+            "P_dwo",
+            "P_ast",
+            "Pdiff_pct",
+            "Q_dwo",
+            "Q_ast",
+            "Qdiff_pct",
+            "sumPQdiff_pct",
+        ]
+    else:
+        column_list = [
+            "LOAD",
+            "P_dwoA",
+            "P_dwoB",
+            "Pdiff_pct",
+            "Q_dwoA",
+            "Q_dwoB",
+            "Qdiff_pct",
+            "sumPQdiff_pct",
+        ]
+
     data_list = []
-    # We enumerate the astre_loads dict because it contains the cases
+    # We enumerate the processed_loadsPQ dict because it contains the cases
     # that have actually been processed (because we may have skipped
     # some in the main loop).
-    for load_name in astre_loads:
+    for load_name in processed_loadsPQ:
         P_dwo = dynawo_loads[load_name].P
-        P_ast = astre_loads[load_name][0]
-        Pdiff_pct = 100 * (P_dwo - P_ast) / max(abs(P_ast), 0.001)
+        P_proc = processed_loadsPQ[load_name][0]
+        Pdiff_pct = 100 * (P_dwo - P_proc) / max(abs(P_proc), 0.001)
         Q_dwo = dynawo_loads[load_name].Q
-        Q_ast = astre_loads[load_name][1]
-        Qdiff_pct = 100 * (Q_dwo - Q_ast) / max(abs(Q_ast), 0.001)
+        Q_proc = processed_loadsPQ[load_name][1]
+        Qdiff_pct = 100 * (Q_dwo - Q_proc) / max(abs(Q_proc), 0.001)
         sumPQdiff_pct = abs(Pdiff_pct) + abs(Qdiff_pct)
         data_list.append(
-            [load_name, P_dwo, P_ast, Pdiff_pct, Q_dwo, Q_ast, Qdiff_pct, sumPQdiff_pct]
+            [load_name, P_dwo, P_proc, Pdiff_pct, Q_dwo, Q_proc, Qdiff_pct, sumPQdiff_pct]
         )
 
     df = pd.DataFrame(data_list, columns=column_list)
