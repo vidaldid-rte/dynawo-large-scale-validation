@@ -136,12 +136,12 @@ def main():
 
     # Extract the list of all LOADS present in the Dynawo case (by staticID)
     if astdwo:
-        dynawo_loads = extract_dynawo_loads(parsed_case.iidmTree, verbose)
+        dynawo_loads = extract_dynawo_loads(parsed_case.dydTree, parsed_case.iidmTree, verbose)
         # And reduce the list to those loads that are matched in Astre
         dynawo_loads = matching_in_astre(parsed_case.astreTree, dynawo_loads, verbose)
     else:
-        dynawo_loads = extract_dynawo_loads(parsed_case.A.iidmTree, verbose)
-        dynawo_loadsB = extract_dynawo_loads(parsed_case.B.iidmTree, verbose)
+        dynawo_loads = extract_dynawo_loads(parsed_case.A.dydTree, parsed_case.A.iidmTree, verbose)
+        dynawo_loadsB = extract_dynawo_loads(parsed_case.B.dydTree, parsed_case.B.iidmTree, verbose)
         # And reduce the list to those loads that are matched in the Dynawo B case
         dynawo_loads = matching_in_dwoB(dynawo_loads, dynawo_loadsB)
 
@@ -221,7 +221,7 @@ def main():
             )
 
     # Finally, save the (P,Q) values of disconnected loads in all processed cases
-    save_total_loadpq(dirname, astdwo, dynawo_shunts, processed_shuntsPQ)
+    save_total_loadpq(dirname, astdwo, dynawo_loads, processed_loadsPQ)
 
     return 0
 
@@ -551,7 +551,7 @@ def config_astre_load_contingency(casedir, astre_tree, load_name, load_info):
     return load_P, load_Q
 
 
-def save_total_loadpq(dirname, dynawo_loads, processed_loadsPQ):
+def save_total_loadpq(dirname, astdwo, dynawo_loads, processed_loadsPQ):
     file_name = dirname + "/total_PQ_per_load.csv"
     # Using a dataframe for sorting
     if astdwo:

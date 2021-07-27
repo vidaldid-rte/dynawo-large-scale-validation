@@ -113,24 +113,46 @@ def copy_dwodwo_basecase(base_case, dwo_pathsA, dwo_pathsB, dest_case):
     # Make the subdirs for Dynawo cases A & B; and copy any non-changed
     # files (Dynawo's JOB file and the IIDM) using hard links
     # TODO: include network_parFile and solver_parFile
+    spar_dirA = os.path.dirname(dwo_pathsA.solver_parFile)
+    npar_dirA = os.path.dirname(dwo_pathsA.network_parFile)
     iidm_dirA = os.path.dirname(dwo_pathsA.iidmFile)
     dyd_dirA = os.path.dirname(dwo_pathsA.dydFile)  # all these are usually the same
     par_dirA = os.path.dirname(dwo_pathsA.parFile)  # but we allow themm to be different
     crv_dirA = os.path.dirname(dwo_pathsA.curves_inputFile)  # just in case
+    diag_dirA = glob.glob(f"{base_case}/A/*_Diagram")
+    spar_dirB = os.path.dirname(dwo_pathsB.solver_parFile)
+    npar_dirB = os.path.dirname(dwo_pathsB.network_parFile)
     iidm_dirB = os.path.dirname(dwo_pathsB.iidmFile)
     dyd_dirB = os.path.dirname(dwo_pathsB.dydFile)  # all these are usually the same
     par_dirB = os.path.dirname(dwo_pathsB.parFile)  # but we allow themm to be different
     crv_dirB = os.path.dirname(dwo_pathsB.curves_inputFile)  # just in case
+    diag_dirB = glob.glob(f"{base_case}/B/*_Diagram")
+    if len(diag_dirA) != 0:
+        copy_diags_commandA = f" && cp -al '{diag_dirA[0]}' '{dest_case}/A'"
+    else:
+        copy_diags_commandA = ""
+    if len(diag_dirB) != 0:
+        copy_diags_commandB = f" && cp -al '{diag_dirB[0]}' '{dest_case}/B'"
+    else:
+        copy_diags_commandB = ""
     try:
         retcode = subprocess.call(
             f"mkdir -p '{dest_case}/{iidm_dirA}' '{dest_case}/{iidm_dirB}'"
             f" '{dest_case}/{dyd_dirA}' '{dest_case}/{dyd_dirB}'"
             f" '{dest_case}/{par_dirA}' '{dest_case}/{par_dirB}'"
             f" '{dest_case}/{crv_dirA}' '{dest_case}/{crv_dirB}'"
+            f" '{dest_case}/{spar_dirA}' '{dest_case}/{spar_dirB}'"
+            f" '{dest_case}/{npar_dirA}' '{dest_case}/{npar_dirB}'"
             f" && cp -l '{dwo_pathsA.job_file}' '{dest_case}'"
             f" && cp -l '{dwo_pathsB.job_file}' '{dest_case}'"
             f" && cp -l '{base_case}/{dwo_pathsA.iidmFile}' '{dest_case}/{iidm_dirA}'"
-            f" && cp -l '{base_case}/{dwo_pathsB.iidmFile}' '{dest_case}/{iidm_dirB}'",
+            f" && cp -l '{base_case}/{dwo_pathsB.iidmFile}' '{dest_case}/{iidm_dirB}'"
+            f" && cp -l '{base_case}/{dwo_pathsA.solver_parFile}' '{dest_case}/{spar_dirA}'"
+            f" && cp -l '{base_case}/{dwo_pathsB.solver_parFile}' '{dest_case}/{spar_dirB}'"
+            f" && cp -l '{base_case}/{dwo_pathsA.network_parFile}' '{dest_case}/{npar_dirA}'"
+            f" && cp -l '{base_case}/{dwo_pathsB.network_parFile}' '{dest_case}/{npar_dirB}'"
+            + copy_diags_commandA
+            + copy_diags_commandB,
             shell=True,
         )
         if retcode < 0:

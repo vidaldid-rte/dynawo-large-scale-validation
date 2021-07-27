@@ -223,7 +223,7 @@ def main():
                 dynawo_shunts[shunt_name],
             )
             # Get the disconnected generation (Q) for case B
-            processed_shunts[shunt_name] = (dynawo_shuntsB[shunt_name].Q,)
+            processed_shunts[shunt_name] = dynawo_shuntsB[shunt_name].Q
 
     # Finally, save the (P,Q) values of disconnected shunts in all *processed* cases
     save_total_shuntpq(dirname, dwohds, dynawo_shunts, processed_shunts)

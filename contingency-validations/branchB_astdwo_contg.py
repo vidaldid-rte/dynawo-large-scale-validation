@@ -114,6 +114,9 @@ def main():
     # remove a possible trailing slash
     if base_case[-1] == "/":
         base_case = base_case[:-1]
+
+    # Contingency cases will be created under the same dir as the basecase
+    dirname = os.path.dirname(os.path.abspath(base_case))
         
     # Select disconnection mode from how the script is named:
     disconn_mode = "BOTH_ENDS"
@@ -147,7 +150,7 @@ def main():
 
     # Extract the list of all (active) branches in the Dynawo case
     if astdwo:
-        dynawo_branches = extract_dynawo_dynawo_branches(parsed_case.iidmTree, verbose)
+        dynawo_branches = extract_dynawo_branches(parsed_case.iidmTree, verbose)
         # And reduce the list to those branches that are matched in Astre
         dynawo_branches = matching_in_astre(parsed_case.astreTree, dynawo_branches, verbose)
     else:
@@ -211,7 +214,7 @@ def main():
             )
             # Modify the Astre case, and obtain the disconnected generation (P,Q)
             processed_branchesPQ[branch_name] = config_astre_branch_contingency(
-                contg_casedir, parsed_case.astreTree, branch_name, dynawo_branches[branch_name]
+                contg_casedir, parsed_case.astreTree, branch_name, dynawo_branches[branch_name], disconn_mode
             )
         else:
             # Copy the basecase (unchanged files and dir structure)
