@@ -88,6 +88,7 @@ parser.add_argument(
 parser.add_argument("base_case", help="enter base case directory")
 args = parser.parse_args()
 
+
 def main():
     filter_list = []
     verbose = False
@@ -192,7 +193,10 @@ def main():
             )
             # Modify the Astre case, and obtain the disconnected generation (P,Q)
             processed_shuntsPQ[shunt_name] = config_astre_shunt_contingency(
-                contg_casedir, parsed_case.astreTree, shunt_name, dynawo_shunts[shunt_name]
+                contg_casedir,
+                parsed_case.astreTree,
+                shunt_name,
+                dynawo_shunts[shunt_name],
             )
         else:
             # Copy the basecase (unchanged files and dir structure)
@@ -270,7 +274,8 @@ def matching_in_astre(astre_tree, dynawo_shunts, verbose=False):
     print("\nFound %d shunts in Astre file" % len(processed_shuntsPQ))
     if verbose:
         print(
-            "Sample list of all SHUNTS in Astre file: (total: %d)" % len(processed_shuntsPQ)
+            "Sample list of all SHUNTS in Astre file: (total: %d)"
+            % len(processed_shuntsPQ)
         )
         shunt_list = sorted(processed_shuntsPQ)
         if len(shunt_list) < 10:
@@ -285,11 +290,13 @@ def matching_in_astre(astre_tree, dynawo_shunts, verbose=False):
 
     return dict(new_list)
 
+
 def matching_in_dwoB(dynawo_shuntsA, dynawo_shuntsB):
     # Match:
     new_list = [x for x in dynawo_shuntsA.items() if x[0] in dynawo_shuntsB]
     print("   (matched %d shunts against Dynawo A case)\n" % len(new_list))
     return dict(new_list)
+
 
 def config_dynawo_shunt_contingency(
     casedir, case_trees, dwo_paths, dwo_tparams, shunt_name, shunt_info

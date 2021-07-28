@@ -18,7 +18,7 @@ from pathlib import Path
 def main():
     # Parameter management
     if len(sys.argv) < 2:
-        print("\nUsage: %s directory_of_pf_sol \n" % sys.argv[0])
+        print("\nUsage: %s directory_of_pf_sol prefix\n" % sys.argv[0])
         return 2
 
     PF_SOL_DIR = sys.argv[1]

@@ -94,6 +94,7 @@ parser.add_argument(
 parser.add_argument("base_case", help="enter base case directory")
 args = parser.parse_args()
 
+
 def main():
     filter_list = []
     verbose = False
@@ -117,7 +118,7 @@ def main():
 
     # Contingency cases will be created under the same dir as the basecase
     dirname = os.path.dirname(os.path.abspath(base_case))
-        
+
     # Select disconnection mode from how the script is named:
     disconn_mode = "BOTH_ENDS"
     called_as = os.path.basename(sys.argv[0])
@@ -152,7 +153,9 @@ def main():
     if astdwo:
         dynawo_branches = extract_dynawo_branches(parsed_case.iidmTree, verbose)
         # And reduce the list to those branches that are matched in Astre
-        dynawo_branches = matching_in_astre(parsed_case.astreTree, dynawo_branches, verbose)
+        dynawo_branches = matching_in_astre(
+            parsed_case.astreTree, dynawo_branches, verbose
+        )
     else:
         dynawo_branches = extract_dynawo_branches(parsed_case.A.iidmTree, verbose)
         dynawo_branchesB = extract_dynawo_branches(parsed_case.B.iidmTree, verbose)
@@ -214,7 +217,11 @@ def main():
             )
             # Modify the Astre case, and obtain the disconnected generation (P,Q)
             processed_branchesPQ[branch_name] = config_astre_branch_contingency(
-                contg_casedir, parsed_case.astreTree, branch_name, dynawo_branches[branch_name], disconn_mode
+                contg_casedir,
+                parsed_case.astreTree,
+                branch_name,
+                dynawo_branches[branch_name],
+                disconn_mode,
             )
         else:
             # Copy the basecase (unchanged files and dir structure)
@@ -317,6 +324,7 @@ def extract_dynawo_branches(iidm_tree, verbose=False):
         print()
 
     return branches
+
 
 def matching_in_dwoB(dynawo_branchesA, dynawo_branchesB):
     # Match:
@@ -678,7 +686,16 @@ def save_total_branchpq(dirname, astdwo, dynawo_branches, processed_branchesPQ):
         Qdiff_pct = 100 * (Q_dwo - Q_proc) / max(abs(Q_proc), 0.001)
         PQdiff_pct = abs(Pdiff_pct) + abs(Qdiff_pct)
         data_list.append(
-            [branch_name, P_dwo, P_proc, Pdiff_pct, Q_dwo, Q_proc, Qdiff_pct, PQdiff_pct]
+            [
+                branch_name,
+                P_dwo,
+                P_proc,
+                Pdiff_pct,
+                Q_dwo,
+                Q_proc,
+                Qdiff_pct,
+                PQdiff_pct,
+            ]
         )
 
     df = pd.DataFrame(data_list, columns=column_list)

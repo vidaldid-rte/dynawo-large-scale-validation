@@ -371,7 +371,7 @@ def show_displays(sdf, container1, g, container2, c, s, container3, C, dev, cont
     display(s)
     display(container3)
     html_graph = display(C.show("subgraph.html"), display_id=True)
-    print("Node - Edge Legend")
+    print("Node Legend - Edge Legend")
     display(container4)
     print(
         "If a node/edge is white it means that the selected metric is not available",
@@ -392,6 +392,7 @@ def run_all(
     WIDTH,
     SUBGRAPH_TYPE,
     SUBGRAPH_VALUE,
+    DWO_DWO,
 ):
 
     # We have to supress a numpy warning
@@ -551,7 +552,25 @@ def run_all(
 
     s = qgrid.QgridWidget(df=data_first_case)
 
-    xiidm_file = RESULTS_DIR + BASECASE + "/recollement_20210422_0930.xiidm"
+    if DWO_DWO == 0:
+        xiidm_file = RESULTS_DIR + BASECASE + "/recollement_" + BASECASE[:13] + ".xiidm"
+    else:
+        if DWO_DWO == 1:
+            xiidm_file = (
+                RESULTS_DIR + BASECASE + "/A/recollement_" + BASECASE[:13] + ".xiidm"
+            )
+        else:
+            if DWO_DWO == 2:
+                xiidm_file = (
+                    RESULTS_DIR
+                    + BASECASE
+                    + "/B/recollement_"
+                    + BASECASE[:13]
+                    + ".xiidm"
+                )
+            else:
+                raise Exception("No valid DWO_DWO option")
+
     # Get default graph
     G, C = get_initial_graph(xiidm_file, graph.value, SUBGRAPH_TYPE, SUBGRAPH_VALUE)
 

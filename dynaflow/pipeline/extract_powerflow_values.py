@@ -46,6 +46,13 @@ import sys
 import pandas as pd
 from lxml import etree
 from collections import namedtuple
+sys.path.insert(
+    1, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+)
+from xml_utils.dwo_jobinfo import (
+    is_dwohds,
+    is_dwodwo,
+)
 
 # import itertools
 
@@ -79,6 +86,14 @@ def main():
         return 2
     case_dir = sys.argv[1]
 
+    if is_dwohds(case_dir):
+        dwohds = True
+    elif is_dwodwo(case_dir):
+        dwohds = False
+    else:
+        raise ValueError(f"Case {case_dir} is neither an dwo-hds nor a dwo-dwo case")
+
+
     if verbose:
         print(f"Extracting solution values for case: {case_dir}")
 
@@ -91,21 +106,30 @@ def main():
     # dwo_paths = get_dwo_jobpaths(case_dir)
     # dwo_soln = "/" + dwo_paths.outputs_directory + DYNAWO_OUTPUT_FILE
     dwo_solution = DYNAWO_OUTPUTS_DIR + DYNAWO_SOLUTION
-    check_inputfiles(case_dir, HDS_SOLUTION, dwo_solution)
+    if dwohds:
+        check_inputfiles(case_dir, HDS_SOLUTION, dwo_solution)
+        # Extract the solution values from Dynawo results
+        df_dwo, vl_nomV, branch_info = extract_dynawo_solution(case_dir + dwo_solution)
 
-    # Extract the solution values from Dynawo results
-    df_dwo, vl_nomV, branch_info = extract_dynawo_solution(case_dir + dwo_solution)
-
-    # Extract the solution values from Hades results
-    df_hds = extract_hades_solution(
-        case_dir + HDS_INPUT, case_dir + HDS_SOLUTION, vl_nomV, branch_info
-    )
-
-    # Merge, sort, and save
-    save_extracted_values(df_dwo, df_hds, case_dir + OUTPUT_FILE)
-    save_nonmatching_elements(
-        df_dwo, df_hds, case_dir + ERRORS_A_FILE, case_dir + ERRORS_B_FILE
-    )
+        # Extract the solution values from Hades results
+        df_hds = extract_hades_solution(
+            case_dir + HDS_INPUT, case_dir + HDS_SOLUTION, vl_nomV, branch_info
+        )
+        # Merge, sort, and save
+        save_extracted_values(df_dwo, df_hds, case_dir + OUTPUT_FILE)
+        save_nonmatching_elements(
+            df_dwo, df_hds, case_dir + ERRORS_A_FILE, case_dir + ERRORS_B_FILE
+        )
+    else:
+        check_inputfiles(case_dir, '/B' + dwo_solution, '/A' + dwo_solution)
+        # Extract the solution values from Dynawo results
+        df_dwoA, vl_nomVA, branch_infoA = extract_dynawo_solution(case_dir + '/A' + dwo_solution)
+        df_dwoB, vl_nomVB, branch_infoB = extract_dynawo_solution(case_dir + '/B' + dwo_solution, caseb = True)
+        # Merge, sort, and save
+        save_extracted_values(df_dwoA, df_dwoB, case_dir + OUTPUT_FILE)
+        save_nonmatching_elements(
+            df_dwoA, df_dwoB, case_dir + ERRORS_A_FILE, case_dir + ERRORS_B_FILE
+        )
 
     return 0
 
@@ -119,7 +143,7 @@ def check_inputfiles(case_dir, solution_1, solution_2):
         raise ValueError(f"the expected PF solution files are missing in {case_dir}\n")
 
 
-def extract_dynawo_solution(dynawo_output, vl_nomv=None, branches=None):
+def extract_dynawo_solution(dynawo_output, vl_nomv=None, branches=None, caseb = False):
     """Read all output and return a dataframe. If case_A, create vl_nomv & branches"""
     tree = etree.parse(dynawo_output)
     root = tree.getroot()
@@ -127,6 +151,8 @@ def extract_dynawo_solution(dynawo_output, vl_nomv=None, branches=None):
     if vl_nomv is None:
         is_case_A = True
         value_col = "VALUE_A"
+        if caseb:
+            value_col = "VALUE_B"
         # we will build an aux dict (bus --> volt level) as we traverse buses below
         vl_nomv = dict()
         # and another aux dict for the branches, containing this Branch_info:
@@ -554,7 +580,7 @@ def save_extracted_values(df_a, df_b, output_file):
     """Save the values for all elements that are matched in both outputs."""
     # Merge (inner join) the two dataframes, checking for duplicates (just in case)
     key_fields = ["ELEMENT_TYPE", "ID", "VAR"]
-    df = pd.merge(df_a, df_b, how="inner", on=key_fields, validate="one_to_one")
+    df = pd.merge(df_a, df_b.loc[:, df_b.columns != 'VOLT_LEVEL'], how="inner", on=key_fields, validate="one_to_one")
     # Print some summaries
     print("   common to both files:", end="")
     bus_angles = (df["ELEMENT_TYPE"] == "bus") & (df["VAR"] == "angle")

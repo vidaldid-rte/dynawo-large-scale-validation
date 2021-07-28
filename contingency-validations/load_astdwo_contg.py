@@ -88,6 +88,7 @@ parser.add_argument(
 parser.add_argument("base_case", help="enter base case directory")
 args = parser.parse_args()
 
+
 def main():
     filter_list = []
     verbose = False
@@ -136,12 +137,18 @@ def main():
 
     # Extract the list of all LOADS present in the Dynawo case (by staticID)
     if astdwo:
-        dynawo_loads = extract_dynawo_loads(parsed_case.dydTree, parsed_case.iidmTree, verbose)
+        dynawo_loads = extract_dynawo_loads(
+            parsed_case.dydTree, parsed_case.iidmTree, verbose
+        )
         # And reduce the list to those loads that are matched in Astre
         dynawo_loads = matching_in_astre(parsed_case.astreTree, dynawo_loads, verbose)
     else:
-        dynawo_loads = extract_dynawo_loads(parsed_case.A.dydTree, parsed_case.A.iidmTree, verbose)
-        dynawo_loadsB = extract_dynawo_loads(parsed_case.B.dydTree, parsed_case.B.iidmTree, verbose)
+        dynawo_loads = extract_dynawo_loads(
+            parsed_case.A.dydTree, parsed_case.A.iidmTree, verbose
+        )
+        dynawo_loadsB = extract_dynawo_loads(
+            parsed_case.B.dydTree, parsed_case.B.iidmTree, verbose
+        )
         # And reduce the list to those loads that are matched in the Dynawo B case
         dynawo_loads = matching_in_dwoB(dynawo_loads, dynawo_loadsB)
 
@@ -590,7 +597,16 @@ def save_total_loadpq(dirname, astdwo, dynawo_loads, processed_loadsPQ):
         Qdiff_pct = 100 * (Q_dwo - Q_proc) / max(abs(Q_proc), 0.001)
         sumPQdiff_pct = abs(Pdiff_pct) + abs(Qdiff_pct)
         data_list.append(
-            [load_name, P_dwo, P_proc, Pdiff_pct, Q_dwo, Q_proc, Qdiff_pct, sumPQdiff_pct]
+            [
+                load_name,
+                P_dwo,
+                P_proc,
+                Pdiff_pct,
+                Q_dwo,
+                Q_proc,
+                Qdiff_pct,
+                sumPQdiff_pct,
+            ]
         )
 
     df = pd.DataFrame(data_list, columns=column_list)
