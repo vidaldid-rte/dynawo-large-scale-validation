@@ -46,13 +46,11 @@ import sys
 import pandas as pd
 from lxml import etree
 from collections import namedtuple
+
 sys.path.insert(
     1, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 )
-from xml_utils.dwo_jobinfo import (
-    is_dwohds,
-    is_dwodwo,
-)
+from xml_utils.dwo_jobinfo import is_dwohds, is_dwodwo
 
 # import itertools
 
@@ -93,7 +91,6 @@ def main():
     else:
         raise ValueError(f"Case {case_dir} is neither an dwo-hds nor a dwo-dwo case")
 
-
     if verbose:
         print(f"Extracting solution values for case: {case_dir}")
 
@@ -121,10 +118,14 @@ def main():
             df_dwo, df_hds, case_dir + ERRORS_A_FILE, case_dir + ERRORS_B_FILE
         )
     else:
-        check_inputfiles(case_dir, '/B' + dwo_solution, '/A' + dwo_solution)
+        check_inputfiles(case_dir, "/B" + dwo_solution, "/A" + dwo_solution)
         # Extract the solution values from Dynawo results
-        df_dwoA, vl_nomVA, branch_infoA = extract_dynawo_solution(case_dir + '/A' + dwo_solution)
-        df_dwoB, vl_nomVB, branch_infoB = extract_dynawo_solution(case_dir + '/B' + dwo_solution, caseb = True)
+        df_dwoA, vl_nomVA, branch_infoA = extract_dynawo_solution(
+            case_dir + "/A" + dwo_solution
+        )
+        df_dwoB, vl_nomVB, branch_infoB = extract_dynawo_solution(
+            case_dir + "/B" + dwo_solution, caseb=True
+        )
         # Merge, sort, and save
         save_extracted_values(df_dwoA, df_dwoB, case_dir + OUTPUT_FILE)
         save_nonmatching_elements(
@@ -143,7 +144,7 @@ def check_inputfiles(case_dir, solution_1, solution_2):
         raise ValueError(f"the expected PF solution files are missing in {case_dir}\n")
 
 
-def extract_dynawo_solution(dynawo_output, vl_nomv=None, branches=None, caseb = False):
+def extract_dynawo_solution(dynawo_output, vl_nomv=None, branches=None, caseb=False):
     """Read all output and return a dataframe. If case_A, create vl_nomv & branches"""
     tree = etree.parse(dynawo_output)
     root = tree.getroot()
@@ -580,7 +581,13 @@ def save_extracted_values(df_a, df_b, output_file):
     """Save the values for all elements that are matched in both outputs."""
     # Merge (inner join) the two dataframes, checking for duplicates (just in case)
     key_fields = ["ELEMENT_TYPE", "ID", "VAR"]
-    df = pd.merge(df_a, df_b.loc[:, df_b.columns != 'VOLT_LEVEL'], how="inner", on=key_fields, validate="one_to_one")
+    df = pd.merge(
+        df_a,
+        df_b.loc[:, df_b.columns != "VOLT_LEVEL"],
+        how="inner",
+        on=key_fields,
+        validate="one_to_one",
+    )
     # Print some summaries
     print("   common to both files:", end="")
     bus_angles = (df["ELEMENT_TYPE"] == "bus") & (df["VAR"] == "angle")

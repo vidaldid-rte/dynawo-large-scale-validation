@@ -10,7 +10,7 @@ import warnings
 from matplotlib import pylab, cm
 import pylab as pl
 import numpy as np
-
+from lxml import etree
 
 # Read the metric file
 def read_csv_metrics(pf_dir):
@@ -108,15 +108,11 @@ def create_dropdowns(
 ):
 
     varx = widgets.Dropdown(
-        options=df.columns[1:],
-        value=df.columns[1],
-        description="X: ",
+        options=df.columns[1:], value=df.columns[1], description="X: "
     )
 
     vary = widgets.Dropdown(
-        options=df.columns[1:],
-        value=df.columns[2],
-        description="Y: ",
+        options=df.columns[1:], value=df.columns[2], description="Y: "
     )
 
     dev = widgets.Dropdown(
@@ -234,16 +230,6 @@ def create_layouts(varx, vary, HEIGHT, WIDTH, contg_case0, dropdown1, dropdown2)
 def paint_graph(C, data, nodetype, nodemetrictype, edgetype, edgemetrictype):
     # Node color
     data1 = data.loc[(data.VAR == nodetype) & (data.ELEMENT_TYPE == "bus")]
-    """
-    data1_max = 0
-    data1_min = 99999999
-    for node in C.nodes:
-        value = list(data1.loc[(data1.ID == node["id"])][nodemetrictype])[0]
-        if value > data1_max:
-            data1_max = value
-        if value < data1_min:
-            data1_min = value
-    """
     data1_max = data1[nodemetrictype].max()
     data1_min = data1[nodemetrictype].min()
 
@@ -274,16 +260,6 @@ def paint_graph(C, data, nodetype, nodemetrictype, edgetype, edgemetrictype):
 
     # Edge color
     data2 = data.loc[(data.VAR == edgetype) & (data.ELEMENT_TYPE != "bus")]
-    """
-    data2_max = 0
-    data2_min = 99999999
-    for edge in C.edges:
-        value = list(data2.loc[(data2.ID == edge["id"])][edgemetrictype])[0]
-        if value > data2_max:
-            data2_max = value
-        if value < data2_min:
-            data2_min = value
-    """
     data2_max = data2[edgemetrictype].max()
     data2_min = data2[edgemetrictype].min()
 
@@ -552,22 +528,47 @@ def run_all(
 
     s = qgrid.QgridWidget(df=data_first_case)
 
+    # Get iidm file
     if DWO_DWO == 0:
-        xiidm_file = RESULTS_DIR + BASECASE + "/recollement_" + BASECASE[:13] + ".xiidm"
+        tree = etree.parse(
+            RESULTS_DIR + BASECASE + "/JOB.xml", etree.XMLParser(remove_blank_text=True)
+        )
+        root = tree.getroot()
+        ns = etree.QName(root).namespace
+        jobs = root.findall("{%s}job" % ns)
+        last_job = jobs[-1]
+        modeler = last_job.find("{%s}modeler" % ns)
+        network = modeler.find("{%s}network" % ns)
+        xiidm_file = network.get("iidmFile")
+        xiidm_file = RESULTS_DIR + BASECASE + "/" + xiidm_file
     else:
         if DWO_DWO == 1:
-            xiidm_file = (
-                RESULTS_DIR + BASECASE + "/A/recollement_" + BASECASE[:13] + ".xiidm"
+            tree = etree.parse(
+                RESULTS_DIR + BASECASE + "/JOB_A.xml",
+                etree.XMLParser(remove_blank_text=True),
             )
+            root = tree.getroot()
+            ns = etree.QName(root).namespace
+            jobs = root.findall("{%s}job" % ns)
+            last_job = jobs[-1]
+            modeler = last_job.find("{%s}modeler" % ns)
+            network = modeler.find("{%s}network" % ns)
+            xiidm_file = network.get("iidmFile")
+            xiidm_file = RESULTS_DIR + BASECASE + "/" + xiidm_file
         else:
             if DWO_DWO == 2:
-                xiidm_file = (
-                    RESULTS_DIR
-                    + BASECASE
-                    + "/B/recollement_"
-                    + BASECASE[:13]
-                    + ".xiidm"
+                tree = etree.parse(
+                    RESULTS_DIR + BASECASE + "/JOB_B.xml",
+                    etree.XMLParser(remove_blank_text=True),
                 )
+                root = tree.getroot()
+                ns = etree.QName(root).namespace
+                jobs = root.findall("{%s}job" % ns)
+                last_job = jobs[-1]
+                modeler = last_job.find("{%s}modeler" % ns)
+                network = modeler.find("{%s}network" % ns)
+                xiidm_file = network.get("iidmFile")
+                xiidm_file = RESULTS_DIR + BASECASE + "/" + xiidm_file
             else:
                 raise Exception("No valid DWO_DWO option")
 
@@ -589,17 +590,11 @@ def run_all(
     legend2 = file2.read()
 
     legend1widget = widgets.Image(
-        value=legend1,
-        format="png",
-        width=WIDTH / 2,
-        height=HEIGHT / 2,
+        value=legend1, format="png", width=WIDTH / 2, height=HEIGHT / 2
     )
 
     legend2widget = widgets.Image(
-        value=legend2,
-        format="png",
-        width=WIDTH / 2,
-        height=HEIGHT / 2,
+        value=legend2, format="png", width=WIDTH / 2, height=HEIGHT / 2
     )
 
     container4 = widgets.HBox([legend1widget, legend2widget])

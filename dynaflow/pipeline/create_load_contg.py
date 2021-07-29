@@ -23,12 +23,12 @@
 #    ├── JOB.xml                           ├── A/
 #    ├── Network.par                       │   ├── Network.par
 #    ├── solver.par                        │   ├── solver.par
-#    ├── <dwo_casename>.{xiidm,dyd,par}    │   ├── <dwo_casename>.{xiidm,dyd,par}
+#    ├── <dwo_casename>.{iidm,dyd,par}    │   ├── <dwo_casename>.{iidm,dyd,par}
 #    └── <dwo_casename>_Diagram/           │   └── <dwo_casename>_Diagram/
 #                                          └── B/
 #                                              ├── Network.par
 #                                              ├── solver.par
-#                                              ├── <dwo_casename>.{xiidm,dyd,par}
+#                                              ├── <dwo_casename>.{iidm,dyd,par}
 #                                              └── <dwo_casename>_Diagram/
 #
 #
