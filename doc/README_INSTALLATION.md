@@ -56,6 +56,10 @@ Now, you have a self-contained directory tree that contains a Python installatio
 	- pip install networkx
 
 	- pip install pyvis
+	
+	- pip install ipywidgets
+
+	- pip install matplotlib
 
 
 ## Jupyter Notebooks configuration
