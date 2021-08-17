@@ -22,6 +22,13 @@ executions configured with different simulation parameters).
 
 ## Main subdirectories
 
+  * `doc`: documents about the validation procedures, how to perform
+    disconnections in Dynawo & Hades, how to match network components
+    in the two, etc.
+    
+  * `notebooks`: Python notebooks to explore the data, graph results,
+    and generally help in quantifying comparisons.
+
   * `pipeline`: scripts to automatically generate test cases, then run
     those cases with Dynawo and Hades, then extract the relevant
     results, and finally compute comparison metrics in a format that
@@ -29,14 +36,4 @@ executions configured with different simulation parameters).
     Notebooks).  The test cases are all derived from a given BASECASE,
     and they are typically N-1 contingency cases of all kinds of
     elements (loads, gens, lines, etc.).
-    
-  * `doc`: documents about the validation procedures, how to perform
-    disconnections in Dynawo & Hades, how to match network components
-    in the two, etc.
-	
-  * `notebooks`: Python notebooks to explore the data, graph results,
-    and generally help in quantifying comparisons.
-
-  * `xml_utils`: utilities to extract info or manipulate the XML input
-    files of both Dynawo and Hades.
 

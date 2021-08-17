@@ -22,6 +22,8 @@
 	- Install a python IDE. (for ex. PyCharm: https://www.jetbrains.com/help/pycharm/installation-guide.html#requirements)
 
 	- Install python development utilities: apt-get install black flake8 python3-pytest
+	
+	- Install parallel package for faster execution: sudo apt-get install parallel
 
 
 ## Virtual environment creation

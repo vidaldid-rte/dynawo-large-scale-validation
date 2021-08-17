@@ -178,7 +178,3 @@ else
     find_cmd | parallel -j 50% --verbose "$run_case" "${OPTS[@]}" {}
 fi
 
-# Run the script to calculate the global PF diffmetrics
-calc_diff=$(dirname "$0")/calc_global_pf_diffmetrics.py 
-$calc_diff "$CASE_DIR"/RESULTS/pf_sol "$CASE_PREFIX"
-

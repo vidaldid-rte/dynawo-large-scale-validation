@@ -15,17 +15,16 @@ A repo of scripts and utilities used for the RTE-AIA Project
 
 ## Main directories
 
-  * `doc`: documents about the validation procedures, how to perform
-    disconnections in Dynawo & Astre, how to match network components
-    in the two, etc.
-	
-  * `contingency_validations`: scripts to enumerate items (loads, gens,
-    etc.) and perform contingencies in order to compare results in
-    Dynawo vs Astre.
-	
-  * `graph_utils`: utilities to graph results and aid comparisons.
+  * `commons`: various utilities that can be used to use the package.
+  
+  * `doc`: documents to assist in the package installation process.
 
-  * `xml_utils`: simple utilities to list network components, etc.
+  * `dynaflow`: folder that contains the main code for Dynaflow simulator comparison and analysis.
+	
+  * `dynawaltz`: folder that contains the main code for Dynawaltz simulator comparison and analysis.
+  
+  * `lauchers`: executables used throughout the development of the project.
+
 
 
 

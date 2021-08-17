@@ -30,4 +30,7 @@ The place where we put away junk that could be useful again some day.
   * `gcompare.ipynb`, `sparklines.py`: this was an early experiment, a
     simple test of "sparklines" as a quick visual way to compare
     results qualitatively. It didn't prove very useful.
+    
+  * `Compare_solutions.ipynb`: first version of the contingency 
+  comparison file.
 

@@ -5,53 +5,37 @@
 #     marinjl@aia.es
 #
 #
-# gen_contg.py:
+# load_astdwo_contg.py:
 #
-# Takes a given base case, consisting of EITHER two corresponding
-# Dynawo and Astre cases OR two corresponding Dynawo and Dynawo cases,
-# and, enumerating all SHUNTS that can be matched in the two,
+# Takes a base case consisting of two corresponding Dynawo and Astre
+# files and, enumerating all LOADS that can be matched in the two,
 # generates the files for running a single-shunt contingency for each
 # device.
 #
-# On input, the files are expected to have a structure that typically
-# looks as either one of these similar to this (but this is not
-# strict; see below):
+# On input, the files are expected to have a structure similar to this
+# (not strict, see below):
 #
-#    For Astre-vs-Dynawo:                For Dynawo_A vs. Dynawo_B:
-#    ====================                ==========================
-#    BASECASE/                           BASECASE/
-#    ├── Astre                           ├── fic_JOB_A.xml
-#    │   └── donneesModelesEntree.xml    ├── fic_JOB_B.xml
-#    ├── fic_JOB.xml                     ├── t0_A
-#    ├── t0                              │   ├── fic_CRV.xml
-#    │   ├── fic_CRV.xml                 │   ├── fic_DYD.xml
-#    │   ├── fic_DYD.xml                 │   ├── fic_IIDM.xml
-#    │   ├── fic_IIDM.xml                │   └── fic_PAR.xml
-#    │   └── fic_PAR.xml                 ├── t0_B
-#    └── tFin                            │   ├── fic_CRV.xml
-#       ├── fic_CRV.xml                  │   ├── fic_DYD.xml
-#       ├── fic_DYD.xml                  │   ├── fic_IIDM.xml
-#       ├── fic_IIDM.xml                 │   └── fic_PAR.xml
-#       └── fic_PAR.xml                  ├── tFin_A
-#                                        │   ├── fic_CRV.xml
-#                                        │   ├── fic_DYD.xml
-#                                        │   ├── fic_IIDM.xml
-#                                        │   └── fic_PAR.xml
-#                                        └── tFin_B
-#                                            ├── fic_CRV.xml
-#                                            ├── fic_DYD.xml
-#                                            ├── fic_IIDM.xml
-#                                            └── fic_PAR.xml
+# basecase/
+# ├── Astre
+# │   └── donneesModelesEntree.xml
+# ├── fic_JOB.xml
+# ├── t0
+# │   ├── fic_CRV.xml
+# │   ├── fic_DYD.xml
+# │   ├── fic_IIDM.xml
+# │   └── fic_PAR.xml
+# └── tFin
+#    ├── fic_CRV.xml
+#    ├── fic_DYD.xml
+#    ├── fic_IIDM.xml
+#    └── fic_PAR.xml
 #
-# For Astre, the structure should be strictly as the above example.
-# On the other hand, for Dynawo we only require that there exists a
-# JOB file with patterns "*JOB*.xml" (or "*JOB_A*.xml",
-# "*JOB_B*.xml"); and then we read from them the actual paths to the
-# IIDM, DYD, etc., configuring the contingency in the last job defined
-# inside the JOB file (see module dwo_jobinfo).
+# For Astre, the structure should be strictly as the above example.  However,
+# for Dynawo we read the actual paths from the existing JOB file, and we configure the
+# contingency in the last job defined inside the JOB file (see module dwo_jobinfo).
 #
 # On output, the script generates new dirs sibling to basecase:
-# gen_LABEL1, gen_LABEL2, etc.
+# load_LABEL1, load_LABEL2, etc.
 #
 
 import os
@@ -70,7 +54,7 @@ import argparse
 # the following hack is ugly, but needed:
 sys.path.insert(1, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Alternatively, you could set PYTHONPATH to PYTHONPATH="/<dir>/dynawo-validation-AIA"
-from xml_utils.dwo_jobinfo import (
+from dwo_jobinfo import (
     is_astdwo,
     is_dwodwo,
     get_dwo_jobpaths,
@@ -151,19 +135,25 @@ def main():
         base_case, dwo_paths, ASTRE_PATH, dwo_pathsA, dwo_pathsB
     )
 
-    # Extract the list of all (active) GENS in the Dynawo case
+    # Extract the list of all LOADS present in the Dynawo case (by staticID)
     if astdwo:
-        dynawo_gens = extract_dynawo_gens(parsed_case.iidmTree, verbose)
-        # And reduce the list to those GENS that are matched in Astre
-        dynawo_gens = matching_in_astre(parsed_case.astreTree, dynawo_gens, verbose)
+        dynawo_loads = extract_dynawo_loads(
+            parsed_case.dydTree, parsed_case.iidmTree, verbose
+        )
+        # And reduce the list to those loads that are matched in Astre
+        dynawo_loads = matching_in_astre(parsed_case.astreTree, dynawo_loads, verbose)
     else:
-        dynawo_gens = extract_dynawo_gens(parsed_case.A.iidmTree, verbose)
-        dynawo_gensB = extract_dynawo_gens(parsed_case.B.iidmTree, verbose)
-        # And reduce the list to those GENS that are matched in the Dynawo B case
-        dynawo_gens = matching_in_dwoB(dynawo_gens, dynawo_gensB)
+        dynawo_loads = extract_dynawo_loads(
+            parsed_case.A.dydTree, parsed_case.A.iidmTree, verbose
+        )
+        dynawo_loadsB = extract_dynawo_loads(
+            parsed_case.B.dydTree, parsed_case.B.iidmTree, verbose
+        )
+        # And reduce the list to those loads that are matched in the Dynawo B case
+        dynawo_loads = matching_in_dwoB(dynawo_loads, dynawo_loadsB)
 
     # Prepare for random sampling if there's too many
-    sampling_ratio = MAX_NCASES / len(dynawo_gens)
+    sampling_ratio = MAX_NCASES / len(dynawo_loads)
     random.seed(RNG_SEED)
     if len(filter_list) == 0 and sampling_ratio < 1:
         print(
@@ -171,16 +161,15 @@ def main():
             % (MAX_NCASES, 100 * sampling_ratio)
         )
 
-    # This dict will keep track of which contingencies are actually processed
-    # It will also keep Astre's (P,Q) of each gen
-    processed_gensPQ = dict()
+    # Initialize another dict to keep Astre's (P,Q) of each load
+    processed_loadsPQ = dict()
 
-    # For each matching GEN, generate the contingency case
-    for gen_name in dynawo_gens:
+    # For each matching LOAD, generate the contingency cases
+    for load_name in dynawo_loads:
 
-        # If the script was passed a list of generators, filter for them here
-        gen_name_matches = [r.search(gen_name) for r in filter_list]
-        if len(filter_list) != 0 and not any(gen_name_matches):
+        # If the script was passed a list of loads, filter for them here
+        load_name_matches = [r.search(load_name) for r in filter_list]
+        if len(filter_list) != 0 and not any(load_name_matches):
             continue
 
         # Limit the number of cases to approximately MAX_NCASES
@@ -188,145 +177,165 @@ def main():
             continue
 
         print(
-            "Generating contingency case for gen %s (at bus: %s)"
-            % (gen_name, dynawo_gens[gen_name].bus)
+            "Generating contingency case for load %s (at bus: %s)"
+            % (load_name, dynawo_loads[load_name].bus)
         )
 
-        # We fix any device names with slashes in them (illegal filenames)
-        contg_casedir = dirname + "/gen_" + gen_name.replace("/", "+")
+        # Copy the basecase (unchanged files and dir structure)
+        # Note we fix any device names with slashes in them (illegal filenames)
+        contg_casedir = dirname + "/load_" + load_name.replace("/", "+")
 
         if astdwo:
             # Copy the basecase (unchanged files and dir structure)
             copy_astdwo_basecase(base_case, dwo_paths, contg_casedir)
             # Modify the Dynawo case (DYD,PAR,CRV)
-            config_dynawo_gen_contingency(
+            config_dynawo_load_contingency(
                 contg_casedir,
                 parsed_case,
                 dwo_paths,
                 dwo_tparams,
-                gen_name,
-                dynawo_gens[gen_name],
+                load_name,
+                dynawo_loads[load_name],
             )
             # Modify the Astre case, and obtain the disconnected generation (P,Q)
-            processed_gensPQ[gen_name] = config_astre_gen_contingency(
-                contg_casedir, parsed_case.astreTree, gen_name, dynawo_gens[gen_name]
+            processed_loadsPQ[load_name] = config_astre_load_contingency(
+                contg_casedir, parsed_case.astreTree, load_name, dynawo_loads[load_name]
             )
         else:
             # Copy the basecase (unchanged files and dir structure)
             copy_dwodwo_basecase(base_case, dwo_pathsA, dwo_pathsB, contg_casedir)
             # Modify the Dynawo A & B cases (DYD,PAR,CRV)
-            config_dynawo_gen_contingency(
+            config_dynawo_load_contingency(
                 contg_casedir,
                 parsed_case.A,
                 dwo_pathsA,
                 dwo_tparamsA,
-                gen_name,
-                dynawo_gens[gen_name],
+                load_name,
+                dynawo_loads[load_name],
             )
-            config_dynawo_gen_contingency(
+            config_dynawo_load_contingency(
                 contg_casedir,
                 parsed_case.B,
                 dwo_pathsB,
                 dwo_tparamsB,
-                gen_name,
-                dynawo_gens[gen_name],
+                load_name,
+                dynawo_loads[load_name],
             )
             # Get the disconnected generation (P,Q) for case B
-            processed_gensPQ[gen_name] = (
-                dynawo_gensB[gen_name].P,
-                dynawo_gensB[gen_name].Q,
+            processed_loadsPQ[load_name] = (
+                dynawo_loadsB[load_name].P,
+                dynawo_loadsB[load_name].Q,
             )
 
-    # Finally, save the (P,Q) values of disconnected gens in all *processed* cases
-    save_total_genpq(dirname, astdwo, dynawo_gens, processed_gensPQ)
+    # Finally, save the (P,Q) values of disconnected loads in all processed cases
+    save_total_loadpq(dirname, astdwo, dynawo_loads, processed_loadsPQ)
 
     return 0
 
 
-def extract_dynawo_gens(iidm_tree, verbose=False):
-    root = iidm_tree.getroot()
-    ns = etree.QName(root).namespace
-    gens = dict()
-    Gen_info = namedtuple("Gen_info", "P Q genType bus busTopology")
+def extract_dynawo_loads(dyd_tree, iidm_tree, verbose=False):
+    root = dyd_tree.getroot()
+    dmloads = dict()
+    loads = dict()
 
-    # We enumerate all gens and extract their properties
-    for gen in root.iter("{%s}generator" % ns):
-        # Keep only the active ones
-        if gen.get("p") == "-0" and gen.get("q") == "-0":
+    # We first enumerate all loads from the DYD and keep their model type and IDs
+    DMload_info = namedtuple("DMload_info", "dydId modelLib")
+    for bbm in root.iterfind("./blackBoxModel", root.nsmap):
+        if bbm.get("lib")[0:4] == "Load":
+            dmloads[bbm.get("staticId")] = DMload_info(
+                dydId=bbm.get("id"), modelLib=bbm.get("lib")
+            )
+
+    # And now we extract their (P,Q) values and other properties from the IIDM
+    Load_info = namedtuple("Load_info", "P Q dydId modelLib loadType bus busTopology")
+    iidm_root = iidm_tree.getroot()
+    iidm_ns = etree.QName(iidm_root).namespace
+    for l in iidm_root.iter("{%s}load" % iidm_ns):
+        load_name = l.get("id")
+        if load_name not in dmloads:
             continue
-        gen_name = gen.get("id")
-        P_val = -float(gen.get("targetP"))  # float(gen.get("p"))
-        Q_val = float(gen.get("q"))
-        gen_type = gen.get("energySource")
-        topo_val = gen.getparent().get("topologyKind")
+        P_val = float(l.get("p0"))
+        Q_val = float(l.get("q0"))
+        dydId = dmloads[load_name].dydId
+        modelLib = dmloads[load_name].modelLib
+        loadType = l.get("loadType")
+        # Find the bus (depends on the topology of its voltageLevel)
+        topo_val = l.getparent().get("topologyKind")
         if topo_val == "BUS_BREAKER":
-            bus_name = gen.get("bus")
+            bus_name = l.get("bus")
         elif topo_val == "NODE_BREAKER":
             # don't try to resolve the topology, just take the first active busbar
             bus_name = None
-            vl = gen.getparent()
-            topology = vl.find("{%s}nodeBreakerTopology" % ns)
-            for node in topology:
-                node_type = etree.QName(node).localname
-                if node_type == "busbarSection" and node.get("v") is not None:
-                    bus_name = node.get("id")
+            vl = l.getparent()
+            topology = vl.find("./nodeBreakerTopology", iidm_root.nsmap)
+            for bbs in topology.iterfind("./busbarSection", iidm_root.nsmap):
+                if bbs.get("v") is not None:
+                    bus_name = bbs.get("id")
                     break
         else:
-            raise ValueError("TopologyKind not found for generator: %s" % gen_name)
-        gens[gen_name] = Gen_info(
-            P=P_val, Q=Q_val, genType=gen_type, bus=bus_name, busTopology=topo_val
+            raise ValueError("TopologyKind not found for load: %s" % load_name)
+        # Collect all info
+        loads[load_name] = Load_info(
+            P=P_val,
+            Q=Q_val,
+            dydId=dydId,
+            modelLib=modelLib,
+            loadType=loadType,
+            bus=bus_name,
+            busTopology=topo_val,
         )
 
-    print("\nFound %d ACTIVE gens in the Dynawo IIDM file" % len(gens))
+    print("\nFound %d loads in Dynawo DYD file" % len(loads))
     if verbose:
-        print("List of all ACTIVE gens in the IIDM file: (total: %d)" % len(gens))
-        gen_list = sorted(gens.keys())
-        if len(gen_list) < 10:
-            print(gen_list)
+        print("List of all loads in Dynawo DYD file: (total: %d)" % len(loads))
+        load_list = sorted(loads.keys())
+        if len(load_list) < 10:
+            print(load_list)
         else:
-            print(gen_list[:5] + ["..."] + gen_list[-5:])
+            print(load_list[:5] + ["..."] + load_list[-5:])
         print()
 
-    return gens
+    return loads
 
 
-def matching_in_astre(astre_tree, dynawo_gens, verbose=False):
-    # Retrieve the list of Astre gens
+def matching_in_astre(astre_tree, dynawo_loads, verbose=False):
     root = astre_tree.getroot()
-    reseau = root.find("./reseau", root.nsmap)
-    donneesGroupes = reseau.find("./donneesGroupes", root.nsmap)
-    astre_gens = set()  # for faster matching below
-    for gen in donneesGroupes.iterfind("./groupe", root.nsmap):
-        # Discard gens having noeud="-1"
-        if gen.get("noeud") != "-1":
-            astre_gens.add(gen.get("nom"))
 
-    print("\nFound %d gens in Astre file" % len(astre_gens))
+    # Retrieve the list of Astre loads
+    processed_loadsPQ = set()  # for faster matching below
+    reseau = root.find("./reseau", root.nsmap)
+    donneesConsos = reseau.find("./donneesConsos", root.nsmap)
+    for element in donneesConsos.iterfind("./conso", root.nsmap):
+        # Discard loads having noeud="-1"
+        if element.get("noeud") != "-1":
+            processed_loadsPQ.add(element.get("nom"))
+
+    print("\nFound %d loads in Astre file" % len(processed_loadsPQ))
     if verbose:
-        print("Sample list of all GENS in Astre file: (total: %d)" % len(astre_gens))
-        gen_list = sorted(astre_gens)
-        if len(gen_list) < 10:
-            print(gen_list)
+        print("List of all loads in Astre file: (total: %d)" % len(processed_loadsPQ))
+        load_list = sorted(processed_loadsPQ)
+        if len(load_list) < 10:
+            print(load_list)
         else:
-            print(gen_list[:5] + ["..."] + gen_list[-5:])
+            print(load_list[:5] + ["..."] + load_list[-5:])
         print()
 
     # Match:
-    new_list = [x for x in dynawo_gens.items() if x[0] in astre_gens]
-    print("   (matched %d gens against Dynawo file)\n" % len(new_list))
+    new_list = [x for x in dynawo_loads.items() if x[0] in processed_loadsPQ]
+    print("   (matched %d loads against Dynawo file)\n" % len(new_list))
 
     return dict(new_list)
 
 
-def matching_in_dwoB(dynawo_gensA, dynawo_gensB):
+def matching_in_dwoB(dynawo_loadsA, dynawo_loadssB):
     # Match:
-    new_list = [x for x in dynawo_gensA.items() if x[0] in dynawo_gensB]
-    print("   (matched %d gens against Dynawo A case)\n" % len(new_list))
+    new_list = [x for x in dynawo_loadsA.items() if x[0] in dynawo_loadssB]
+    print("   (matched %d loads against Dynawo A case)\n" % len(new_list))
     return dict(new_list)
 
 
-def config_dynawo_gen_contingency(
-    casedir, case_trees, dwo_paths, dwo_tparams, gen_name, gen_info
+def config_dynawo_load_contingency(
+    casedir, case_trees, dwo_paths, dwo_tparams, load_name, load_info
 ):
     ###########################################################
     # DYD file: configure an event model for the disconnection
@@ -335,23 +344,6 @@ def config_dynawo_gen_contingency(
     print("   Configuring file %s" % dyd_file)
     dyd_tree = case_trees.dydTree
     root = dyd_tree.getroot()
-
-    # Generators with vs. without a dynamic model in the DYD file:
-    # they need to be disconnected differently.
-    disconn_eventmodel = "EventConnectedStatus"
-    cnx_id2 = "NETWORK"
-    cnx_var2 = gen_name + "_state_value"
-    param_eventname = "event_open"
-    for dyn_gen in root.iterfind("./blackBoxModel", root.nsmap):
-        if (
-            dyn_gen.get("lib")[0:9] == "Generator"
-            and dyn_gen.get("staticId") == gen_name
-        ):
-            disconn_eventmodel = "EventSetPointBoolean"
-            cnx_id2 = dyn_gen.get("id")
-            cnx_var2 = "generator_switchOffSignal2_value"
-            param_eventname = "event_stateEvent1"
-            break
 
     # Erase all existing Event models (keep the IDs to remove their
     # connections later below)
@@ -366,9 +358,9 @@ def config_dynawo_gen_contingency(
     # Declare a new Event
     ns = etree.QName(root).namespace
     event = etree.SubElement(root, "{%s}blackBoxModel" % ns)
-    event_id = "Disconnect my gen"
+    event_id = "Disconnect my load"
     event.set("id", event_id)
-    event.set("lib", disconn_eventmodel)
+    event.set("lib", "EventSetPointBoolean")
     event.set("parFile", dwo_paths.parFile)
     event.set("parId", "99991234")
 
@@ -377,12 +369,12 @@ def config_dynawo_gen_contingency(
         if cnx.get("id1") in old_eventIds or cnx.get("id2") in old_eventIds:
             cnx.getparent().remove(cnx)
 
-    # Declare a new Connect between the Event model and the gen
+    # Declare a new Connect between the Event model and the load model
     cnx = etree.SubElement(root, "{%s}connect" % ns)
     cnx.set("id1", event_id)
     cnx.set("var1", "event_state1_value")
-    cnx.set("id2", cnx_id2)
-    cnx.set("var2", cnx_var2)
+    cnx.set("id2", load_info.dydId)
+    cnx.set("var2", "load_switchOffSignal2_value")
 
     # Write out the DYD file, preserving the XML format
     dyd_tree.write(
@@ -417,7 +409,9 @@ def config_dynawo_gen_contingency(
         )
     )
     new_parset.append(
-        etree.Element("{%s}par" % ns, type="BOOL", name=param_eventname, value="true")
+        etree.Element(
+            "{%s}par" % ns, type="BOOL", name="event_stateEvent1", value="true"
+        )
     )
     root.append(new_parset)
 
@@ -440,11 +434,11 @@ def config_dynawo_gen_contingency(
     # generators).  We will keep these, and add new ones.
     #
     # For now we'll just add the voltage at the contingency bus. To do
-    # this, we would use the IIDM file, where the gen has an
+    # this, we would use the IIDM file, where the load has an
     # attribute that directly provides the bus it is connected to. We
-    # already stored this value in the Gen_info tuple before.
+    # already stored this value in the Load_info tuple before.
 
-    bus_label = gen_info.bus
+    bus_label = load_info.bus
 
     # Add the corresponding curve to the CRV file
     crv_file = casedir + "/" + dwo_paths.curves_inputFile
@@ -466,10 +460,10 @@ def config_dynawo_gen_contingency(
     # And erase the curve we've just added, because we'll be reusing the parsed tree
     root.remove(new_crv1)
 
-    return 0
+    return
 
 
-def config_astre_gen_contingency(casedir, astre_tree, gen_name, gen_info):
+def config_astre_load_contingency(casedir, astre_tree, load_name, load_info):
     astre_file = casedir + ASTRE_PATH
     print("   Configuring file %s" % astre_file)
     root = astre_tree.getroot()
@@ -493,29 +487,33 @@ def config_astre_gen_contingency(casedir, astre_tree, gen_name, gen_info):
     if nevents != 1:
         raise ValueError("Astre file %s does not contain any events!" % astre_file)
 
-    # Find the gen in Astre
-    astre_gen = None
+    # Find the load in Astre
+    astre_load = None
     reseau = root.find("./reseau", root.nsmap)
-    donneesGroupes = reseau.find("./donneesGroupes", root.nsmap)
-    for g in donneesGroupes.iterfind("./groupe", root.nsmap):
-        if g.get("nom") == gen_name:
-            astre_gen = g
+    donneesConsos = reseau.find("./donneesConsos", root.nsmap)
+    for l in donneesConsos.iterfind("./conso", root.nsmap):
+        if l.get("nom") == load_name:
+            astre_load = l
             break
-    gen_id = astre_gen.get("num")
-    bus_id = astre_gen.get("noeud")
-    bus_name = gen_info.bus  # we can use Dynawo's name for the curve var
-    gen_vars = astre_gen.find("./variables", root.nsmap)
-    gen_P = -float(gen_vars.get("pc"))
-    gen_Q = -float(gen_vars.get("q"))
+    load_id = astre_load.get("num")
+    bus_id = astre_load.get("noeud")
+    bus_name = load_info.bus  # we can use Dynawo's name for the curve var
+    load_vars = astre_load.find("./variables", root.nsmap)
+    if astre_load.get("fixe") == "true":
+        load_P = float(load_vars.get("peFixe"))
+        load_Q = float(load_vars.get("qeFixe"))
+    else:
+        load_P = float(load_vars.get("peAff"))
+        load_Q = float(load_vars.get("qeAff"))
 
-    # We now insert our own events. We link to the gen id using the
-    # `ouvrage` attribute.  The event type for gens is "2", and
+    # We now insert our own events. We link to the load id using the
+    # `ouvrage` attribute.  The event type for loads is "3", and
     # typeevt for disconnections is "1").
     ns = etree.QName(root).namespace
     event = etree.SubElement(scenario, "{%s}evtouvrtopo" % ns)
     event.set("instant", event_time)
-    event.set("ouvrage", gen_id)
-    event.set("type", "2")
+    event.set("ouvrage", load_id)
+    event.set("type", "3")
     event.set("typeevt", "1")
     event.set("cote", "0")
 
@@ -527,7 +525,7 @@ def config_astre_gen_contingency(casedir, astre_tree, gen_name, gen_info):
     # keep these, and add new ones.
     #
     # For now we'll just add the voltage at the contingency bus. To do
-    # this, we get the id of the bus that the gen is attached to and
+    # this, we get the id of the bus that the load is attached to and
     # add an element as in the example:
     #
     #     ```
@@ -557,15 +555,15 @@ def config_astre_gen_contingency(casedir, astre_tree, gen_name, gen_info):
     # Erase the curve we've just added, because we'll be reusing the parsed tree
     entreesAstre.remove(new_crv1)
 
-    return gen_P, gen_Q
+    return load_P, load_Q
 
 
-def save_total_genpq(dirname, astdwo, dynawo_gens, processed_gens):
-    file_name = dirname + "/total_PQ_per_generator.csv"
+def save_total_loadpq(dirname, astdwo, dynawo_loads, processed_loadsPQ):
+    file_name = dirname + "/total_PQ_per_load.csv"
     # Using a dataframe for sorting
     if astdwo:
         column_list = [
-            "GEN",
+            "LOAD",
             "P_dwo",
             "P_ast",
             "Pdiff_pct",
@@ -576,7 +574,7 @@ def save_total_genpq(dirname, astdwo, dynawo_gens, processed_gens):
         ]
     else:
         column_list = [
-            "GEN",
+            "LOAD",
             "P_dwoA",
             "P_dwoB",
             "Pdiff_pct",
@@ -585,20 +583,22 @@ def save_total_genpq(dirname, astdwo, dynawo_gens, processed_gens):
             "Qdiff_pct",
             "sumPQdiff_pct",
         ]
-    # The processed_gens dict contains the cases that have actually been processed
-    # (because we may have skipped some in the main loop)
+
     data_list = []
-    for gen_name in processed_gens:
-        P_dwo = dynawo_gens[gen_name].P
-        P_proc = processed_gens[gen_name][0]
+    # We enumerate the processed_loadsPQ dict because it contains the cases
+    # that have actually been processed (because we may have skipped
+    # some in the main loop).
+    for load_name in processed_loadsPQ:
+        P_dwo = dynawo_loads[load_name].P
+        P_proc = processed_loadsPQ[load_name][0]
         Pdiff_pct = 100 * (P_dwo - P_proc) / max(abs(P_proc), 0.001)
-        Q_dwo = dynawo_gens[gen_name].Q
-        Q_proc = processed_gens[gen_name][1]
+        Q_dwo = dynawo_loads[load_name].Q
+        Q_proc = processed_loadsPQ[load_name][1]
         Qdiff_pct = 100 * (Q_dwo - Q_proc) / max(abs(Q_proc), 0.001)
         sumPQdiff_pct = abs(Pdiff_pct) + abs(Qdiff_pct)
         data_list.append(
             [
-                gen_name,
+                load_name,
                 P_dwo,
                 P_proc,
                 Pdiff_pct,

@@ -50,7 +50,7 @@ from collections import namedtuple
 sys.path.insert(
     1, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 )
-from xml_utils.dwo_jobinfo import is_dwohds, is_dwodwo
+from dwo_jobinfo import is_dwohds, is_dwodwo
 
 # import itertools
 

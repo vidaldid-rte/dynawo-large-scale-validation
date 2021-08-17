@@ -225,7 +225,7 @@ fi
 #####################################################################
 # Detect whether it's astdwo / dwodwo, and run the cases accordingly
 #####################################################################
-DWO_JOBINFO_SCRIPT=$(dirname "$0")/../xml_utils/dwo_jobinfo.py
+DWO_JOBINFO_SCRIPT=$(dirname "$0")/dwo_jobinfo.py
 CASE_TYPE=$("$DWO_JOBINFO_SCRIPT" "$CONTG_CASE" | grep -F "CASE_TYPE" | cut -d'=' -f2)
 if [ "$CASE_TYPE" = "astdwo" ]; then
     run_astre

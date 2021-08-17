@@ -5,39 +5,52 @@
 #     marinjl@aia.es
 #
 #
-# create_gen_contg.py:
+# gen_contg.py:
 #
-# Takes a given base case, consisting of EITHER two corresponding DynaFlow and Hades
-# cases OR two corresponding DynaFlow cases, and, enumerating all GENs that can be
-# matched in the two, generates the files for running all possible single-GEN
-# contingency cases (or a provided list of them).
+# Takes a given base case, consisting of EITHER two corresponding
+# Dynawo and Astre cases OR two corresponding Dynawo and Dynawo cases,
+# and, enumerating all SHUNTS that can be matched in the two,
+# generates the files for running a single-shunt contingency for each
+# device.
 #
-# On *input*, the files are expected to have a structure that typically looks as
-# either one of these (but this is not strict; see below):
+# On input, the files are expected to have a structure that typically
+# looks as either one of these similar to this (but this is not
+# strict; see below):
 #
-#    For DynaFlow-vs-Hades:                For DynaFlow_A vs. DynaFlow_B:
-#    ======================                ==============================
-#    BASECASE/                             BASECASE/
-#    ├── Hades/                            ├── JOB_A.xml
-#    │   └── donneesEntreeHADES2.xml       ├── JOB_B.xml
-#    ├── JOB.xml                           ├── A/
-#    ├── Network.par                       │   ├── Network.par
-#    ├── solver.par                        │   ├── solver.par
-#    ├── <dwo_casename>.{iidm,dyd,par}    │   ├── <dwo_casename>.{iidm,dyd,par}
-#    └── <dwo_casename>_Diagram/           │   └── <dwo_casename>_Diagram/
-#                                          └── B/
-#                                              ├── Network.par
-#                                              ├── solver.par
-#                                              ├── <dwo_casename>.{iidm,dyd,par}
-#                                              └── <dwo_casename>_Diagram/
+#    For Astre-vs-Dynawo:                For Dynawo_A vs. Dynawo_B:
+#    ====================                ==========================
+#    BASECASE/                           BASECASE/
+#    ├── Astre                           ├── fic_JOB_A.xml
+#    │   └── donneesModelesEntree.xml    ├── fic_JOB_B.xml
+#    ├── fic_JOB.xml                     ├── t0_A
+#    ├── t0                              │   ├── fic_CRV.xml
+#    │   ├── fic_CRV.xml                 │   ├── fic_DYD.xml
+#    │   ├── fic_DYD.xml                 │   ├── fic_IIDM.xml
+#    │   ├── fic_IIDM.xml                │   └── fic_PAR.xml
+#    │   └── fic_PAR.xml                 ├── t0_B
+#    └── tFin                            │   ├── fic_CRV.xml
+#       ├── fic_CRV.xml                  │   ├── fic_DYD.xml
+#       ├── fic_DYD.xml                  │   ├── fic_IIDM.xml
+#       ├── fic_IIDM.xml                 │   └── fic_PAR.xml
+#       └── fic_PAR.xml                  ├── tFin_A
+#                                        │   ├── fic_CRV.xml
+#                                        │   ├── fic_DYD.xml
+#                                        │   ├── fic_IIDM.xml
+#                                        │   └── fic_PAR.xml
+#                                        └── tFin_B
+#                                            ├── fic_CRV.xml
+#                                            ├── fic_DYD.xml
+#                                            ├── fic_IIDM.xml
+#                                            └── fic_PAR.xml
 #
+# For Astre, the structure should be strictly as the above example.
+# On the other hand, for Dynawo we only require that there exists a
+# JOB file with patterns "*JOB*.xml" (or "*JOB_A*.xml",
+# "*JOB_B*.xml"); and then we read from them the actual paths to the
+# IIDM, DYD, etc., configuring the contingency in the last job defined
+# inside the JOB file (see module dwo_jobinfo).
 #
-# For Hades, the structure should be strictly as in the above example. On the other
-# hand, for Dynawo we only require that there exists a JOB file with patterns
-# "*JOB*.xml" (or "*JOB_A*.xml", "*JOB_B*.xml"); and from the job file we read the
-# actual paths to the IIDM, DYD, etc. (see module dwo_jobinfo).
-#
-# On *output*, the script generates new dirs sibling to basecase:
+# On output, the script generates new dirs sibling to basecase:
 # gen_LABEL1, gen_LABEL2, etc.
 #
 
@@ -46,21 +59,19 @@ import random
 import re
 import sys
 from collections import namedtuple
-from common_funcs import copy_dwohds_basecase, copy_dwodwo_basecase, parse_basecase
+from common_funcs import copy_astdwo_basecase, copy_dwodwo_basecase, parse_basecase
 from lxml import etree
 import pandas as pd
 import argparse
 
-# Relative imports only work for proper Python packages, but we do not want (yet) to
+# Relative imports only work for proper Python packages, but we do not want to
 # structure all these as a package; we'd like to keep them as a collection of loose
-# Python scripts, at least for now (after all, this is not really a Python library). So
+# Python scripts, at least for now (because this is not really a Python library). So
 # the following hack is ugly, but needed:
-sys.path.insert(
-    1, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-)
+sys.path.insert(1, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Alternatively, you could set PYTHONPATH to PYTHONPATH="/<dir>/dynawo-validation-AIA"
 from dwo_jobinfo import (
-    is_dwohds,
+    is_astdwo,
     is_dwodwo,
     get_dwo_jobpaths,
     get_dwo_tparams,
@@ -71,7 +82,7 @@ from dwo_jobinfo import (
 
 MAX_NCASES = 5  # limits the no. of contingency cases (via random sampling)
 RNG_SEED = 42
-HADES_PATH = "/Hades/donneesEntreeHADES2.xml"
+ASTRE_PATH = "/Astre/donneesModelesEntree.xml"
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -95,7 +106,6 @@ args = parser.parse_args()
 
 
 def main():
-    # args management
     filter_list = []
     verbose = False
     if args.verbose:
@@ -119,33 +129,33 @@ def main():
     # Contingency cases will be created under the same dir as the basecase
     dirname = os.path.dirname(os.path.abspath(base_case))
 
-    # Check whether it's a Dynawo-vs-Hades or a Dynawo-vs-Dynawo case
+    # Check whether it's an Astre-vs-Dynawo or a Dynawo-vs-Dynawo case
     # And get the Dynawo paths from the JOB file, and the simulation time params
-    dwo_paths, dwohds = (None, None)
+    dwo_paths, astdwo = (None, None)
     dwo_pathsA, dwo_pathsB = (None, None)
-    if is_dwohds(base_case):
-        print(f"Creating contingencies from DYNAWO-vs-HADES case: {base_case}")
+    if is_astdwo(base_case):
+        print(f"Creating contingencies from ASTRE-vs-DYNAWO case: {base_case}")
         dwo_paths = get_dwo_jobpaths(base_case)
         dwo_tparams = get_dwo_tparams(base_case)
-        dwohds = True
+        astdwo = True
     elif is_dwodwo(base_case):
         print(f"Creating contingencies from DYNAWO-vs-DYNAWO case: {base_case}")
         dwo_pathsA, dwo_pathsB = get_dwodwo_jobpaths(base_case)
         dwo_tparamsA, dwo_tparamsB = get_dwodwo_tparams(base_case)
-        dwohds = False
+        astdwo = False
     else:
-        raise ValueError(f"Case {base_case} is neither an dwo-hds nor a dwo-dwo case")
+        raise ValueError(f"Case {base_case} is neither an ast-dwo nor a dwo-dwo case")
 
     # Parse all XML files in the basecase
     parsed_case = parse_basecase(
-        base_case, dwo_paths, HADES_PATH, dwo_pathsA, dwo_pathsB
+        base_case, dwo_paths, ASTRE_PATH, dwo_pathsA, dwo_pathsB
     )
 
     # Extract the list of all (active) GENS in the Dynawo case
-    if dwohds:
+    if astdwo:
         dynawo_gens = extract_dynawo_gens(parsed_case.iidmTree, verbose)
-        # And reduce the list to those GENS that are matched in Hades
-        dynawo_gens = matching_in_hades(parsed_case.asthdsTree, dynawo_gens, verbose)
+        # And reduce the list to those GENS that are matched in Astre
+        dynawo_gens = matching_in_astre(parsed_case.astreTree, dynawo_gens, verbose)
     else:
         dynawo_gens = extract_dynawo_gens(parsed_case.A.iidmTree, verbose)
         dynawo_gensB = extract_dynawo_gens(parsed_case.B.iidmTree, verbose)
@@ -162,10 +172,10 @@ def main():
         )
 
     # This dict will keep track of which contingencies are actually processed
-    # It will also keep Hades's (P,Q) of each gen
+    # It will also keep Astre's (P,Q) of each gen
     processed_gensPQ = dict()
 
-    # Main loop: generate the contingency cases
+    # For each matching GEN, generate the contingency case
     for gen_name in dynawo_gens:
 
         # If the script was passed a list of generators, filter for them here
@@ -185,9 +195,9 @@ def main():
         # We fix any device names with slashes in them (illegal filenames)
         contg_casedir = dirname + "/gen_" + gen_name.replace("/", "+")
 
-        if dwohds:
+        if astdwo:
             # Copy the basecase (unchanged files and dir structure)
-            copy_dwohds_basecase(base_case, dwo_paths, contg_casedir)
+            copy_astdwo_basecase(base_case, dwo_paths, contg_casedir)
             # Modify the Dynawo case (DYD,PAR,CRV)
             config_dynawo_gen_contingency(
                 contg_casedir,
@@ -197,9 +207,9 @@ def main():
                 gen_name,
                 dynawo_gens[gen_name],
             )
-            # Modify the Hades case, and obtain the disconnected generation (P,Q)
-            processed_gensPQ[gen_name] = config_hades_gen_contingency(
-                contg_casedir, parsed_case.asthdsTree, gen_name
+            # Modify the Astre case, and obtain the disconnected generation (P,Q)
+            processed_gensPQ[gen_name] = config_astre_gen_contingency(
+                contg_casedir, parsed_case.astreTree, gen_name, dynawo_gens[gen_name]
             )
         else:
             # Copy the basecase (unchanged files and dir structure)
@@ -228,7 +238,7 @@ def main():
             )
 
     # Finally, save the (P,Q) values of disconnected gens in all *processed* cases
-    save_total_genpq(dirname, dwohds, dynawo_gens, processed_gensPQ)
+    save_total_genpq(dirname, astdwo, dynawo_gens, processed_gensPQ)
 
     return 0
 
@@ -241,15 +251,12 @@ def extract_dynawo_gens(iidm_tree, verbose=False):
 
     # We enumerate all gens and extract their properties
     for gen in root.iter("{%s}generator" % ns):
-        P_val = float(gen.get("p"))
-        if gen.get("q") is not None:
-            Q_val = float(gen.get("q"))
-        else:
-            Q_val = float(gen.get("targetQ"))
-        # Skip disconnected (detection via p,q to accommodate BUS_BREAKER/NODE_BREAKER)
-        if P_val == 0.0 and Q_val == 0.0:
+        # Keep only the active ones
+        if gen.get("p") == "-0" and gen.get("q") == "-0":
             continue
         gen_name = gen.get("id")
+        P_val = -float(gen.get("targetP"))  # float(gen.get("p"))
+        Q_val = float(gen.get("q"))
         gen_type = gen.get("energySource")
         topo_val = gen.getparent().get("topologyKind")
         if topo_val == "BUS_BREAKER":
@@ -283,21 +290,21 @@ def extract_dynawo_gens(iidm_tree, verbose=False):
     return gens
 
 
-def matching_in_hades(hades_tree, dynawo_gens, verbose=False):
-    # Retrieve the list of Hades gens
-    root = hades_tree.getroot()
+def matching_in_astre(astre_tree, dynawo_gens, verbose=False):
+    # Retrieve the list of Astre gens
+    root = astre_tree.getroot()
     reseau = root.find("./reseau", root.nsmap)
     donneesGroupes = reseau.find("./donneesGroupes", root.nsmap)
-    hades_gens = set()  # for faster matching below
+    astre_gens = set()  # for faster matching below
     for gen in donneesGroupes.iterfind("./groupe", root.nsmap):
         # Discard gens having noeud="-1"
         if gen.get("noeud") != "-1":
-            hades_gens.add(gen.get("nom"))
+            astre_gens.add(gen.get("nom"))
 
-    print("\nFound %d gens in Hades file" % len(hades_gens))
+    print("\nFound %d gens in Astre file" % len(astre_gens))
     if verbose:
-        print("Sample list of all GENS in Hades file: (total: %d)" % len(hades_gens))
-        gen_list = sorted(hades_gens)
+        print("Sample list of all GENS in Astre file: (total: %d)" % len(astre_gens))
+        gen_list = sorted(astre_gens)
         if len(gen_list) < 10:
             print(gen_list)
         else:
@@ -305,7 +312,7 @@ def matching_in_hades(hades_tree, dynawo_gens, verbose=False):
         print()
 
     # Match:
-    new_list = [x for x in dynawo_gens.items() if x[0] in hades_gens]
+    new_list = [x for x in dynawo_gens.items() if x[0] in astre_gens]
     print("   (matched %d gens against Dynawo file)\n" % len(new_list))
 
     return dict(new_list)
@@ -328,7 +335,6 @@ def config_dynawo_gen_contingency(
     print("   Configuring file %s" % dyd_file)
     dyd_tree = case_trees.dydTree
     root = dyd_tree.getroot()
-    ns = etree.QName(root).namespace
 
     # Generators with vs. without a dynamic model in the DYD file:
     # they need to be disconnected differently.
@@ -336,8 +342,7 @@ def config_dynawo_gen_contingency(
     cnx_id2 = "NETWORK"
     cnx_var2 = gen_name + "_state_value"
     param_eventname = "event_open"
-    for dyn_gen in root.iterfind(f"./{{{ns}}}blackBoxModel"):
-        # Note we rely on dynamic model names *starting* with "Generator"
+    for dyn_gen in root.iterfind("./blackBoxModel", root.nsmap):
         if (
             dyn_gen.get("lib")[0:9] == "Generator"
             and dyn_gen.get("staticId") == gen_name
@@ -352,14 +357,15 @@ def config_dynawo_gen_contingency(
     # connections later below)
     old_eventIds = []
     old_parIds = []
-    for event in root.iterfind(f"./{{{ns}}}blackBoxModel"):
+    for event in root.iterfind("./blackBoxModel", root.nsmap):
         if event.get("lib")[0:5] == "Event":
             old_eventIds.append(event.get("id"))
             old_parIds.append(event.get("parId"))
             event.getparent().remove(event)
 
     # Declare a new Event
-    event = etree.SubElement(root, f"{{{ns}}}blackBoxModel")
+    ns = etree.QName(root).namespace
+    event = etree.SubElement(root, "{%s}blackBoxModel" % ns)
     event_id = "Disconnect my gen"
     event.set("id", event_id)
     event.set("lib", disconn_eventmodel)
@@ -367,12 +373,12 @@ def config_dynawo_gen_contingency(
     event.set("parId", "99991234")
 
     # Erase all connections of the previous Events we removed above
-    for cnx in root.iterfind(f"./{{{ns}}}connect"):
+    for cnx in root.iterfind("./connect", root.nsmap):
         if cnx.get("id1") in old_eventIds or cnx.get("id2") in old_eventIds:
             cnx.getparent().remove(cnx)
 
     # Declare a new Connect between the Event model and the gen
-    cnx = etree.SubElement(root, f"{{{ns}}}connect")
+    cnx = etree.SubElement(root, "{%s}connect" % ns)
     cnx.set("id1", event_id)
     cnx.set("var1", "event_state1_value")
     cnx.set("id2", cnx_id2)
@@ -463,51 +469,108 @@ def config_dynawo_gen_contingency(
     return 0
 
 
-def config_hades_gen_contingency(casedir, hades_tree, gen_name):
-    hades_file = casedir + HADES_PATH
-    print("   Configuring file %s" % hades_file)
-    root = hades_tree.getroot()
-    # Since Hades is a powerflow program, there is no "event" to configure. We simply
-    # disconnect the generator by setting its noeud to "-1".
-    # First find the gen in Hades and keep its P, Q values (for comnparing vs Dynawo)
-    hades_gen = None
+def config_astre_gen_contingency(casedir, astre_tree, gen_name, gen_info):
+    astre_file = casedir + ASTRE_PATH
+    print("   Configuring file %s" % astre_file)
+    root = astre_tree.getroot()
+
+    # Configure the event by means of the `evtouvrtopo` element.  We
+    # first remove all existing events (keeping the event time from
+    # the first one).
+    event_time = None
+    nevents = 0
+    modele = root.find("./modele", root.nsmap)
+    entrees = modele.find("./entrees", root.nsmap)
+    entreesAstre = entrees.find("./entreesAstre", root.nsmap)
+    scenario = entreesAstre.find("./scenario", root.nsmap)
+    for astre_event in scenario.iterfind("./evtouvrtopo", root.nsmap):
+        if nevents == 0:
+            event_time = astre_event.get("instant")
+            scenario.remove(astre_event)
+            nevents = 1
+        else:
+            astre_event.getparent().remove(astre_event)
+    if nevents != 1:
+        raise ValueError("Astre file %s does not contain any events!" % astre_file)
+
+    # Find the gen in Astre
+    astre_gen = None
     reseau = root.find("./reseau", root.nsmap)
     donneesGroupes = reseau.find("./donneesGroupes", root.nsmap)
     for g in donneesGroupes.iterfind("./groupe", root.nsmap):
         if g.get("nom") == gen_name:
-            hades_gen = g
+            astre_gen = g
             break
-    # the gen should always be found, because they have been previously matched
-    gen_vars = hades_gen.find("./variables", root.nsmap)
+    gen_id = astre_gen.get("num")
+    bus_id = astre_gen.get("noeud")
+    bus_name = gen_info.bus  # we can use Dynawo's name for the curve var
+    gen_vars = astre_gen.find("./variables", root.nsmap)
     gen_P = -float(gen_vars.get("pc"))
     gen_Q = -float(gen_vars.get("q"))
-    # Now disconnect it
-    bus_id = hades_gen.get("noeud")
-    hades_gen.set("noeud", "-1")
-    # Write out the Hades file, preserving the XML format
-    hades_tree.write(
-        hades_file,
+
+    # We now insert our own events. We link to the gen id using the
+    # `ouvrage` attribute.  The event type for gens is "2", and
+    # typeevt for disconnections is "1").
+    ns = etree.QName(root).namespace
+    event = etree.SubElement(scenario, "{%s}evtouvrtopo" % ns)
+    event.set("instant", event_time)
+    event.set("ouvrage", gen_id)
+    event.set("type", "2")
+    event.set("typeevt", "1")
+    event.set("cote", "0")
+
+    # Add variables to the curves section: "courbe" elements are
+    # children of element "entreesAstre" and siblings to "scenario".
+    # The base case file is expected to have some courves configured
+    # (the variables that monitor the behavior of the SVC: pilot point
+    # voltage, K level, and P,Q of participating generators). We will
+    # keep these, and add new ones.
+    #
+    # For now we'll just add the voltage at the contingency bus. To do
+    # this, we get the id of the bus that the gen is attached to and
+    # add an element as in the example:
+    #
+    #     ```
+    #       <courbe nom="BUSNAME_Upu_value" typecourbe="63" ouvrage="BUSID" type="7"/>
+    #     ```
+    #
+    # Since the name of the curve variable is free, we'll use names
+    # that match Dynawo.
+    new_crv1 = etree.Element(
+        "{%s}courbe" % ns,
+        nom="NETWORK_" + bus_name + "_Upu_value",
+        typecourbe="63",
+        ouvrage=bus_id,
+        type="7",
+    )
+    entreesAstre.append(new_crv1)
+
+    # Write out the Astre file, preserving the XML format
+    astre_tree.write(
+        astre_file,
         pretty_print=True,
         xml_declaration='<?xml version="1.0" encoding="ISO-8859-1"?>',
         encoding="ISO-8859-1",
         standalone=False,
     )
-    # IMPORTANT: undo the changes we made, as we'll be reusing this parsed tree!
-    hades_gen.set("noeud", bus_id)
+
+    # Erase the curve we've just added, because we'll be reusing the parsed tree
+    entreesAstre.remove(new_crv1)
+
     return gen_P, gen_Q
 
 
-def save_total_genpq(dirname, dwohds, dynawo_gens, processed_gens):
+def save_total_genpq(dirname, astdwo, dynawo_gens, processed_gens):
     file_name = dirname + "/total_PQ_per_generator.csv"
     # Using a dataframe for sorting
-    if dwohds:
+    if astdwo:
         column_list = [
             "GEN",
             "P_dwo",
-            "P_hds",
+            "P_ast",
             "Pdiff_pct",
             "Q_dwo",
-            "Q_hds",
+            "Q_ast",
             "Qdiff_pct",
             "sumPQdiff_pct",
         ]
@@ -522,8 +585,8 @@ def save_total_genpq(dirname, dwohds, dynawo_gens, processed_gens):
             "Qdiff_pct",
             "sumPQdiff_pct",
         ]
-    # The processed_gens dict (which contains B case data) contains only the cases
-    # that have actually been processed (we may have skipped some in the main loop)
+    # The processed_gens dict contains the cases that have actually been processed
+    # (because we may have skipped some in the main loop)
     data_list = []
     for gen_name in processed_gens:
         P_dwo = dynawo_gens[gen_name].P

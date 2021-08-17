@@ -59,7 +59,7 @@ sys.path.insert(
     1, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 )
 # Alternatively, you could set PYTHONPATH to PYTHONPATH="/<dir>/dynawo-validation-AIA"
-from xml_utils.dwo_jobinfo import (
+from dwo_jobinfo import (
     is_dwohds,
     is_dwodwo,
     get_dwo_jobpaths,

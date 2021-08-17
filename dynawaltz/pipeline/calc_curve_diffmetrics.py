@@ -37,7 +37,7 @@ from scipy.interpolate import interp1d
 # the following hack is ugly, but needed:
 sys.path.insert(1, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Alternatively, you could set PYTHONPATH to PYTHONPATH="/<dir>/dynawo-validation-AIA"
-from xml_utils.dwo_jobinfo import (
+from dwo_jobinfo import (
     is_astdwo,
     is_dwodwo,
     get_dwo_tparams,
