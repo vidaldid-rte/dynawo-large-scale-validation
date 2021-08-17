@@ -45,22 +45,30 @@ Now, you have a self-contained directory tree that contains a Python installatio
 
 - **Install all Python packages**:
 
-	- pip install pandas
+	- **With requirements.txt**:
 
-	- pip install lxml
+		- pip install -r dynawo-validation-AIA/doc/requirements.txt
 
-	- pip install plotly
+	- **Manually**:
 
-	- pip install frozendict
+		- pip install pandas
 
-	- pip install networkx
+		- pip install lxml
 
-	- pip install pyvis
+		- pip install plotly
+
+		- pip install frozendict
+
+		- pip install networkx
+
+		- pip install pyvis
+		
+		- pip install ipywidgets
+
+		- pip install matplotlib
+		
+		- pip install tqdm
 	
-	- pip install ipywidgets
-
-	- pip install matplotlib
-
 
 ## Jupyter Notebooks configuration
 
