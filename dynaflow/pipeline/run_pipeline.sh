@@ -106,6 +106,7 @@ echo "Generating results under directory: $RESULTS_BASEDIR"
 mkdir -p "$RESULTS_BASEDIR"
 
 colormsg "*** COPYING BASECASE:" 
+
 cp -a "$BASECASE" "$RESULTS_BASEDIR"
 
 # Process all devices from the list
