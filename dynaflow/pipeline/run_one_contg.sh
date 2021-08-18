@@ -307,7 +307,7 @@ if  [ "$CASE_TYPE" != "dwohds" ]; then
     # Extracts EVENTS from the xml output to CSV, using standardized
     # labels to allow comparison
     scripts_basedir=$(dirname "$0")/..
-    "$scripts_basedir"/xml_utils/extract_automata_changes.py "$CONTG_CASE"
+    "$scripts_basedir"/pipeline/extract_automata_changes.py "$CONTG_CASE"
 
     # Collect and compress all results
     if [ "$CASE_TYPE" = "astdwo" ]; then
