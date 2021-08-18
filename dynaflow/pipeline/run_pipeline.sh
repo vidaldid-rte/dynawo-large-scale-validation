@@ -105,6 +105,8 @@ fi
 echo "Generating results under directory: $RESULTS_BASEDIR"
 mkdir -p "$RESULTS_BASEDIR"
 
+colormsg "*** COPYING BASECASE:" 
+cp -a "$BASECASE" "$RESULTS_BASEDIR"
 
 # Process all devices from the list
 for DEVICE in "${!create_contg[@]}"; do
@@ -132,9 +134,10 @@ for DEVICE in "${!create_contg[@]}"; do
     
     colormsg "*** CREATING NOTEBOOK:" 
     # Create notebook
-    "$DWO_VALIDATION_SRC"/notebooks/generate_notebooks.py "$(cd "$(dirname "$CASE_DIR")"; pwd)/" "$BASECASE" "$DEVICE"
+    "$DWO_VALIDATION_SRC"/notebooks/generate_notebooks.py "$(cd "$(dirname "$RESULTS_DIR")"; pwd)/" "$BASECASE" "$DEVICE"
     mkdir -p "$RESULTS_DIR"/notebooks
     cp "$DWO_VALIDATION_SRC"/notebooks/simulator_A_vs_simulator_B_final.ipynb "$RESULTS_DIR"/notebooks
+    # TODO: this two copies will be unnecessary when we package the code
     cp "$DWO_VALIDATION_SRC"/notebooks/simulator_A_vs_simulator_B_code.py "$RESULTS_DIR"/notebooks
     cp "$DWO_VALIDATION_SRC"/notebooks/create_graph.py "$RESULTS_DIR"/notebooks
     rm "$DWO_VALIDATION_SRC"/notebooks/simulator_A_vs_simulator_B_final.ipynb
