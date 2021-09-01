@@ -1,0 +1,10 @@
+,Contg_case,pre_ast,pre_dwo,post_ast,post_dwo,dSS_pass,dPP_pass,global_crv,dSS,dPP,TT,period,damp,dSS_viol,dPP_viol,dSS_pass_,dPP_pass_,Stable_pre,Stable_post,shunt_netchanges,shunt_numchanges,any_shunt_evt,tap_netchanges,tap_p2pchanges,tap_numchanges,any_xfmr_tap,ldtap_netchanges,ldtap_p2pchanges,ldtap_numchanges,any_ldxfmr_tap,global_aut,global
+0,.WEIHT 1,1.0,1.0,1.0,1.0,1.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,0,0,True,True,True,True,0.0,0.0,False,0.0,0.0,0.0,False,0.0,0.0,0.0,False,0.0,0.0
+1,ARTOU.HG1,1.0,1.0,1.0,1.0,1.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,0,0,True,True,True,True,0.0,0.0,False,0.0,0.0,0.0,False,0.0,0.0,0.0,False,0.0,0.0
+2,LABOUINF,1.0,1.0,1.0,1.0,1.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,0,0,True,True,True,True,0.0,0.0,False,0.0,0.0,0.0,False,0.0,0.0,0.0,False,0.0,0.0
+3,M.VIR4G1+2,1.0,1.0,1.0,1.0,1.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,0,0,True,True,True,True,0.0,0.0,False,0.0,0.0,0.0,False,0.0,0.0,0.0,False,0.0,0.0
+4,OSNESING,1.0,1.0,1.0,1.0,1.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,0,0,True,True,True,True,0.0,0.0,False,0.0,0.0,0.0,False,0.0,0.0,0.0,False,0.0,0.0
+5,ROCH8ING,1.0,1.0,1.0,1.0,1.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,0,0,True,True,True,True,0.0,0.0,False,0.0,0.0,0.0,False,0.0,0.0,0.0,False,0.0,0.0
+6,SEGREIN2,1.0,1.0,1.0,1.0,1.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,0,0,True,True,True,True,0.0,0.0,False,0.0,0.0,0.0,False,0.0,0.0,0.0,False,0.0,0.0
+7,SSAVEING,1.0,1.0,1.0,1.0,1.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,0,0,True,True,True,True,0.0,0.0,False,0.0,0.0,0.0,False,0.0,0.0,0.0,False,0.0,0.0
+8,VOGEH1GROUP.4,1.0,1.0,1.0,1.0,1.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,0,0,True,True,True,True,0.0,0.0,False,0.0,0.0,0.0,False,0.0,0.0,0.0,False,0.0,0.0

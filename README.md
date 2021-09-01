@@ -23,7 +23,6 @@ A repo of scripts and utilities used for the RTE-AIA Project
 	
   * `dynawaltz`: folder that contains the main code for Dynawaltz simulator comparison and analysis.
   
-  * `lauchers`: executables used throughout the development of the project.
 
 
 
