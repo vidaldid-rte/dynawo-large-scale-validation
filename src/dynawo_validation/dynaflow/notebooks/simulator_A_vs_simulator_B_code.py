@@ -208,7 +208,7 @@ def create_containers(
 # Create all the layouts of the output
 def create_layouts(varx, vary, HEIGHT, WIDTH, contg_case0, dropdown1, dropdown2):
     layout1 = go.Layout(
-        title=dict(text="Simulator A vs Simulator B"),
+        title=dict(text="Global differences between simulator A and simulator B"),
         xaxis=dict(title=varx.value),
         yaxis=dict(title=vary.value),
         height=HEIGHT,
