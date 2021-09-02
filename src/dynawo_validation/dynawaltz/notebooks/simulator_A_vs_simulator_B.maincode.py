@@ -36,15 +36,23 @@ def getDeltaLevelK(df_ast, df_dwo, t_end):
 
 # Auxiliary function for reading curve data of each individual case
 def get_curve_dfs(crv_dir, prefix, contg_case):
-    ast_case = crv_dir + "/" + prefix + contg_case + "-DynawoCurvesA.csv.xz"
-    dwo_case = crv_dir + "/" + prefix + contg_case + "-DynawoCurvesB.csv.xz"
+    if IS_DWO_DWO == 0:
+        ast_case = crv_dir + "/" + prefix + contg_case + "-AstreCurves.csv.xz"
+        dwo_case = crv_dir + "/" + prefix + contg_case + "-DynawoCurves.csv.xz"
+    elif IS_DWO_DWO == 1:
+        ast_case = crv_dir + "/" + prefix + contg_case + "-DynawoCurvesA.csv.xz"
+        dwo_case = crv_dir + "/" + prefix + contg_case + "-DynawoCurvesB.csv.xz"
+    else:
+        raise ValueError("IS_DWO_DWO must be 0 or 1.")
     df_ast = pd.read_csv(ast_case, sep=";", index_col=False, compression="infer")
     df_dwo = pd.read_csv(dwo_case, sep=";", index_col=False, compression="infer")
     # TODO: ASTDWO/DWODWO DEPENDENCY:
-    df_ast = df_ast.iloc[:, :-1]  # because of extra ";" at end-of-lines
+    if IS_DWO_DWO == 1:
+        df_ast = df_ast.iloc[:, :-1]  # because of extra ";" at end-of-lines
     df_dwo = df_dwo.iloc[:, :-1]  # because of extra ";" at end-of-lines
-    TFIN_TIME_OFFSET = df_ast["time"][0]  # Dynawo's time offset
-    df_ast["time"] = round(df_ast.time - TFIN_TIME_OFFSET)
+    if IS_DWO_DWO == 1:
+        TFIN_TIME_OFFSET = df_ast["time"][0]  # Dynawo's time offset
+        df_ast["time"] = round(df_ast.time - TFIN_TIME_OFFSET)
     TFIN_TIME_OFFSET = df_dwo["time"][0]  # Dynawo's time offset
     df_dwo["time"] = round(df_dwo.time - TFIN_TIME_OFFSET)
 
@@ -83,8 +91,14 @@ def response(change):
             1.0e-6, max(df.dPP_ast) - min(df.dPP_ast)
         )
         g.data[0].text = df["dev"] + "<br>" + df["vars"]
-        g.layout.xaxis.title = var.value + " Dynawo A"
-        g.layout.yaxis.title = var.value + " Dynawo B"
+        if IS_DWO_DWO == 0:
+            g.layout.xaxis.title = var.value + " Astre"
+            g.layout.yaxis.title = var.value + " Dynawo"
+        elif IS_DWO_DWO == 1:
+            g.layout.xaxis.title = var.value + " Dynawo A"
+            g.layout.yaxis.title = var.value + " Dynawo B"
+        else:
+            raise ValueError("IS_DWO_DWO must be 0 or 1.")
 
 
 def response2(change):
@@ -439,22 +453,40 @@ dev = widgets.Dropdown(
 )
 container = widgets.HBox([check, mask, var, dev, var2])
 
-
 # Initialize Plot Traces
-trace = go.Scatter(
-    name="Dynawo A vs Dynawo B",
-    x=df["dSS_ast"],
-    y=df["dSS_dwo"],
-    mode="markers",
-    marker_color=df["TT_ast"],
-    marker_size=5
-    + 45
-    * (df.dPP_ast - min(df.dPP_ast))
-    / max(1.0e-6, max(df.dPP_ast) - min(df.dPP_ast)),
-    text=df["dev"] + "<br>" + df["vars"],
-    xaxis="x1",
-    yaxis="y1",
-)
+if IS_DWO_DWO == 0:
+    trace = go.Scatter(
+        name="Astre vs Dynawo",
+        x=df["dSS_ast"],
+        y=df["dSS_dwo"],
+        mode="markers",
+        marker_color=df["TT_ast"],
+        marker_size=5
+        + 45
+        * (df.dPP_ast - min(df.dPP_ast))
+        / max(1.0e-6, max(df.dPP_ast) - min(df.dPP_ast)),
+        text=df["dev"] + "<br>" + df["vars"],
+        xaxis="x1",
+        yaxis="y1",
+    )
+elif IS_DWO_DWO == 1:
+    trace = go.Scatter(
+        name="Dynawo A vs Dynawo B",
+        x=df["dSS_ast"],
+        y=df["dSS_dwo"],
+        mode="markers",
+        marker_color=df["TT_ast"],
+        marker_size=5
+        + 45
+        * (df.dPP_ast - min(df.dPP_ast))
+        / max(1.0e-6, max(df.dPP_ast) - min(df.dPP_ast)),
+        text=df["dev"] + "<br>" + df["vars"],
+        xaxis="x1",
+        yaxis="y1",
+    )
+else:
+    raise ValueError("IS_DWO_DWO must be 0 or 1.")
+
 tracel = go.Scatter(
     name="Diagonal",
     x=df["dSS_ast"],
@@ -465,24 +497,47 @@ tracel = go.Scatter(
     xaxis="x1",
     yaxis="y1",
 )
-trace1 = go.Scatter(
-    name="Dynawo A",
-    x=df_ast["time"],
-    y=df_ast[var0],
-    mode="lines",
-    marker_color="blue",
-    xaxis="x2",
-    yaxis="y2",
-)
-trace2 = go.Scatter(
-    name="Dynawo B",
-    x=df_dwo["time"],
-    y=df_dwo[var0] + yoffset,
-    mode="lines",
-    marker_color="red",
-    xaxis="x2",
-    yaxis="y2",
-)
+if IS_DWO_DWO == 0:
+    trace1 = go.Scatter(
+        name="Astre",
+        x=df_ast["time"],
+        y=df_ast[var0],
+        mode="lines+markers",
+        marker_color="black",
+        xaxis="x2",
+        yaxis="y2",
+    )
+    trace2 = go.Scatter(
+        name="Dynawo",
+        x=df_dwo["time"],
+        y=df_dwo[var0] + yoffset,
+        mode="lines",
+        marker_color="red",
+        xaxis="x2",
+        yaxis="y2",
+    )
+elif IS_DWO_DWO == 1:
+    trace1 = go.Scatter(
+        name="Dynawo A",
+        x=df_ast["time"],
+        y=df_ast[var0],
+        mode="lines",
+        marker_color="blue",
+        xaxis="x2",
+        yaxis="y2",
+    )
+    trace2 = go.Scatter(
+        name="Dynawo B",
+        x=df_dwo["time"],
+        y=df_dwo[var0] + yoffset,
+        mode="lines",
+        marker_color="red",
+        xaxis="x2",
+        yaxis="y2",
+    )
+else:
+    raise ValueError("IS_DWO_DWO must be 0 or 1.")
+
 trace3 = go.Scatter(
     name="Transf. Load Tap Changes",
     x=df_m["time"],
@@ -520,17 +575,34 @@ trace6 = go.Scatter(
 HEIGHT = 600  # Adapt as needed
 WIDTH = 1600  # but make sure that width > height
 aspect_ratio = HEIGHT / WIDTH
-layout = go.Layout(
-    title=dict(text="Dynawo A vs Dynawo B"),
-    xaxis=dict(title="dSS DynawoA", domain=[0, aspect_ratio - 0.05]),
-    yaxis=dict(title="dSS DynawoB", scaleanchor="x", scaleratio=1),
-    xaxis2=dict(title="t", domain=[aspect_ratio + 0.05, 1], range=[0, T_END]),
-    yaxis2=dict(title=var0, anchor="x2", domain=[0, 0.7]),
-    xaxis3=dict(title="t", domain=[aspect_ratio + 0.05, 1], range=[0, T_END]),
-    yaxis3=dict(title="% changes", anchor="x3", domain=[0.8, 1]),
-    height=HEIGHT,
-    width=WIDTH,
-)
+
+if IS_DWO_DWO == 0:
+    layout = go.Layout(
+        title=dict(text="Astre vs Dynawo"),
+        xaxis=dict(title="dSS Astre", domain=[0, aspect_ratio - 0.05]),
+        yaxis=dict(title="dSS Dynawo", scaleanchor="x", scaleratio=1),
+        xaxis2=dict(title="t", domain=[aspect_ratio + 0.05, 1], range=[0, T_END]),
+        yaxis2=dict(title=var0, anchor="x2", domain=[0, 0.7]),
+        xaxis3=dict(title="t", domain=[aspect_ratio + 0.05, 1], range=[0, T_END]),
+        yaxis3=dict(title="% changes", anchor="x3", domain=[0.8, 1]),
+        height=HEIGHT,
+        width=WIDTH,
+    )
+elif IS_DWO_DWO == 1:
+    layout = go.Layout(
+        title=dict(text="Dynawo A vs Dynawo B"),
+        xaxis=dict(title="dSS DynawoA", domain=[0, aspect_ratio - 0.05]),
+        yaxis=dict(title="dSS DynawoB", scaleanchor="x", scaleratio=1),
+        xaxis2=dict(title="t", domain=[aspect_ratio + 0.05, 1], range=[0, T_END]),
+        yaxis2=dict(title=var0, anchor="x2", domain=[0, 0.7]),
+        xaxis3=dict(title="t", domain=[aspect_ratio + 0.05, 1], range=[0, T_END]),
+        yaxis3=dict(title="% changes", anchor="x3", domain=[0.8, 1]),
+        height=HEIGHT,
+        width=WIDTH,
+    )
+else:
+    raise ValueError("IS_DWO_DWO must be 0 or 1.")
+
 
 # Main plot
 g = go.FigureWidget(

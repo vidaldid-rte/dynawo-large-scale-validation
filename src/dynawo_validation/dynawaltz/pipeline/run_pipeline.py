@@ -10,7 +10,11 @@ import sys
 from subprocess import run
 
 
-def run_pipeline(base_case, results_dir):
+def run_pipeline(base_case, results_dir, launcherA="dynawo.sh", launcherB="dynawo.sh"):
     file_path = os.path.abspath(os.path.dirname(__file__))
-    Process=run(file_path+'/run_pipeline.sh %s %s' % (base_case,results_dir,), shell=True)
-
+    Process = run(
+        file_path
+        + "/run_pipeline.sh -A %s -B %s %s %s"
+        % (launcherA, launcherB, base_case, results_dir),
+        shell=True,
+    )

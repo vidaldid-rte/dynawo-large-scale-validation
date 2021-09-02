@@ -19,8 +19,9 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    "-id", "--id_node_subgraph", help="enter the central node id of the subgraph "
-                                      "(default dijkstra option)"
+    "-id",
+    "--id_node_subgraph",
+    help="enter the central node id of the subgraph " "(default dijkstra option)",
 )
 parser.add_argument(
     "-l",
@@ -32,7 +33,9 @@ parser.add_argument(
     "--dijkstra",
     help="option of a subgraph using Dijkstra: enter the impedance threshold (id required)",
 )
-parser.add_argument("xiidm_file", help="option for a subgraph using layers: enter the number of layers")
+parser.add_argument(
+    "xiidm_file", help="option for a subgraph using layers: enter the number of layers"
+)
 args = parser.parse_args()
 
 
@@ -269,13 +272,13 @@ def make_subgraph(G, id_node_subgraph, subgraph_type, subgraph_value):
         max_pa -= min_pa
         for s, d in C.edges():
             prev_dict = G.get_edge_data(s, d)
-	   
-            viridis = cm.get_cmap('viridis', 12)
+
+            viridis = cm.get_cmap("viridis", 12)
             c = prev_dict["pa"] - min_pa
             c = c / max_pa
-            r = viridis(c)[0]*256
-            g = viridis(c)[1]*256
-            b = viridis(c)[2]*256
+            r = viridis(c)[0] * 256
+            g = viridis(c)[1] * 256
+            b = viridis(c)[2] * 256
 
             str_rgb = "rgb(" + str(r) + "," + str(g) + "," + str(b) + ")"
 
@@ -344,12 +347,12 @@ def make_subgraph(G, id_node_subgraph, subgraph_type, subgraph_value):
         for s, d in C.edges():
             prev_dict = G.get_edge_data(s, d)
 
-            viridis = cm.get_cmap('viridis', 12)
+            viridis = cm.get_cmap("viridis", 12)
             c = prev_dict["pa"] - min_pa
             c = c / max_pa
-            r = viridis(c)[0]*256
-            g = viridis(c)[1]*256
-            b = viridis(c)[2]*256
+            r = viridis(c)[0] * 256
+            g = viridis(c)[1] * 256
+            b = viridis(c)[2] * 256
 
             str_rgb = "rgb(" + str(r) + "," + str(g) + "," + str(b) + ")"
 

@@ -46,7 +46,11 @@ import random
 import re
 import sys
 from collections import namedtuple
-from dynawo_validation.dynaflow.pipeline.common_funcs import copy_dwohds_basecase, copy_dwodwo_basecase, parse_basecase
+from dynawo_validation.dynaflow.pipeline.common_funcs import (
+    copy_dwohds_basecase,
+    copy_dwodwo_basecase,
+    parse_basecase,
+)
 from lxml import etree
 import pandas as pd
 import argparse

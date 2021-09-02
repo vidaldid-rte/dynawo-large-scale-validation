@@ -68,17 +68,83 @@ NC="\\033[0m"
 usage()
 {
     cat <<EOF
-
-Usage: $0 BASECASE RESULTS_DIR
-
+Usage: $0 [OPTIONS] BASECASE RESULTS_DIR
+  Options:
+    -A | --launcherA  Defines the launcher of simulator A
+    -B | --launcherB  Defines the launcher of simulator B
+    -h | --help       This help message
 EOF
 }
-
 
 colormsg()
 {
     echo -e "${GREEN}$1${NC}"
 }
+
+
+#######################################
+# getopt-like input option processing
+#######################################
+
+# -allow a command to fail with !’s side effect on errexit
+# -use return value from ${PIPESTATUS[0]}, because ! hosed $?
+! getopt --test > /dev/null 
+if [[ ${PIPESTATUS[0]} -ne 4 ]]; then
+    echo "I’m sorry, 'getopt --test' failed in this environment."
+    exit 1
+fi
+
+
+OPTIONS=A:B:h
+LONGOPTS=launcherB:,launcherA:,help
+
+# -regarding ! and PIPESTATUS see above
+# -temporarily store output to be able to check for errors
+# -activate quoting/enhanced mode (e.g. by writing out “--options”)
+# -pass arguments only via   -- "$@"   to separate them correctly
+! PARSED=$(getopt --options=$OPTIONS --longoptions=$LONGOPTS --name "$0" -- "$@")
+if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
+    # e.g. return value is 1
+    #  then getopt has complained about wrong arguments to stdout
+    usage
+    exit 2
+fi
+# read getopt’s output this way to handle the quoting right:
+eval set -- "$PARSED"
+
+A="dynawo.sh" B="dynawo.sh" h=n
+# now enjoy the options in order and nicely split until we see --
+while true; do
+    case "$1" in
+        -A|--launcherA)
+            A="$2"   # it could contain whitespace, so remember to quote it!
+            echo "Launcher A defined as $A"
+            shift 2
+            ;;
+        -B|--launcherB)
+            B="$2"   # it could contain whitespace, so remember to quote it!
+            echo "Launcher B defined as $B"
+            shift 2
+            ;;
+        -h|--help)
+            h=y
+            shift
+            ;;
+        --)
+            shift
+            break
+            ;;
+        *)
+            echo "Programming error"
+            exit 3
+            ;;
+    esac
+done
+
+if [ $h = "y" ]; then
+    usage
+    exit 0
+fi
 
 
 # handle non-option arguments
@@ -122,7 +188,7 @@ for DEVICE in "${!create_contg[@]}"; do
     RESULTS_DIR="$RESULTS_BASEDIR"/"$DEVICE"s
     mkdir -p "$RESULTS_DIR"
     set -x
-    "$CONTG_SRC"/run_all_contg.sh "${RUN_OPTS[@]}" -o "$RESULTS_DIR" "$CASE_DIR" "$BASECASE" "$DEVICE"_
+    "$CONTG_SRC"/run_all_contg.sh "${RUN_OPTS[@]}" -o "$RESULTS_DIR" -A "$A" -B "$B" "$CASE_DIR" "$BASECASE" "$DEVICE"_
     set +x
     echo
 
@@ -137,9 +203,9 @@ for DEVICE in "${!create_contg[@]}"; do
     colormsg "*** CREATING NOTEBOOK:"
     python3 "$DWO_VALIDATION_SRC"/notebooks/generate_notebooks.py "$(cd "$(dirname "$RESULTS_DIR")"; pwd)/$DEVICE"s "$BASECASE" "$DEVICE"_
     mkdir -p "$RESULTS_DIR"/notebooks
-    cp "$DWO_VALIDATION_SRC"/notebooks/"Dynawo-Dynawo Comparison.template_final.ipynb" "$RESULTS_DIR"/notebooks
-    cp "$DWO_VALIDATION_SRC"/notebooks/"Dynawo-Dynawo Comparison.maincode.py" "$RESULTS_DIR"/notebooks
-    rm "$DWO_VALIDATION_SRC"/notebooks/"Dynawo-Dynawo Comparison.template_final.ipynb"
+    cp "$DWO_VALIDATION_SRC"/notebooks/"simulator_A_vs_simulator_B_final.ipynb" "$RESULTS_DIR"/notebooks
+    cp "$DWO_VALIDATION_SRC"/notebooks/"simulator_A_vs_simulator_B.maincode.py" "$RESULTS_DIR"/notebooks
+    rm "$DWO_VALIDATION_SRC"/notebooks/"simulator_A_vs_simulator_B_final.ipynb"
     echo
 
 done

@@ -30,6 +30,8 @@ Usage: $0 [OPTIONS] CASE_DIR BASECASE CASE_PREFIX
     -o | --output     Specify a directory (no whitespace!) for collecting results (default: RESULTS)
     -v | --verbose    More verbose output
     -s | --sequential Run jobs sequentially (defult is parallel)
+    -A | --launcherA  Defines the launcher of simulator A
+    -B | --launcherB  Defines the launcher of simulator B
 
   Example: $0 PtFige-Lille load
     (will run all cases PtFige-Lille/load* and leave the collected results under RESULTS) 
@@ -53,8 +55,8 @@ if [[ ${PIPESTATUS[0]} -ne 4 ]]; then
     exit 1
 fi
 
-OPTIONS=cdho:vs
-LONGOPTS=cleanup,debug,help,output:,verbose,sequential
+OPTIONS=cdho:vsA:B:
+LONGOPTS=cleanup,debug,help,output:,verbose,sequential,launcherA:,launcherB:
 
 # -regarding ! and PIPESTATUS see above
 # -temporarily store output to be able to check for errors
@@ -70,7 +72,7 @@ fi
 # read getopt’s output this way to handle the quoting right:
 eval set -- "$PARSED"
 
-c=n d=n h=n outDir="RESULTS" v=n s=n
+c=n d=n h=n outDir="RESULTS" v=n s=n A="dynawo.sh" B="dynawo.sh"
 # now enjoy the options in order and nicely split until we see --
 while true; do
     case "$1" in
@@ -98,6 +100,14 @@ while true; do
             s=y
             shift
             ;;
+        -A|--launcherA)
+            A="$2"   # it could contain whitespace, so remember to quote it!
+            shift 2
+            ;;
+        -B|--launcherB)
+            B="$2"   # it could contain whitespace, so remember to quote it!
+            shift 2
+            ;;
         --)
             shift
             break
@@ -110,7 +120,7 @@ while true; do
 done
 
 if [ $v = "y" ]; then
-    echo "OPTIONS: cleanup: $c, debug: $d, help: $h, output: $outDir, verbose: $v, sequential: $s"
+    echo "OPTIONS: cleanup: $c, debug: $d, help: $h, output: $outDir, verbose: $v, sequential: $s, launcherA: $A, launcherB: $B"
     echo "PARAMS: $*"
 fi
 
@@ -161,9 +171,9 @@ mkdir -p "$outDir"
 # Run each contingency case (using GNU parallel if available)
 declare -a OPTS
 if [ $c = "y" ]; then
-    OPTS=("-c" "-o" "$outDir" "$BASECASE")
+    OPTS=("-c" "-o" "$outDir" "-A" "$A" "-B" "$B" "$BASECASE")
 else
-    OPTS=("-o" "$outDir" "$BASECASE")
+    OPTS=("-o" "$outDir" "-A" "$A" "-B" "$B" "$BASECASE")
 fi
 run_case=$(dirname "$0")/run_one_contg.sh
 if [ $s = "y" ] || ! [ -x "$(type -p parallel)" ]; then

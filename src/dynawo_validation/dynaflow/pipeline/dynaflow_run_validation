@@ -26,8 +26,9 @@ args = parser.parse_args()
 
 
 def main():
-    print(args.launcherA)
-    run_pipeline.run_pipeline(args.base_case, args.results_dir, args.launcherA, args.launcherB)
+    run_pipeline.run_pipeline(
+        args.base_case, args.results_dir, args.launcherA, args.launcherB
+    )
 
 
 if __name__ == "__main__":

@@ -29,6 +29,8 @@ Usage: $0 [OPTIONS] BASECASE CONTINGENCY_CASE
     -h | --help     This help message
     -o | --output   Specify a directory for collecting results (default: RESULTS)
     -v | --verbose  More verbose output
+    -A | --launcherA  Defines the launcher of simulator A
+    -B | --launcherB  Defines the launcher of simulator B
 
 EOF
 }

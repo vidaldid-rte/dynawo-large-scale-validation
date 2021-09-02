@@ -12,11 +12,23 @@ import sys
 parser = argparse.ArgumentParser()
 parser.add_argument("base_case")
 parser.add_argument("results_dir")
+parser.add_argument(
+    "-A",
+    "--launcherA",
+    default="dynawo.sh",
+)
+parser.add_argument(
+    "-B",
+    "--launcherB",
+    default="dynawo.sh",
+)
 args = parser.parse_args()
 
 
 def main():
-    run_pipeline.run_pipeline(args.base_case, args.results_dir)
+    run_pipeline.run_pipeline(
+        args.base_case, args.results_dir, args.launcherA, args.launcherB
+    )
 
 
 if __name__ == "__main__":

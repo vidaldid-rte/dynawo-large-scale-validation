@@ -350,8 +350,10 @@ def edit_ast_curves(edited_case, case_zone, dwo_rst_models, zone_pilot_buses):
     }
     dwo_rst_set = {x[4:11] for x in dwo_rst_models}  # because of "AVOI5P7_", etc
     if ast_rst_set != dwo_rst_set:
-        print("   WARNING: Dynawo and Astre cases have different RST controls!"
-              " (these may be Astre's RST whose participating gens are all inactive)")
+        print(
+            "   WARNING: Dynawo and Astre cases have different RST controls!"
+            " (these may be Astre's RST whose participating gens are all inactive)"
+        )
         print("      Non-matching Astre controls:  ", sorted(ast_rst_set - dwo_rst_set))
         print("      Non-matching Dynawo controls: ", sorted(dwo_rst_set - ast_rst_set))
 

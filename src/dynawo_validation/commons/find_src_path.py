@@ -10,6 +10,5 @@ import sys
 
 
 def find_path():
-    file_path = os.path.abspath(os.path.dirname(__file__)+'/..')
+    file_path = os.path.abspath(os.path.dirname(__file__) + "/..")
     print(file_path)
-

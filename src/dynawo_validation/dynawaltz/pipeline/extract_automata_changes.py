@@ -55,7 +55,12 @@ import os
 import sys
 from collections import namedtuple
 import pandas as pd
-from dynawo_validation.dynawaltz.pipeline.dwo_jobinfo import is_astdwo, is_dwodwo, get_dwo_jobpaths, get_dwodwo_jobpaths
+from dynawo_validation.dynawaltz.pipeline.dwo_jobinfo import (
+    is_astdwo,
+    is_dwodwo,
+    get_dwo_jobpaths,
+    get_dwodwo_jobpaths,
+)
 from lxml import etree
 
 ASTRE_EVENTS_IN = "/Astre/donneesModelesSortie.xml"

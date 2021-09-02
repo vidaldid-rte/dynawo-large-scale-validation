@@ -29,6 +29,8 @@ Usage: $0 [OPTIONS] BASECASE CONTINGENCY_CASE
     -h | --help     This help message
     -o | --output   Specify a directory for collecting results (default: RESULTS)
     -v | --verbose  More verbose output
+    -A | --launcherA  Defines the launcher of simulator A
+    -B | --launcherB  Defines the launcher of simulator B
 
 EOF
 }
@@ -42,7 +44,7 @@ run_astre(){
     OLD_PWD=$(pwd)
     cd "$CONTG_CASE"/Astre
     RUNLOG=Astre.runStdout
-    astre donneesModelesEntree.xml > "$RUNLOG" 2>&1
+    "$1" donneesModelesEntree.xml > "$RUNLOG" 2>&1
     if [ ! -f donneesModelesSortie.csv ]; then
         echo "Astre run failed. Check the runlog: $CONTG_CASE/Astre/$RUNLOG"
         exit 1
@@ -64,7 +66,7 @@ run_dynawo(){
     OLD_PWD=$(pwd)
     cd "$CONTG_CASE"
     RUNLOG=Dynawo"$1".runStdout
-    dynawo-RTE jobs "$DWO_JOBFILE" > "$RUNLOG" 2>&1 || true  # allow it to fail while using errexit flag
+    "$2" jobs "$DWO_JOBFILE" > "$RUNLOG" 2>&1 || true  # allow it to fail while using errexit flag
     if [ ! -f ./"$DWO_OUTPUT_DIR"/curves/curves.csv ]; then
         if [ -f ./"$DWO_OUTPUT_DIR"/curves/curves.xml ]; then
             echo "Dynawo$1 run: output curves file found in XML format; required format is CSV"
@@ -95,8 +97,8 @@ if [[ ${PIPESTATUS[0]} -ne 4 ]]; then
     exit 1
 fi
 
-OPTIONS=cdho:v
-LONGOPTS=cleanup,debug,help,output:,verbose
+OPTIONS=cdho:vA:B:
+LONGOPTS=cleanup,debug,help,output:,verbose,launcherA:,launcherB:
 
 # -regarding ! and PIPESTATUS see above
 # -temporarily store output to be able to check for errors
@@ -112,7 +114,7 @@ fi
 # read getopt’s output this way to handle the quoting right:
 eval set -- "$PARSED"
 
-c=n d=n h=n outDir="RESULTS" v=n
+c=n d=n h=n outDir="RESULTS" v=n A="dynawo.sh" B="dynawo.sh"
 # now enjoy the options in order and nicely split until we see --
 while true; do
     case "$1" in
@@ -136,6 +138,14 @@ while true; do
             v=y
             shift
             ;;
+        -A|--launcherA)
+            A="$2"   # it could contain whitespace, so remember to quote it!
+            shift 2
+            ;;
+        -B|--launcherB)
+            B="$2"   # it could contain whitespace, so remember to quote it!
+            shift 2
+            ;;
         --)
             shift
             break
@@ -148,7 +158,7 @@ while true; do
 done
 
 if [ $v = "y" ]; then
-    echo "OPTIONS: cleanup: $c, debug: $d, help: $h, outDir: $outDir, verbose: $v"
+    echo "OPTIONS: cleanup: $c, debug: $d, help: $h, outDir: $outDir, verbose: $v, launcherA: $A, launcherB: $B"
     echo "PARAMS: $*"
 fi
 
@@ -228,20 +238,20 @@ fi
 DWO_JOBINFO_SCRIPT=$(dirname "$0")/dwo_jobinfo.py
 CASE_TYPE=$(python3 "$DWO_JOBINFO_SCRIPT" "$CONTG_CASE" | grep -F "CASE_TYPE" | cut -d'=' -f2)
 if [ "$CASE_TYPE" = "astdwo" ]; then
-    run_astre
+    run_astre "$A"
     DWO_JOBFILE=$(python3 "$DWO_JOBINFO_SCRIPT" "$CONTG_CASE" | grep -F "job_file" | cut -d'=' -f2)
     DWO_JOBFILE=$(basename "$DWO_JOBFILE")
     DWO_OUTPUT_DIR=$(python3 "$DWO_JOBINFO_SCRIPT" "$CONTG_CASE" | grep -F "outputs_directory" | cut -d'=' -f2)
-    run_dynawo ""
+    run_dynawo "" "$B"
 else
     DWO_JOBFILE=$(python3 "$DWO_JOBINFO_SCRIPT" "$CONTG_CASE" | grep -F "job_fileA" | cut -d'=' -f2)
     DWO_JOBFILE=$(basename "$DWO_JOBFILE")
     DWO_OUTPUT_DIR=$(python3 "$DWO_JOBINFO_SCRIPT" "$CONTG_CASE" | grep -F "outputs_directoryA" | cut -d'=' -f2)
-    run_dynawo "A"
+    run_dynawo "A" "$A"
     DWO_JOBFILE=$(python3 "$DWO_JOBINFO_SCRIPT" "$CONTG_CASE" | grep -F "job_fileB" | cut -d'=' -f2)
     DWO_JOBFILE=$(basename "$DWO_JOBFILE")
     DWO_OUTPUT_DIR=$(python3 "$DWO_JOBINFO_SCRIPT" "$CONTG_CASE" | grep -F "outputs_directoryB" | cut -d'=' -f2)
-    run_dynawo "B"
+    run_dynawo "B" "$B"
 fi
 
 
