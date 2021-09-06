@@ -10,11 +10,21 @@ import sys
 from subprocess import run
 
 
-def run_pipeline(base_case, results_dir, launcherA="dynawo.sh", launcherB="dynawo.sh"):
+def run_pipeline(
+    base_case, results_dir, launcherA="dynawo.sh", launcherB="dynawo.sh", allcontg=False
+):
     file_path = os.path.abspath(os.path.dirname(__file__))
-    Process = run(
-        file_path
-        + "/run_pipeline.sh -A %s -B %s %s %s"
-        % (launcherA, launcherB, base_case, results_dir),
-        shell=True,
-    )
+    if allcontg:
+        Process = run(
+            file_path
+            + "/run_pipeline.sh -A %s -B %s -a %s %s"
+            % (launcherA, launcherB, base_case, results_dir),
+            shell=True,
+        )
+    else:
+        Process = run(
+            file_path
+            + "/run_pipeline.sh -A %s -B %s %s %s"
+            % (launcherA, launcherB, base_case, results_dir),
+            shell=True,
+        )

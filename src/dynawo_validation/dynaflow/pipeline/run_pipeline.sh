@@ -72,6 +72,7 @@ Usage: $0 [OPTIONS] BASECASE RESULTS_DIR
   Options:
     -A | --launcherA  Defines the launcher of simulator A
     -B | --launcherB  Defines the launcher of simulator B
+    -a | --allcontg   Run all the contingencies
     -h | --help       This help message
 EOF
 }
@@ -94,8 +95,8 @@ if [[ ${PIPESTATUS[0]} -ne 4 ]]; then
 fi
 
 
-OPTIONS=A:B:h
-LONGOPTS=launcherB:,launcherA:,help
+OPTIONS=A:B:ha
+LONGOPTS=launcherB:,launcherA:,help,allcontg
 
 # -regarding ! and PIPESTATUS see above
 # -temporarily store output to be able to check for errors
@@ -111,7 +112,7 @@ fi
 # read getopt’s output this way to handle the quoting right:
 eval set -- "$PARSED"
 
-A="dynawo.sh" B="dynawo.sh" h=n
+A="dynawo.sh" B="dynawo.sh" h=n allcontg=n
 # now enjoy the options in order and nicely split until we see --
 while true; do
     case "$1" in
@@ -127,6 +128,10 @@ while true; do
             ;;
         -h|--help)
             h=y
+            shift
+            ;;
+        -a|--allcontg)
+            allcontg=y
             shift
             ;;
         --)
@@ -186,9 +191,16 @@ for DEVICE in "${!create_contg[@]}"; do
     
     colormsg "*** CREATING CONTINGENCY CASES:"
     rm -rf "$CASE_DIR"/"$DEVICE"_*
-    set -x
-    python3 "$CONTG_SRC"/"${create_contg[$DEVICE]}" "$BASECASE"
-    set +x
+    
+    if [ $allcontg = "n" ]; then
+       set -x
+       python3 "$CONTG_SRC"/"${create_contg[$DEVICE]}" "$BASECASE"
+       set +x
+    else
+       set -x
+       python3 "$CONTG_SRC"/"${create_contg[$DEVICE]}" "-a" "$BASECASE"
+       set +x
+    fi
     echo
     
     colormsg "*** RUNNING CONTINGENCY CASES:"

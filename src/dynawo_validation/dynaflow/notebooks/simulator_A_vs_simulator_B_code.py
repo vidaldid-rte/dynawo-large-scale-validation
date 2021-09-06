@@ -7,7 +7,7 @@ from ipywidgets import widgets
 import networkx as nx
 from pyvis.network import Network
 import warnings
-from matplotlib import pylab, cm
+from matplotlib import pylab, cm, patches, pyplot
 import pylab as pl
 import numpy as np
 from lxml import etree
@@ -83,12 +83,66 @@ def create_general_trace(data, x, y, DATA_LIMIT):
     return trace
 
 
+def create_colors(data):
+    colordata = []
+    for datanum in data["VOLT_LEVEL"]:
+        if datanum >= 380:
+            colordata.append("rgb(255,0,0)")
+        elif datanum >= 225:
+            colordata.append("rgb(255,75,0)")
+        elif datanum >= 150:
+            colordata.append("rgb(255,150,0)")
+        elif datanum >= 90:
+            colordata.append("rgb(255,225,0)")
+        elif datanum >= 63:
+            colordata.append("rgb(225,255,0)")
+        elif datanum >= 45:
+            colordata.append("rgb(150,255,0)")
+        elif datanum >= 20:
+            colordata.append("rgb(25,255,0)")
+        else:
+            colordata.append("rgb(0,0,0)")
+    patch_380 = patches.Patch(color=(255 / 255, 0, 0), label="380 kV")
+    patch_225 = patches.Patch(color=(255 / 255, 75 / 255, 0), label="225 kV")
+    patch_150 = patches.Patch(color=(255 / 255, 150 / 255, 0), label="150 kV")
+    patch_90 = patches.Patch(color=(255 / 255, 225 / 255, 0), label="90 kV")
+    patch_63 = patches.Patch(color=(225 / 255, 255 / 255, 0), label="63 kV")
+    patch_45 = patches.Patch(color=(150 / 255, 255 / 255, 0), label="45 kV")
+    patch_20 = patches.Patch(color=(25 / 255, 255 / 255, 0), label="20 kV")
+    pyplot.legend(
+        handles=[
+            patch_380,
+            patch_225,
+            patch_150,
+            patch_90,
+            patch_63,
+            patch_45,
+            patch_20,
+        ]
+    )
+    pyplot.savefig("legend0.png")
+    pyplot.close()
+    legend0 = pl.imread("legend0.png")[40:150, 300:385, :]
+    addwhite0 = np.zeros((100, legend0.shape[1], legend0.shape[2]))
+    addwhite1 = np.zeros((300, legend0.shape[1], legend0.shape[2]))
+    legend0 = np.concatenate((addwhite0, legend0, addwhite1), axis=0)
+    pl.imsave("legend0.png", legend0)
+    return colordata
+
+
 # Create the individual graphic of simulator A vs B
 def create_individual_trace(data, x, y, DATA_LIMIT):
     if data.shape[0] > DATA_LIMIT:
         data = data.sample(DATA_LIMIT)
+    colordata = create_colors(data)
     trace = go.Scatter(
-        x=data[x], y=data[y], mode="markers", text=data["ID"], name=x + "_" + y
+        x=data[x],
+        y=data[y],
+        mode="markers",
+        text=data["ID"],
+        name=x + "_" + y,
+        marker=dict(color=colordata),
+        showlegend=False,
     )
     return trace
 
@@ -327,7 +381,9 @@ def paint_graph(C, data, nodetype, nodemetrictype, edgetype, edgemetrictype):
 
 
 # Define the structure of the output
-def show_displays(sdf, container1, g, container2, c, s, container3, C, dev, container4):
+def show_displays(
+    sdf, container1, g, container2, container0, s, container3, C, dev, container4
+):
     display(
         HTML(
             data="""
@@ -343,7 +399,7 @@ def show_displays(sdf, container1, g, container2, c, s, container3, C, dev, cont
     display(container1)
     display(g)
     display(container2)
-    display(c)
+    display(container0)
     display(s)
     display(container3)
     html_graph = display(C.show("subgraph.html"), display_id=True)
@@ -409,6 +465,8 @@ def run_all(
             c.data[0].y = df1[dropdown2.value]
             c.data[0].name = dropdown1.value + "_" + dropdown2.value
             c.data[0].text = df1["ID"]
+            colordata = create_colors(df1)
+            c.data[0].marker = dict(color=colordata)
             c.layout.xaxis.title = dropdown1.value
             c.layout.yaxis.title = dropdown2.value
             c.layout.title.text = "Case: " + case
@@ -526,6 +584,12 @@ def run_all(
 
     c = go.FigureWidget(data=[current_individual_trace], layout=layout2)
 
+    file0 = open("legend0.png", "rb")
+    legend0 = file0.read()
+    legend0widget = widgets.Image(value=legend0, format="png")
+
+    container0 = widgets.HBox([c, legend0widget])
+
     s = qgrid.QgridWidget(df=data_first_case)
 
     # Get iidm file
@@ -601,7 +665,7 @@ def run_all(
 
     # Display all the objects and get html subgraph id
     html_graph = show_displays(
-        sdf, container1, g, container2, c, s, container3, C, dev, container4
+        sdf, container1, g, container2, container0, s, container3, C, dev, container4
     )
 
     # Observe selection events to update graphics
