@@ -13,17 +13,27 @@ import pandas as pd
 from tqdm import tqdm
 import sys
 from pathlib import Path
+import argparse
+import numpy as np
+
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    "pfsoldir",
+    help="PF_SOL_DIR directory",
+)
+
+parser.add_argument(
+    "prefix",
+    help="Contingency prefix",
+)
+args = parser.parse_args()
 
 
 def main():
     # Parameter management
-    if len(sys.argv) < 2:
-        print("\nUsage: %s directory_of_pf_sol prefix\n" % sys.argv[0])
-        return 2
+    PF_SOL_DIR = args.pfsoldir
 
-    PF_SOL_DIR = sys.argv[1]
-
-    PREFIX = sys.argv[2]
+    PREFIX = args.prefix
 
     files = list(glob.iglob(PF_SOL_DIR + "/" + PREFIX + "*-pfsolution_AB.csv.xz"))
     print(f"Processing {len(files)} cases.")
@@ -42,12 +52,30 @@ def main():
         delta["DIFF"] = delta.VALUE_A - delta.VALUE_B
         delta_max = delta.groupby("VAR").max()
         delta_mean = delta.groupby("VAR").mean()
-        res1 = [cont] + list(delta_max["DIFF"].values) + list(delta_mean["DIFF"].values)
+        res1 = (
+            [cont]
+            + ["ALL"]
+            + list(delta_max["DIFF"].values)
+            + list(delta_mean["DIFF"].values)
+        )
         res = res + [res1]
+        volt_levels = np.sort(delta["VOLT_LEVEL"].unique())
+        for volt_level in volt_levels:
+            temp_df = delta.loc[(delta.VOLT_LEVEL == volt_level)]
+            temp_df_max = temp_df.groupby("VAR").max()
+            temp_df_mean = temp_df.groupby("VAR").mean()
+            res2 = (
+                [cont]
+                + [str(volt_level)]
+                + list(temp_df_max["DIFF"].values)
+                + list(temp_df_mean["DIFF"].values)
+            )
+            res = res + [res2]
 
     df = pd.DataFrame(
         res,
         columns=["cont"]
+        + ["volt_level"]
         + list(delta_max.index + "_max")
         + list(delta_mean.index + "_mean"),
     )

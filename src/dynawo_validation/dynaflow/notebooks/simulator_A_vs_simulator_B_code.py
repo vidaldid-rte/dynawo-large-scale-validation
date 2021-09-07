@@ -78,7 +78,11 @@ def create_general_trace(data, x, y, DATA_LIMIT):
     if data.shape[0] > DATA_LIMIT:
         data = data.sample(DATA_LIMIT)
     trace = go.Scatter(
-        x=data[x], y=data[y], mode="markers", text=data["cont"], name=x + "_" + y
+        x=data[x],
+        y=data[y],
+        mode="markers",
+        text=data["cont"] + "_(" + data["volt_level"] + ")",
+        name=x + "_" + y,
     )
     return trace
 
@@ -89,26 +93,26 @@ def create_colors(data):
         if datanum >= 380:
             colordata.append("rgb(255,0,0)")
         elif datanum >= 225:
-            colordata.append("rgb(255,75,0)")
+            colordata.append("rgb(0,255,0)")
         elif datanum >= 150:
-            colordata.append("rgb(255,150,0)")
+            colordata.append("rgb(0,0,255)")
         elif datanum >= 90:
-            colordata.append("rgb(255,225,0)")
-        elif datanum >= 63:
-            colordata.append("rgb(225,255,0)")
-        elif datanum >= 45:
-            colordata.append("rgb(150,255,0)")
-        elif datanum >= 20:
-            colordata.append("rgb(25,255,0)")
-        else:
             colordata.append("rgb(0,0,0)")
+        elif datanum >= 63:
+            colordata.append("rgb(64,64,64)")
+        elif datanum >= 45:
+            colordata.append("rgb(128,128,128)")
+        elif datanum >= 20:
+            colordata.append("rgb(196,196,196)")
+        else:
+            colordata.append("rgb(255,255,255)")
     patch_380 = patches.Patch(color=(255 / 255, 0, 0), label="380 kV")
-    patch_225 = patches.Patch(color=(255 / 255, 75 / 255, 0), label="225 kV")
-    patch_150 = patches.Patch(color=(255 / 255, 150 / 255, 0), label="150 kV")
-    patch_90 = patches.Patch(color=(255 / 255, 225 / 255, 0), label="90 kV")
-    patch_63 = patches.Patch(color=(225 / 255, 255 / 255, 0), label="63 kV")
-    patch_45 = patches.Patch(color=(150 / 255, 255 / 255, 0), label="45 kV")
-    patch_20 = patches.Patch(color=(25 / 255, 255 / 255, 0), label="20 kV")
+    patch_225 = patches.Patch(color=(0, 255 / 255, 0), label="225 kV")
+    patch_150 = patches.Patch(color=(0, 0, 255 / 255), label="150 kV")
+    patch_90 = patches.Patch(color=(0, 0, 0), label="90 kV")
+    patch_63 = patches.Patch(color=(64 / 255, 64 / 255, 64 / 255), label="63 kV")
+    patch_45 = patches.Patch(color=(128 / 255, 128 / 255, 128 / 255), label="45 kV")
+    patch_20 = patches.Patch(color=(196 / 255, 196 / 255, 196 / 255), label="20 kV")
     pyplot.legend(
         handles=[
             patch_380,
@@ -160,6 +164,11 @@ def create_dropdowns(
     edgetypes,
     edgemetrictypes,
 ):
+    def_volt_level = widgets.Dropdown(
+        options=["DEFAULT"] + list(df["volt_level"].unique()),
+        value="DEFAULT",
+        description="VOLTAGE LEVEL",
+    )
 
     varx = widgets.Dropdown(
         options=df.columns[1:], value=df.columns[1], description="X: "
@@ -218,6 +227,7 @@ def create_dropdowns(
     )
 
     return (
+        def_volt_level,
         varx,
         vary,
         dev,
@@ -382,7 +392,17 @@ def paint_graph(C, data, nodetype, nodemetrictype, edgetype, edgemetrictype):
 
 # Define the structure of the output
 def show_displays(
-    sdf, container1, g, container2, container0, s, container3, C, dev, container4
+    def_volt_level,
+    sdf,
+    container1,
+    g,
+    container2,
+    container0,
+    s,
+    container3,
+    C,
+    dev,
+    container4,
 ):
     display(
         HTML(
@@ -395,6 +415,7 @@ def show_displays(
     """
         )
     )
+    display(def_volt_level)
     display(sdf)
     display(container1)
     display(g)
@@ -433,14 +454,18 @@ def run_all(
     # Management the selection of dropdown parameters and on_click options
     def response(change):
         # PERF: Plotly starts showing horrible performance with more than 5,000 points
-        df1 = df
+        if def_volt_level.value == "DEFAULT":
+            df1 = df
+        else:
+            df1 = df.loc[(df.volt_level == def_volt_level.value)]
         if df1.shape[0] > DATA_LIMIT:
             df1 = df1.sample(DATA_LIMIT)
         with g.batch_update():
+            sdf.df = df1
             g.data[0].x = df1[varx.value]
             g.data[0].y = df1[vary.value]
             g.data[0].name = varx.value + "_" + vary.value
-            g.data[0].text = df1["cont"]
+            g.data[0].text = df1["cont"] + "_(" + df1["volt_level"] + ")"
             g.layout.xaxis.title = varx.value
             g.layout.yaxis.title = vary.value
 
@@ -473,7 +498,8 @@ def run_all(
             dev.value = case
 
     def update_case(trace, points, selector):
-        individual_case(trace.text[points.point_inds[0]])
+        name = trace.text[points.point_inds[0]].split("_(")
+        individual_case(name[0])
 
     def response2(change):
         individual_case(dev.value)
@@ -525,6 +551,7 @@ def run_all(
 
     # Get all the dropdowns
     (
+        def_volt_level,
         varx,
         vary,
         dev,
@@ -665,10 +692,21 @@ def run_all(
 
     # Display all the objects and get html subgraph id
     html_graph = show_displays(
-        sdf, container1, g, container2, container0, s, container3, C, dev, container4
+        def_volt_level,
+        sdf,
+        container1,
+        g,
+        container2,
+        container0,
+        s,
+        container3,
+        C,
+        dev,
+        container4,
     )
 
     # Observe selection events to update graphics
+    def_volt_level.observe(response, names="value")
     varx.observe(response, names="value")
     vary.observe(response, names="value")
 
