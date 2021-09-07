@@ -84,6 +84,9 @@ parser.add_argument(
     "-v", "--verbose", help="increase output verbosity", action="store_true"
 )
 parser.add_argument(
+    "-a", "--allcontg", help="generate all the contingencies", action="store_true"
+)
+parser.add_argument(
     "-l",
     "--list",
     help="enter regular expressions or contingencies in "
@@ -151,14 +154,16 @@ def main():
         dynawo_shunts = matching_in_dwoB(dynawo_shunts, dynawo_shuntsB)
 
     # Prepare for random sampling if there's too many
-    sampling_ratio = MAX_NCASES / len(dynawo_shunts)
-    random.seed(RNG_SEED)
-    if len(filter_list) == 0 and sampling_ratio < 1:
-        print(
-            "LIMITING to a sample of about %d cases (%.2f%% of all cases)"
-            % (MAX_NCASES, 100 * sampling_ratio)
-        )
-
+    if args.allcontg == False:
+        sampling_ratio = MAX_NCASES / len(dynawo_shunts)
+        random.seed(RNG_SEED)
+        if len(filter_list) == 0 and sampling_ratio < 1:
+            print(
+                "LIMITING to a sample of about %d cases (%.2f%% of all cases)"
+                % (MAX_NCASES, 100 * sampling_ratio)
+            )
+    else:
+        sampling_ratio = 1
     # Initialize another dict to keep Astre's Q of each disconnected shunt
     processed_shuntsPQ = dict()
 

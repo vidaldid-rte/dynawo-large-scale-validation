@@ -64,6 +64,10 @@ CONTG_SRC=$DWO_VALIDATION_SRC/pipeline
 GREEN="\\033[1;32m"
 NC="\\033[0m"
 
+find_cmd()
+{
+    find "$CASE_DIR" -maxdepth 1 -type d -name "$1"'*'
+}
 
 usage()
 {
@@ -73,6 +77,7 @@ Usage: $0 [OPTIONS] BASECASE RESULTS_DIR
     -A | --launcherA  Defines the launcher of simulator A
     -B | --launcherB  Defines the launcher of simulator B
     -a | --allcontg   Run all the contingencies
+    -l | --regexlist  Run all the contingencies of a .txt file
     -h | --help       This help message
 EOF
 }
@@ -95,8 +100,8 @@ if [[ ${PIPESTATUS[0]} -ne 4 ]]; then
 fi
 
 
-OPTIONS=A:B:ha
-LONGOPTS=launcherB:,launcherA:,help,allcontg
+OPTIONS=A:B:hal:
+LONGOPTS=launcherB:,launcherA:,help,allcontg,regexlist:
 
 # -regarding ! and PIPESTATUS see above
 # -temporarily store output to be able to check for errors
@@ -112,7 +117,7 @@ fi
 # read getopt’s output this way to handle the quoting right:
 eval set -- "$PARSED"
 
-A="dynawo.sh" B="dynawo.sh" h=n allcontg=n
+A="dynawo.sh" B="dynawo.sh" h=n allcontg=n regexlist="None"
 # now enjoy the options in order and nicely split until we see --
 while true; do
     case "$1" in
@@ -134,6 +139,11 @@ while true; do
             allcontg=y
             shift
             ;;
+        -l|--regexlist)
+            regexlist="$2"
+            echo "Read regex from $2 file"
+            shift 2
+            ;;    
         --)
             shift
             break
@@ -193,35 +203,52 @@ for DEVICE in "${!create_contg[@]}"; do
     rm -rf "$CASE_DIR"/"$DEVICE"_*
     
     if [ $allcontg = "n" ]; then
-       set -x
-       python3 "$CONTG_SRC"/"${create_contg[$DEVICE]}" "$BASECASE"
-       set +x
+       if [ $regexlist = "None" ]; then
+          set -x
+          python3 "$CONTG_SRC"/"${create_contg[$DEVICE]}" "$BASECASE"
+          set +x
+       else
+          set -x
+          python3 "$CONTG_SRC"/"${create_contg[$DEVICE]}" "-t" "$regexlist" "$BASECASE"
+          set +x
+       fi
     else
-       set -x
-       python3 "$CONTG_SRC"/"${create_contg[$DEVICE]}" "-a" "$BASECASE"
-       set +x
+       if [ $regexlist = "None" ]; then
+          set -x
+          python3 "$CONTG_SRC"/"${create_contg[$DEVICE]}" "-a" "$BASECASE"
+          set +x
+       else
+          set -x
+          python3 "$CONTG_SRC"/"${create_contg[$DEVICE]}" "-t" "$regexlist" "-a" "$BASECASE"
+          set +x
+       fi
     fi
     echo
     
-    colormsg "*** RUNNING CONTINGENCY CASES:"
-    RESULTS_DIR="$RESULTS_BASEDIR"/"$DEVICE"
-    mkdir -p "$RESULTS_DIR"
-    set -x
-    "$CONTG_SRC"/run_all_contg.sh "${RUN_OPTS[@]}" -o "$RESULTS_DIR" -A "$A" -B "$B" "$CASE_DIR" "$BASECASE" "$DEVICE"_
-    set +x
-    echo
+    dirList=$(find_cmd "$DEVICE"_)
+    if [ -z "$dirList" ]; then
+       echo -e "No cases with pattern $DEVICE"_"* found under $CASE_DIR"
+    else
+       colormsg "*** RUNNING CONTINGENCY CASES:"
+       RESULTS_DIR="$RESULTS_BASEDIR"/"$DEVICE"
+       mkdir -p "$RESULTS_DIR"
+       set -x
+       "$CONTG_SRC"/run_all_contg.sh "${RUN_OPTS[@]}" -o "$RESULTS_DIR" -A "$A" -B "$B" "$CASE_DIR" "$BASECASE" "$DEVICE"_
+       set +x
+       echo
 
-    colormsg "*** COMPUTING DIFF METRICS:"   
-    python3 "$CONTG_SRC"/calc_global_pf_diffmetrics.py "$RESULTS_DIR"/pf_sol "$DEVICE"_
-    echo
+       colormsg "*** COMPUTING DIFF METRICS:"   
+       python3 "$CONTG_SRC"/calc_global_pf_diffmetrics.py "$RESULTS_DIR"/pf_sol "$DEVICE"_
+       echo
     
-    colormsg "*** CREATING NOTEBOOK:" 
-    # Create notebook
-    python3 "$DWO_VALIDATION_SRC"/notebooks/generate_notebooks.py "$(cd "$(dirname "$RESULTS_DIR")"; pwd)/" "$BASECASE" "$DEVICE"
-    mkdir -p "$RESULTS_DIR"/notebooks
-    cp "$DWO_VALIDATION_SRC"/notebooks/simulator_A_vs_simulator_B_final.ipynb "$RESULTS_DIR"/notebooks
-    rm "$DWO_VALIDATION_SRC"/notebooks/simulator_A_vs_simulator_B_final.ipynb
-    echo
+       colormsg "*** CREATING NOTEBOOK:" 
+       # Create notebook
+       python3 "$DWO_VALIDATION_SRC"/notebooks/generate_notebooks.py "$(cd "$(dirname "$RESULTS_DIR")"; pwd)/" "$BASECASE" "$DEVICE"
+       mkdir -p "$RESULTS_DIR"/notebooks
+       cp "$DWO_VALIDATION_SRC"/notebooks/simulator_A_vs_simulator_B_final.ipynb "$RESULTS_DIR"/notebooks
+       rm "$DWO_VALIDATION_SRC"/notebooks/simulator_A_vs_simulator_B_final.ipynb
+       echo
+    fi
 
 done
 

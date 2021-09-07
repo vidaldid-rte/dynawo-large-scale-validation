@@ -30,13 +30,21 @@ parser.add_argument(
     action="store_true",
     help="Run all the contingencies",
 )
+parser.add_argument(
+    "-l",
+    "--regexlist",
+    default=None,
+    help="enter regular expressions or contingencies in text (.txt) form, by default, "
+    "all possible contingencies will be generated (if below MAX_NCASES; "
+    "otherwise a random sample is generated)",
+)
 
 args = parser.parse_args()
 
 
 def main():
     run_pipeline.run_pipeline(
-        args.base_case, args.results_dir, args.launcherA, args.launcherB, args.allcontg
+        args.base_case, args.results_dir, args.launcherA, args.launcherB, args.allcontg, args.regexlist
     )
 
 

@@ -16,18 +16,27 @@ parser.add_argument(
     "-A",
     "--launcherA",
     default="dynawo.sh",
+    help="Defines the launcher of simulator A",
 )
 parser.add_argument(
     "-B",
     "--launcherB",
     default="dynawo.sh",
+    help="Defines the launcher of simulator B",
 )
+parser.add_argument(
+    "-a",
+    "--allcontg",
+    action="store_true",
+    help="Run all the contingencies",
+)
+
 args = parser.parse_args()
 
 
 def main():
     run_pipeline.run_pipeline(
-        args.base_case, args.results_dir, args.launcherA, args.launcherB
+        args.base_case, args.results_dir, args.launcherA, args.launcherB, args.allcontg
     )
 
 
