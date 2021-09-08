@@ -11,7 +11,12 @@ from subprocess import run
 
 
 def run_pipeline(
-    base_case, results_dir, launcherA="dynawo.sh", launcherB="dynawo.sh", allcontg=False, regexlist=None
+    base_case,
+    results_dir,
+    launcherA="dynawo.sh",
+    launcherB="dynawo.sh",
+    allcontg=False,
+    regexlist=None,
 ):
     file_path = os.path.abspath(os.path.dirname(__file__))
     if allcontg:
