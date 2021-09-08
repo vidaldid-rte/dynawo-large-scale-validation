@@ -20,5 +20,5 @@ setup(
     "scipy>=1.6.1",
     "seaborn>=0.11.2",
     ],
-    scripts=['src/dynawo_validation/dynawaltz/pipeline/dynawaltz_run_validation','src/dynawo_validation/commons/create_graph.py', 'src/dynawo_validation/commons/xml_utils/convert_dwaltz2dwoAdwoB_all.sh', 'src/dynawo_validation/commons/xml_utils/xml_format_dir.sh','src/dynawo_validation/commons/dynawo_validation_find_path', 'src/dynawo_validation/dynaflow/pipeline/dynaflow_run_validation','src/dynawo_validation/commons/create_graph.py', 'src/dynawo_validation/commons/xml_utils/convert_dflow2dwoAdwoB_all.sh', 'src/dynawo_validation/commons/xml_utils/xml_format_dir.sh'],
+    scripts=['src/dynawo_validation/dynawaltz/pipeline/dynawaltz_run_validation','src/dynawo_validation/commons/create_graph.py', 'src/dynawo_validation/commons/xml_utils/convert_dwaltz2dwoAdwoB_all.sh', 'src/dynawo_validation/commons/xml_utils/xml_format_dir.sh','src/dynawo_validation/commons/dynawo_validation_find_path', 'src/dynawo_validation/dynaflow/pipeline/dynaflow_run_validation','src/dynawo_validation/commons/create_graph.py', 'src/dynawo_validation/commons/xml_utils/convert_dflow2dwoAdwoB_all.sh', 'src/dynawo_validation/commons/xml_utils/xml_format_dir.sh', 'src/dynawo_validation/commons/dynawo_validation_extract_bus'],
 )
