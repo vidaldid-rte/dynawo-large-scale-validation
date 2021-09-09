@@ -241,7 +241,6 @@ for DEVICE in "${!create_contg[@]}"; do
        python3 "$DWO_VALIDATION_SRC"/notebooks/generate_notebooks.py "$(cd "$(dirname "$RESULTS_DIR")"; pwd)/$DEVICE"s "$BASECASE" "$DEVICE"_
        mkdir -p "$RESULTS_DIR"/notebooks
        cp "$DWO_VALIDATION_SRC"/notebooks/"simulator_A_vs_simulator_B_final.ipynb" "$RESULTS_DIR"/notebooks
-       cp "$DWO_VALIDATION_SRC"/notebooks/"simulator_A_vs_simulator_B.maincode.py" "$RESULTS_DIR"/notebooks
        rm "$DWO_VALIDATION_SRC"/notebooks/"simulator_A_vs_simulator_B_final.ipynb"
        echo
     fi

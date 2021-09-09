@@ -35,7 +35,7 @@ def getDeltaLevelK(df_ast, df_dwo, t_end):
 
 
 # Auxiliary function for reading curve data of each individual case
-def get_curve_dfs(crv_dir, prefix, contg_case):
+def get_curve_dfs(crv_dir, prefix, contg_case, IS_DWO_DWO):
     if IS_DWO_DWO == 0:
         ast_case = crv_dir + "/" + prefix + contg_case + "-AstreCurves.csv.xz"
         dwo_case = crv_dir + "/" + prefix + contg_case + "-DynawoCurves.csv.xz"
@@ -138,7 +138,7 @@ def response(change):
 
 
 def response2(change):
-    df_ast, df_dwo, df_lk, _ = get_curve_dfs(CRV_DIR, PREFIX, dev.value)
+    df_ast, df_dwo, df_lk, _ = get_curve_dfs(CRV_DIR, PREFIX, dev.value, IS_DWO_DWO)
     vars_ast = df_ast.columns[1:]
     var2.options = vars_ast
     var2.value = vars_ast[0]
@@ -165,7 +165,7 @@ def response2(change):
 
 
 def response3(change):
-    df_ast, df_dwo, df_lk, _ = get_curve_dfs(CRV_DIR, PREFIX, dev.value)
+    df_ast, df_dwo, df_lk, _ = get_curve_dfs(CRV_DIR, PREFIX, dev.value, IS_DWO_DWO)
     df_m = aut_tw_metrics[aut_tw_metrics.Contg_case == dev.value].copy()
     df_m.loc[len(df_m)] = [dev.value, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     if MATCH_CRV_AT_PRECONTG_TIME:
@@ -239,7 +239,7 @@ def calc_scores_bycasevar(delta):
     return scores
 
 
-def calc_scores_bycase(scores):
+def calc_scores_bycase(scores, aut_metrics):
     # For each case, we keep the mean scores found accross the monitored variables.
     scores[["dSS", "dPP", "TT", "period", "damp"]] = scores[
         ["dSS", "dPP", "TT", "period", "damp"]
@@ -356,354 +356,368 @@ def do_displaybutton():
 # NOTEBOOK MAIN CODE STARTS HERE
 ###################################################
 
-display(
-    HTML(
-        data="""
-<style>
-    div#notebook-container    { width: 95%; }
-    div#menubar-container     { width: 65%; }
-    div#maintoolbar-container { width: 99%; }
-</style>
-"""
+def main(CRV_DIR, PREFIX, IS_DWO_DWO, MATCH_CRV_AT_PRECONTG_TIME, V_THRESH, K_THRESH, P_THRESH, Q_THRESH):
+    display(
+        HTML(
+            data="""
+    <style>
+        div#notebook-container    { width: 95%; }
+        div#menubar-container     { width: 65%; }
+        div#maintoolbar-container { width: 99%; }
+    </style>
+    """
+        )
     )
-)
 
-do_displaybutton()
+    do_displaybutton()
 
-# These are needed just to stop flake8 complaining
-try:
-    CRV_DIR
-except NameError:
-    CRV_DIR = "/dummy/path"
+    # These are needed just to stop flake8 complaining
+    try:
+        CRV_DIR
+    except NameError:
+        CRV_DIR = "/dummy/path"
 
-try:
-    PREFIX
-except NameError:
-    PREFIX = "dummy_prefix_"
+    try:
+        PREFIX
+    except NameError:
+        PREFIX = "dummy_prefix_"
 
-try:
-    MATCH_CRV_AT_PRECONTG_TIME
-except NameError:
-    MATCH_CRV_AT_PRECONTG_TIME = None
+    try:
+        MATCH_CRV_AT_PRECONTG_TIME
+    except NameError:
+        MATCH_CRV_AT_PRECONTG_TIME = None
 
-try:
-    V_THRESH
-except NameError:
-    V_THRESH = 0.01
+    try:
+        V_THRESH
+    except NameError:
+        V_THRESH = 0.01
 
-try:
-    K_THRESH
-except NameError:
-    K_THRESH = 0.1
+    try:
+        K_THRESH
+    except NameError:
+        K_THRESH = 0.1
 
-try:
-    P_THRESH
-except NameError:
-    P_THRESH = 5
+    try:
+        P_THRESH
+    except NameError:
+        P_THRESH = 5
 
-try:
-    Q_THRESH
-except NameError:
-    Q_THRESH = 10
-
-
-# Read the metrics
-metrics_dir = CRV_DIR + "/../metrics"
-crv_reducedparams_file = metrics_dir + "/crv_reducedparams.csv"
-aut_metrics_file = metrics_dir + "/aut_diffmetrics.csv"
-aut_tw_metrics_file = metrics_dir + "/aut_tw_diffmetrics.csv"
-
-if not (
-    os.path.isdir(metrics_dir)
-    and os.path.isfile(crv_reducedparams_file)
-    and os.path.isfile(aut_metrics_file)
-    and os.path.isfile(aut_tw_metrics_file)
-):
-    raise ValueError("Input datafiles (metrics) not found for %s" % CRV_DIR)
-
-delta = pd.read_csv(
-    crv_reducedparams_file, sep=";", index_col=False, compression="infer"
-)
-delta.fillna(-1, inplace=True)
-
-aut_metrics = pd.read_csv(
-    aut_metrics_file, sep=";", index_col=False, compression="infer"
-)
-aut_metrics["global_aut"] = aut_metrics[aut_metrics.columns[1:]].mean(axis=1)
-
-aut_tw_metrics = pd.read_csv(
-    aut_tw_metrics_file, sep=";", index_col=False, compression="infer"
-)
-
-# Determine pass/fail for each type of magnitude, according to thresholds
-delta["typevar"] = ""
-delta.loc[delta.vars.str.contains("_U_IMPIN"), "typevar"] = "V"
-delta.loc[delta.vars.str.contains("_Upu_"), "typevar"] = "V"
-delta.loc[delta.vars.str.contains("_levelK_"), "typevar"] = "K"
-delta.loc[delta.vars.str.contains("_PGen"), "typevar"] = "P"
-delta.loc[delta.vars.str.contains("_QGen"), "typevar"] = "Q"
-d_threshold = {"V": V_THRESH, "K": K_THRESH, "P": P_THRESH, "Q": Q_THRESH}
-delta["threshold"] = delta.typevar.replace(d_threshold)
-delta["delta_dSS"] = delta["dSS_ast"] - delta["dSS_dwo"]
-delta["dSS_pass"] = delta.delta_dSS.abs() < delta.threshold
-delta["delta_dPP"] = delta["dPP_ast"] - delta["dPP_dwo"]
-delta["dPP_pass"] = delta.delta_dPP.abs() < delta.threshold
+    try:
+        Q_THRESH
+    except NameError:
+        Q_THRESH = 10
 
 
-# Load the curve data for the first case
-contg_cases = list(delta["dev"].unique())
-contg_case0 = contg_cases[0]
-df_ast, df_dwo, df_lk, T_END = get_curve_dfs(CRV_DIR, PREFIX, contg_case0)
-vars_ast = df_ast.columns[1:]
-vars_dwo = df_dwo.columns[1:]
-var0 = vars_ast[0]
-var2 = widgets.Dropdown(options=vars_ast, value=var0, description="Variable: ")
-df_m = aut_tw_metrics[aut_tw_metrics.Contg_case == contg_case0].copy()
-df_m.loc[len(df_m)] = [contg_case0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-if MATCH_CRV_AT_PRECONTG_TIME:
-    idx_match_ast = abs(df_ast["time"] - MATCH_CRV_AT_PRECONTG_TIME).idxmin()
-    idx_match_dwo = abs(df_dwo["time"] - MATCH_CRV_AT_PRECONTG_TIME).idxmin()
-    yoffset = df_ast[var2.value][idx_match_ast] - df_dwo[var2.value][idx_match_dwo]
-else:
-    yoffset = 0
+    # Read the metrics
+    metrics_dir = CRV_DIR + "/../metrics"
+    crv_reducedparams_file = metrics_dir + "/crv_reducedparams.csv"
+    aut_metrics_file = metrics_dir + "/aut_diffmetrics.csv"
+    aut_tw_metrics_file = metrics_dir + "/aut_tw_diffmetrics.csv"
+
+    if not (
+        os.path.isdir(metrics_dir)
+        and os.path.isfile(crv_reducedparams_file)
+        and os.path.isfile(aut_metrics_file)
+        and os.path.isfile(aut_tw_metrics_file)
+    ):
+        raise ValueError("Input datafiles (metrics) not found for %s" % CRV_DIR)
+
+    delta = pd.read_csv(
+        crv_reducedparams_file, sep=";", index_col=False, compression="infer"
+    )
+    delta.fillna(-1, inplace=True)
+
+    aut_metrics = pd.read_csv(
+        aut_metrics_file, sep=";", index_col=False, compression="infer"
+    )
+    aut_metrics["global_aut"] = aut_metrics[aut_metrics.columns[1:]].mean(axis=1)
+
+    aut_tw_metrics = pd.read_csv(
+        aut_tw_metrics_file, sep=";", index_col=False, compression="infer"
+    )
+
+    # Determine pass/fail for each type of magnitude, according to thresholds
+    delta["typevar"] = ""
+    delta.loc[delta.vars.str.contains("_U_IMPIN"), "typevar"] = "V"
+    delta.loc[delta.vars.str.contains("_Upu_"), "typevar"] = "V"
+    delta.loc[delta.vars.str.contains("_levelK_"), "typevar"] = "K"
+    delta.loc[delta.vars.str.contains("_PGen"), "typevar"] = "P"
+    delta.loc[delta.vars.str.contains("_QGen"), "typevar"] = "Q"
+    d_threshold = {"V": V_THRESH, "K": K_THRESH, "P": P_THRESH, "Q": Q_THRESH}
+    delta["threshold"] = delta.typevar.replace(d_threshold)
+    delta["delta_dSS"] = delta["dSS_ast"] - delta["dSS_dwo"]
+    delta["dSS_pass"] = delta.delta_dSS.abs() < delta.threshold
+    delta["delta_dPP"] = delta["dPP_ast"] - delta["dPP_dwo"]
+    delta["dPP_pass"] = delta.delta_dPP.abs() < delta.threshold
 
 
-# Initialize Combo Boxes
-check = widgets.Checkbox(
-    value=False, description="Only Stable contingencies", disabled=False, indent=False
-)
-mask_n = ["NETWORK" in x for x in delta.vars]
-df = delta[mask_n]
-var = widgets.Dropdown(
-    options=list(["dSS", "dPP", "TT", "period", "damp"]),
-    value="dSS",
-    description="Metric: ",
-)
-mask = widgets.Dropdown(
-    options=list(["NETWORK", "U_IMPIN", "levelK", "PGen", "QGen"]),
-    value="NETWORK",
-    description="Var. group: ",
-)
-dev = widgets.Dropdown(
-    options=contg_cases, value=contg_case0, description="Contg. case: "
-)
-container = widgets.HBox([check, mask, var, dev, var2])
+    # Load the curve data for the first case
+    contg_cases = list(delta["dev"].unique())
+    contg_case0 = contg_cases[0]
+    df_ast, df_dwo, df_lk, T_END = get_curve_dfs(CRV_DIR, PREFIX, contg_case0, IS_DWO_DWO)
+    vars_ast = df_ast.columns[1:]
+    vars_dwo = df_dwo.columns[1:]
+    var0 = vars_ast[0]
+    var2 = widgets.Dropdown(options=vars_ast, value=var0, description="Variable: ")
+    df_m = aut_tw_metrics[aut_tw_metrics.Contg_case == contg_case0].copy()
+    df_m.loc[len(df_m)] = [contg_case0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    if MATCH_CRV_AT_PRECONTG_TIME:
+        idx_match_ast = abs(df_ast["time"] - MATCH_CRV_AT_PRECONTG_TIME).idxmin()
+        idx_match_dwo = abs(df_dwo["time"] - MATCH_CRV_AT_PRECONTG_TIME).idxmin()
+        yoffset = df_ast[var2.value][idx_match_ast] - df_dwo[var2.value][idx_match_dwo]
+    else:
+        yoffset = 0
 
-# Initialize Plot Traces
-if IS_DWO_DWO == 0:
-    trace = go.Scatter(
-        name="Astre vs Dynawo",
+
+    # Initialize Combo Boxes
+    check = widgets.Checkbox(
+        value=False, description="Only Stable contingencies", disabled=False, indent=False
+    )
+    mask_n = ["NETWORK" in x for x in delta.vars]
+    df = delta[mask_n]
+    var = widgets.Dropdown(
+        options=list(["dSS", "dPP", "TT", "period", "damp"]),
+        value="dSS",
+        description="Metric: ",
+    )
+    mask = widgets.Dropdown(
+        options=list(["NETWORK", "U_IMPIN", "levelK", "PGen", "QGen"]),
+        value="NETWORK",
+        description="Var. group: ",
+    )
+    dev = widgets.Dropdown(
+        options=contg_cases, value=contg_case0, description="Contg. case: "
+    )
+    container = widgets.HBox([check, mask, var, dev, var2])
+
+    # Initialize Plot Traces
+    if IS_DWO_DWO == 0:
+        trace = go.Scatter(
+            name="Astre vs Dynawo",
+            x=df["dSS_ast"],
+            y=df["dSS_dwo"],
+            mode="markers",
+            marker_color=df["TT_ast"],
+            marker_size=5
+            + 45
+            * (df.dPP_ast - min(df.dPP_ast))
+            / max(1.0e-6, max(df.dPP_ast) - min(df.dPP_ast)),
+            text=df["dev"] + "<br>" + df["vars"],
+            xaxis="x1",
+            yaxis="y1",
+        )
+    elif IS_DWO_DWO == 1:
+        trace = go.Scatter(
+            name="Dynawo A vs Dynawo B",
+            x=df["dSS_ast"],
+            y=df["dSS_dwo"],
+            mode="markers",
+            marker_color=df["TT_ast"],
+            marker_size=5
+            + 45
+            * (df.dPP_ast - min(df.dPP_ast))
+            / max(1.0e-6, max(df.dPP_ast) - min(df.dPP_ast)),
+            text=df["dev"] + "<br>" + df["vars"],
+            xaxis="x1",
+            yaxis="y1",
+        )
+    else:
+        raise ValueError("IS_DWO_DWO must be 0 or 1.")
+
+    tracel = go.Scatter(
+        name="Diagonal",
         x=df["dSS_ast"],
-        y=df["dSS_dwo"],
-        mode="markers",
-        marker_color=df["TT_ast"],
-        marker_size=5
-        + 45
-        * (df.dPP_ast - min(df.dPP_ast))
-        / max(1.0e-6, max(df.dPP_ast) - min(df.dPP_ast)),
-        text=df["dev"] + "<br>" + df["vars"],
+        y=df["dSS_ast"],
+        mode="lines",
+        marker_color="red",
+        line_width=0.2,
         xaxis="x1",
         yaxis="y1",
     )
-elif IS_DWO_DWO == 1:
-    trace = go.Scatter(
-        name="Dynawo A vs Dynawo B",
-        x=df["dSS_ast"],
-        y=df["dSS_dwo"],
-        mode="markers",
-        marker_color=df["TT_ast"],
-        marker_size=5
-        + 45
-        * (df.dPP_ast - min(df.dPP_ast))
-        / max(1.0e-6, max(df.dPP_ast) - min(df.dPP_ast)),
-        text=df["dev"] + "<br>" + df["vars"],
-        xaxis="x1",
-        yaxis="y1",
+    if IS_DWO_DWO == 0:
+        trace1 = go.Scatter(
+            name="Astre",
+            x=df_ast["time"],
+            y=df_ast[var0],
+            mode="lines+markers",
+            marker_color="black",
+            xaxis="x2",
+            yaxis="y2",
+        )
+        trace2 = go.Scatter(
+            name="Dynawo",
+            x=df_dwo["time"],
+            y=df_dwo[var0] + yoffset,
+            mode="lines",
+            marker_color="red",
+            xaxis="x2",
+            yaxis="y2",
+        )
+    elif IS_DWO_DWO == 1:
+        trace1 = go.Scatter(
+            name="Dynawo A",
+            x=df_ast["time"],
+            y=df_ast[var0],
+            mode="lines",
+            marker_color="blue",
+            xaxis="x2",
+            yaxis="y2",
+        )
+        trace2 = go.Scatter(
+            name="Dynawo B",
+            x=df_dwo["time"],
+            y=df_dwo[var0] + yoffset,
+            mode="lines",
+            marker_color="red",
+            xaxis="x2",
+            yaxis="y2",
+        )
+    else:
+        raise ValueError("IS_DWO_DWO must be 0 or 1.")
+
+    trace3 = go.Scatter(
+        name="Transf. Load Tap Changes",
+        x=df_m["time"],
+        y=df_m["ldtap_netchanges"],
+        stackgroup="one",
+        xaxis="x3",
+        yaxis="y3",
     )
-else:
-    raise ValueError("IS_DWO_DWO must be 0 or 1.")
-
-tracel = go.Scatter(
-    name="Diagonal",
-    x=df["dSS_ast"],
-    y=df["dSS_ast"],
-    mode="lines",
-    marker_color="red",
-    line_width=0.2,
-    xaxis="x1",
-    yaxis="y1",
-)
-if IS_DWO_DWO == 0:
-    trace1 = go.Scatter(
-        name="Astre",
-        x=df_ast["time"],
-        y=df_ast[var0],
-        mode="lines+markers",
-        marker_color="black",
-        xaxis="x2",
-        yaxis="y2",
+    trace4 = go.Scatter(
+        name="Transf. Tap Changes",
+        x=df_m["time"],
+        y=df_m["tap_netchanges"],
+        stackgroup="one",
+        xaxis="x3",
+        yaxis="y3",
     )
-    trace2 = go.Scatter(
-        name="Dynawo",
-        x=df_dwo["time"],
-        y=df_dwo[var0] + yoffset,
-        mode="lines",
-        marker_color="red",
-        xaxis="x2",
-        yaxis="y2",
+    trace5 = go.Scatter(
+        name="Shunt Changes",
+        x=df_m["time"],
+        y=df_m["shunt_netchanges"],
+        stackgroup="one",
+        xaxis="x3",
+        yaxis="y3",
     )
-elif IS_DWO_DWO == 1:
-    trace1 = go.Scatter(
-        name="Dynawo A",
-        x=df_ast["time"],
-        y=df_ast[var0],
-        mode="lines",
-        marker_color="blue",
-        xaxis="x2",
-        yaxis="y2",
+    trace6 = go.Scatter(
+        name="delta Level K",
+        x=df_lk["time"],
+        y=df_lk["deltaLevelK"],
+        stackgroup="one",
+        xaxis="x3",
+        yaxis="y3",
     )
-    trace2 = go.Scatter(
-        name="Dynawo B",
-        x=df_dwo["time"],
-        y=df_dwo[var0] + yoffset,
-        mode="lines",
-        marker_color="red",
-        xaxis="x2",
-        yaxis="y2",
+
+    # Plot layout
+    HEIGHT = 600  # Adapt as needed
+    WIDTH = 1600  # but make sure that width > height
+    aspect_ratio = HEIGHT / WIDTH
+
+    if IS_DWO_DWO == 0:
+        layout = go.Layout(
+            title=dict(text="Astre vs Dynawo"),
+            xaxis=dict(title="dSS Astre", domain=[0, aspect_ratio - 0.05]),
+            yaxis=dict(title="dSS Dynawo", scaleanchor="x", scaleratio=1),
+            xaxis2=dict(title="t", domain=[aspect_ratio + 0.05, 1], range=[0, T_END]),
+            yaxis2=dict(title=var0, anchor="x2", domain=[0, 0.7]),
+            xaxis3=dict(title="t", domain=[aspect_ratio + 0.05, 1], range=[0, T_END]),
+            yaxis3=dict(title="% changes", anchor="x3", domain=[0.8, 1]),
+            height=HEIGHT,
+            width=WIDTH,
+        )
+    elif IS_DWO_DWO == 1:
+        layout = go.Layout(
+            title=dict(text="Dynawo A vs Dynawo B"),
+            xaxis=dict(title="dSS DynawoA", domain=[0, aspect_ratio - 0.05]),
+            yaxis=dict(title="dSS DynawoB", scaleanchor="x", scaleratio=1),
+            xaxis2=dict(title="t", domain=[aspect_ratio + 0.05, 1], range=[0, T_END]),
+            yaxis2=dict(title=var0, anchor="x2", domain=[0, 0.7]),
+            xaxis3=dict(title="t", domain=[aspect_ratio + 0.05, 1], range=[0, T_END]),
+            yaxis3=dict(title="% changes", anchor="x3", domain=[0.8, 1]),
+            height=HEIGHT,
+            width=WIDTH,
+        )
+    else:
+        raise ValueError("IS_DWO_DWO must be 0 or 1.")
+
+
+    # Main plot
+    g = go.FigureWidget(
+        data=[trace, trace1, trace2, trace3, trace4, trace5, trace6, tracel], layout=layout
     )
-else:
-    raise ValueError("IS_DWO_DWO must be 0 or 1.")
 
-trace3 = go.Scatter(
-    name="Transf. Load Tap Changes",
-    x=df_m["time"],
-    y=df_m["ldtap_netchanges"],
-    stackgroup="one",
-    xaxis="x3",
-    yaxis="y3",
-)
-trace4 = go.Scatter(
-    name="Transf. Tap Changes",
-    x=df_m["time"],
-    y=df_m["tap_netchanges"],
-    stackgroup="one",
-    xaxis="x3",
-    yaxis="y3",
-)
-trace5 = go.Scatter(
-    name="Shunt Changes",
-    x=df_m["time"],
-    y=df_m["shunt_netchanges"],
-    stackgroup="one",
-    xaxis="x3",
-    yaxis="y3",
-)
-trace6 = go.Scatter(
-    name="delta Level K",
-    x=df_lk["time"],
-    y=df_lk["deltaLevelK"],
-    stackgroup="one",
-    xaxis="x3",
-    yaxis="y3",
-)
+    # Wire-in the plot callbacks
+    var.observe(response, names="value")
+    mask.observe(response, names="value")
+    dev.observe(response2, names="value")
+    var2.observe(response3, names="value")
+    check.observe(response, names="value")
+    scatter = g.data[0]
+    scatter.on_click(update_serie)
 
-# Plot layout
-HEIGHT = 600  # Adapt as needed
-WIDTH = 1600  # but make sure that width > height
-aspect_ratio = HEIGHT / WIDTH
 
-if IS_DWO_DWO == 0:
-    layout = go.Layout(
-        title=dict(text="Astre vs Dynawo"),
-        xaxis=dict(title="dSS Astre", domain=[0, aspect_ratio - 0.05]),
-        yaxis=dict(title="dSS Dynawo", scaleanchor="x", scaleratio=1),
-        xaxis2=dict(title="t", domain=[aspect_ratio + 0.05, 1], range=[0, T_END]),
-        yaxis2=dict(title=var0, anchor="x2", domain=[0, 0.7]),
-        xaxis3=dict(title="t", domain=[aspect_ratio + 0.05, 1], range=[0, T_END]),
-        yaxis3=dict(title="% changes", anchor="x3", domain=[0.8, 1]),
-        height=HEIGHT,
-        width=WIDTH,
+    ########################################################
+    # COMPOUND SCORING
+    ########################################################
+
+    # Calculate scores by contingency case and and variable.
+    scores = calc_scores_bycasevar(delta)
+    grid_bycasevar = qgrid.show_grid(scores)
+
+    # Calculate scores by contingency case, and save to file
+    scores_mean = calc_scores_bycase(scores, aut_metrics)
+    grid_bycase = get_grid_bycase(scores_mean)
+    name = CRV_DIR.split("/")
+    ln = len(name)
+    filename = name[ln - 3] + "_" + PREFIX + ".csv"
+    scores_mean.to_csv(filename)
+
+    stable = np.where(scores_mean.Stable_pre & scores_mean.Stable_post)
+    per_ss = round(scores_mean.dSS_pass_.mean() * 100, 1)
+    per_pp = round(scores_mean.dPP_pass_.mean() * 100, 1)
+    per1_ss = round(scores_mean.iloc[stable].dSS_pass_.mean() * 100, 1)
+    per1_pp = round(scores_mean.iloc[stable].dPP_pass_.mean() * 100, 1)
+
+    text = (
+        "# Reading %s data from: %s\n"
+        "## Percentage of contingency cases where all variables pass: \n"
+        "  * Steady State diff thresholds: %.1f%% \n"
+        "  * Peak to Peak diff thresholds: %.1f%% \n\n"
+        "## Percentage of *stable* contingency cases where all variables pass: \n"
+        "  * Steady State Thresholds: %.1f%% \n"
+        "  * Peak to Peak Thresholds: %.1f%% \n\n"
+        "Using threshold parameters:\n"
+        "  * V_THRESH: %.2f\n"
+        "  * K_THRESH: %.2f\n"
+        "  * P_THRESH: %.2f\n"
+        "  * Q_THRESH: %.2f\n"
     )
-elif IS_DWO_DWO == 1:
-    layout = go.Layout(
-        title=dict(text="Dynawo A vs Dynawo B"),
-        xaxis=dict(title="dSS DynawoA", domain=[0, aspect_ratio - 0.05]),
-        yaxis=dict(title="dSS DynawoB", scaleanchor="x", scaleratio=1),
-        xaxis2=dict(title="t", domain=[aspect_ratio + 0.05, 1], range=[0, T_END]),
-        yaxis2=dict(title=var0, anchor="x2", domain=[0, 0.7]),
-        xaxis3=dict(title="t", domain=[aspect_ratio + 0.05, 1], range=[0, T_END]),
-        yaxis3=dict(title="% changes", anchor="x3", domain=[0.8, 1]),
-        height=HEIGHT,
-        width=WIDTH,
+
+    md(
+        text
+        % (
+            PREFIX,
+            CRV_DIR,
+            per_ss,
+            per_pp,
+            per1_ss,
+            per1_pp,
+            V_THRESH,
+            K_THRESH,
+            P_THRESH,
+            Q_THRESH,
+        )
     )
-else:
-    raise ValueError("IS_DWO_DWO must be 0 or 1.")
-
-
-# Main plot
-g = go.FigureWidget(
-    data=[trace, trace1, trace2, trace3, trace4, trace5, trace6, tracel], layout=layout
-)
-
-# Wire-in the plot callbacks
-var.observe(response, names="value")
-mask.observe(response, names="value")
-dev.observe(response2, names="value")
-var2.observe(response3, names="value")
-check.observe(response, names="value")
-scatter = g.data[0]
-scatter.on_click(update_serie)
-
-
-########################################################
-# COMPOUND SCORING
-########################################################
-
-# Calculate scores by contingency case and and variable.
-scores = calc_scores_bycasevar(delta)
-grid_bycasevar = qgrid.show_grid(scores)
-
-# Calculate scores by contingency case, and save to file
-scores_mean = calc_scores_bycase(scores)
-grid_bycase = get_grid_bycase(scores_mean)
-name = CRV_DIR.split("/")
-ln = len(name)
-filename = name[ln - 3] + "_" + PREFIX + ".csv"
-scores_mean.to_csv(filename)
-
-stable = np.where(scores_mean.Stable_pre & scores_mean.Stable_post)
-per_ss = round(scores_mean.dSS_pass_.mean() * 100, 1)
-per_pp = round(scores_mean.dPP_pass_.mean() * 100, 1)
-per1_ss = round(scores_mean.iloc[stable].dSS_pass_.mean() * 100, 1)
-per1_pp = round(scores_mean.iloc[stable].dPP_pass_.mean() * 100, 1)
-
-text = (
-    "# Reading %s data from: %s\n"
-    "## Percentage of contingency cases where all variables pass: \n"
-    "  * Steady State diff thresholds: %.1f%% \n"
-    "  * Peak to Peak diff thresholds: %.1f%% \n\n"
-    "## Percentage of *stable* contingency cases where all variables pass: \n"
-    "  * Steady State Thresholds: %.1f%% \n"
-    "  * Peak to Peak Thresholds: %.1f%% \n\n"
-    "Using threshold parameters:\n"
-    "  * V_THRESH: %.2f\n"
-    "  * K_THRESH: %.2f\n"
-    "  * P_THRESH: %.2f\n"
-    "  * Q_THRESH: %.2f\n"
-)
-
-md(
-    text
-    % (
-        PREFIX,
-        CRV_DIR,
-        per_ss,
-        per_pp,
-        per1_ss,
-        per1_pp,
-        V_THRESH,
-        K_THRESH,
-        P_THRESH,
-        Q_THRESH,
-    )
-)
+    print()
+    print('Scoring by measure')
+    print()
+    display(grid_bycasevar)
+    display(widgets.VBox([container,g]))
+    print()
+    print('Scoring by contingency')
+    print()
+    display(grid_bycase)
+    print()
+    print('Scoring Heatmap')
+    print()
+    display(plot_heatmap(scores_mean))
