@@ -202,8 +202,8 @@ for DEVICE in "${!create_contg[@]}"; do
     colormsg "*** CREATING CONTINGENCY CASES:"
     rm -rf "$CASE_DIR"/"$DEVICE"_*
     
-    if [ $allcontg = "n" ]; then
-       if [ $regexlist = "None" ]; then
+    if [ "$allcontg" = "n" ]; then
+       if [ "$regexlist" = "None" ]; then
           set -x
           python3 "$CONTG_SRC"/"${create_contg[$DEVICE]}" "$BASECASE"
           set +x
@@ -213,7 +213,7 @@ for DEVICE in "${!create_contg[@]}"; do
           set +x
        fi
     else
-       if [ $regexlist = "None" ]; then
+       if [ "$regexlist" = "None" ]; then
           set -x
           python3 "$CONTG_SRC"/"${create_contg[$DEVICE]}" "-a" "$BASECASE"
           set +x

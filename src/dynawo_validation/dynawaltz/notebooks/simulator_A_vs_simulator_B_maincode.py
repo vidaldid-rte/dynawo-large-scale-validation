@@ -101,104 +101,6 @@ def get_curve_dfs(crv_dir, prefix, contg_case, IS_DWO_DWO):
     return df_ast, df_dwo, df_lk, t_end
 
 
-# Callbacks
-def response(change):
-    df = delta
-    if check.value:
-        stable = np.where(
-            df.is_preStab_ast
-            & df.is_preStab_dwo
-            & df.is_postStab_ast
-            & df.is_postStab_dwo
-        )
-        df = df.iloc[stable]
-    mask_ = [mask.value in x for x in df.vars]
-    df = df[mask_]
-    # PERF: Plotly starts showing horrible performance with more than 5,000 points
-    if df.shape[0] > 5000:
-        df = df.sample(5000)
-    with g.batch_update():
-        g.data[0].x = df[var.value + "_ast"]
-        g.data[0].y = df[var.value + "_dwo"]
-        g.data[6].x = df[var.value + "_ast"]
-        g.data[6].y = df[var.value + "_ast"]
-        g.data[0].marker.color = df.TT_ast
-        g.data[0].marker.size = 5 + 45 * (df.dPP_ast - min(df.dPP_ast)) / max(
-            1.0e-6, max(df.dPP_ast) - min(df.dPP_ast)
-        )
-        g.data[0].text = df["dev"] + "<br>" + df["vars"]
-        if IS_DWO_DWO == 0:
-            g.layout.xaxis.title = var.value + " Astre"
-            g.layout.yaxis.title = var.value + " Dynawo"
-        elif IS_DWO_DWO == 1:
-            g.layout.xaxis.title = var.value + " Dynawo A"
-            g.layout.yaxis.title = var.value + " Dynawo B"
-        else:
-            raise ValueError("IS_DWO_DWO must be 0 or 1.")
-
-
-def response2(change):
-    df_ast, df_dwo, df_lk, _ = get_curve_dfs(CRV_DIR, PREFIX, dev.value, IS_DWO_DWO)
-    vars_ast = df_ast.columns[1:]
-    var2.options = vars_ast
-    var2.value = vars_ast[0]
-    df_m = aut_tw_metrics[aut_tw_metrics.Contg_case == dev.value].copy()
-    df_m.loc[len(df_m)] = [dev.value, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-    if MATCH_CRV_AT_PRECONTG_TIME:
-        idx_match_ast = abs(df_ast["time"] - MATCH_CRV_AT_PRECONTG_TIME).idxmin()
-        idx_match_dwo = abs(df_dwo["time"] - MATCH_CRV_AT_PRECONTG_TIME).idxmin()
-        yoffset = df_ast[var2.value][idx_match_ast] - df_dwo[var2.value][idx_match_dwo]
-    else:
-        yoffset = 0
-    with g.batch_update():
-        g.data[1].y = df_ast[var2.value]
-        g.data[2].y = df_dwo[var2.value] + yoffset
-        g.data[3].x = df_m["time"]
-        g.data[4].x = df_m["time"]
-        g.data[5].x = df_m["time"]
-        g.data[6].x = df_lk["time"]
-        g.data[3].y = df_m["ldtap_netchanges"]
-        g.data[4].y = df_m["tap_netchanges"]
-        g.data[5].y = df_m["shunt_netchanges"]
-        g.data[6].y = df_lk["deltaLevelK"]
-        g.layout.yaxis2.title = var2.value
-
-
-def response3(change):
-    df_ast, df_dwo, df_lk, _ = get_curve_dfs(CRV_DIR, PREFIX, dev.value, IS_DWO_DWO)
-    df_m = aut_tw_metrics[aut_tw_metrics.Contg_case == dev.value].copy()
-    df_m.loc[len(df_m)] = [dev.value, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-    if MATCH_CRV_AT_PRECONTG_TIME:
-        idx_match_ast = abs(df_ast["time"] - MATCH_CRV_AT_PRECONTG_TIME).idxmin()
-        idx_match_dwo = abs(df_dwo["time"] - MATCH_CRV_AT_PRECONTG_TIME).idxmin()
-        yoffset = df_ast[var2.value][idx_match_ast] - df_dwo[var2.value][idx_match_dwo]
-    else:
-        yoffset = 0
-    with g.batch_update():
-        g.data[1].y = df_ast[var2.value]
-        g.data[2].y = df_dwo[var2.value] + yoffset
-        g.data[3].x = df_m["time"]
-        g.data[4].x = df_m["time"]
-        g.data[5].x = df_m["time"]
-        g.data[6].x = df_lk["time"]
-        g.data[3].y = df_m["ldtap_netchanges"]
-        g.data[4].y = df_m["tap_netchanges"]
-        g.data[5].y = df_m["shunt_netchanges"]
-        g.data[6].y = df_lk["deltaLevelK"]
-        g.layout.yaxis2.title = var2.value
-
-
-def update_serie(trace, points, selector):
-    # t = list(scatter.text)
-    for i in points.point_inds:
-        # print(scatter.text[i])
-        with g.batch_update():
-            dev0 = scatter.text[i].split("<")[0]
-            dev1 = scatter.text[i].split(">")[1]
-            dev.value = dev0
-            var2.value = dev1
-
-
 def calc_scores_bycasevar(delta):
     # The scores consist in relative change in metrics (keeping the sign).
     # The global one consists in the (weighted) abs-sum of all the others.
@@ -356,7 +258,115 @@ def do_displaybutton():
 # NOTEBOOK MAIN CODE STARTS HERE
 ###################################################
 
-def main(CRV_DIR, PREFIX, IS_DWO_DWO, MATCH_CRV_AT_PRECONTG_TIME, V_THRESH, K_THRESH, P_THRESH, Q_THRESH):
+
+def main(
+    CRV_DIR,
+    PREFIX,
+    IS_DWO_DWO,
+    MATCH_CRV_AT_PRECONTG_TIME,
+    V_THRESH,
+    K_THRESH,
+    P_THRESH,
+    Q_THRESH,
+):
+    # Callbacks
+    def response(change):
+        df = delta
+        if check.value:
+            stable = np.where(
+                df.is_preStab_ast
+                & df.is_preStab_dwo
+                & df.is_postStab_ast
+                & df.is_postStab_dwo
+            )
+            df = df.iloc[stable]
+        mask_ = [mask.value in x for x in df.vars]
+        df = df[mask_]
+        # PERF: Plotly starts showing horrible performance with more than 5,000 points
+        if df.shape[0] > 5000:
+            df = df.sample(5000)
+        with g.batch_update():
+            g.data[0].x = df[var.value + "_ast"]
+            g.data[0].y = df[var.value + "_dwo"]
+            g.data[6].x = df[var.value + "_ast"]
+            g.data[6].y = df[var.value + "_ast"]
+            g.data[0].marker.color = df.TT_ast
+            g.data[0].marker.size = 5 + 45 * (df.dPP_ast - min(df.dPP_ast)) / max(
+                1.0e-6, max(df.dPP_ast) - min(df.dPP_ast)
+            )
+            g.data[0].text = df["dev"] + "<br>" + df["vars"]
+            if IS_DWO_DWO == 0:
+                g.layout.xaxis.title = var.value + " Astre"
+                g.layout.yaxis.title = var.value + " Dynawo"
+            elif IS_DWO_DWO == 1:
+                g.layout.xaxis.title = var.value + " Dynawo A"
+                g.layout.yaxis.title = var.value + " Dynawo B"
+            else:
+                raise ValueError("IS_DWO_DWO must be 0 or 1.")
+
+    def response2(change):
+        df_ast, df_dwo, df_lk, _ = get_curve_dfs(CRV_DIR, PREFIX, dev.value, IS_DWO_DWO)
+        vars_ast = df_ast.columns[1:]
+        var2.options = vars_ast
+        var2.value = vars_ast[0]
+        df_m = aut_tw_metrics[aut_tw_metrics.Contg_case == dev.value].copy()
+        df_m.loc[len(df_m)] = [dev.value, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        if MATCH_CRV_AT_PRECONTG_TIME:
+            idx_match_ast = abs(df_ast["time"] - MATCH_CRV_AT_PRECONTG_TIME).idxmin()
+            idx_match_dwo = abs(df_dwo["time"] - MATCH_CRV_AT_PRECONTG_TIME).idxmin()
+            yoffset = (
+                df_ast[var2.value][idx_match_ast] - df_dwo[var2.value][idx_match_dwo]
+            )
+        else:
+            yoffset = 0
+        with g.batch_update():
+            g.data[1].y = df_ast[var2.value]
+            g.data[2].y = df_dwo[var2.value] + yoffset
+            g.data[3].x = df_m["time"]
+            g.data[4].x = df_m["time"]
+            g.data[5].x = df_m["time"]
+            g.data[6].x = df_lk["time"]
+            g.data[3].y = df_m["ldtap_netchanges"]
+            g.data[4].y = df_m["tap_netchanges"]
+            g.data[5].y = df_m["shunt_netchanges"]
+            g.data[6].y = df_lk["deltaLevelK"]
+            g.layout.yaxis2.title = var2.value
+
+    def response3(change):
+        df_ast, df_dwo, df_lk, _ = get_curve_dfs(CRV_DIR, PREFIX, dev.value, IS_DWO_DWO)
+        df_m = aut_tw_metrics[aut_tw_metrics.Contg_case == dev.value].copy()
+        df_m.loc[len(df_m)] = [dev.value, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        if MATCH_CRV_AT_PRECONTG_TIME:
+            idx_match_ast = abs(df_ast["time"] - MATCH_CRV_AT_PRECONTG_TIME).idxmin()
+            idx_match_dwo = abs(df_dwo["time"] - MATCH_CRV_AT_PRECONTG_TIME).idxmin()
+            yoffset = (
+                df_ast[var2.value][idx_match_ast] - df_dwo[var2.value][idx_match_dwo]
+            )
+        else:
+            yoffset = 0
+        with g.batch_update():
+            g.data[1].y = df_ast[var2.value]
+            g.data[2].y = df_dwo[var2.value] + yoffset
+            g.data[3].x = df_m["time"]
+            g.data[4].x = df_m["time"]
+            g.data[5].x = df_m["time"]
+            g.data[6].x = df_lk["time"]
+            g.data[3].y = df_m["ldtap_netchanges"]
+            g.data[4].y = df_m["tap_netchanges"]
+            g.data[5].y = df_m["shunt_netchanges"]
+            g.data[6].y = df_lk["deltaLevelK"]
+            g.layout.yaxis2.title = var2.value
+
+    def update_serie(trace, points, selector):
+        # t = list(scatter.text)
+        for i in points.point_inds:
+            # print(scatter.text[i])
+            with g.batch_update():
+                dev0 = scatter.text[i].split("<")[0]
+                dev1 = scatter.text[i].split(">")[1]
+                dev.value = dev0
+                var2.value = dev1
+
     display(
         HTML(
             data="""
@@ -407,7 +417,6 @@ def main(CRV_DIR, PREFIX, IS_DWO_DWO, MATCH_CRV_AT_PRECONTG_TIME, V_THRESH, K_TH
     except NameError:
         Q_THRESH = 10
 
-
     # Read the metrics
     metrics_dir = CRV_DIR + "/../metrics"
     crv_reducedparams_file = metrics_dir + "/crv_reducedparams.csv"
@@ -450,11 +459,12 @@ def main(CRV_DIR, PREFIX, IS_DWO_DWO, MATCH_CRV_AT_PRECONTG_TIME, V_THRESH, K_TH
     delta["delta_dPP"] = delta["dPP_ast"] - delta["dPP_dwo"]
     delta["dPP_pass"] = delta.delta_dPP.abs() < delta.threshold
 
-
     # Load the curve data for the first case
     contg_cases = list(delta["dev"].unique())
     contg_case0 = contg_cases[0]
-    df_ast, df_dwo, df_lk, T_END = get_curve_dfs(CRV_DIR, PREFIX, contg_case0, IS_DWO_DWO)
+    df_ast, df_dwo, df_lk, T_END = get_curve_dfs(
+        CRV_DIR, PREFIX, contg_case0, IS_DWO_DWO
+    )
     vars_ast = df_ast.columns[1:]
     vars_dwo = df_dwo.columns[1:]
     var0 = vars_ast[0]
@@ -468,10 +478,12 @@ def main(CRV_DIR, PREFIX, IS_DWO_DWO, MATCH_CRV_AT_PRECONTG_TIME, V_THRESH, K_TH
     else:
         yoffset = 0
 
-
     # Initialize Combo Boxes
     check = widgets.Checkbox(
-        value=False, description="Only Stable contingencies", disabled=False, indent=False
+        value=False,
+        description="Only Stable contingencies",
+        disabled=False,
+        indent=False,
     )
     mask_n = ["NETWORK" in x for x in delta.vars]
     df = delta[mask_n]
@@ -640,10 +652,10 @@ def main(CRV_DIR, PREFIX, IS_DWO_DWO, MATCH_CRV_AT_PRECONTG_TIME, V_THRESH, K_TH
     else:
         raise ValueError("IS_DWO_DWO must be 0 or 1.")
 
-
     # Main plot
     g = go.FigureWidget(
-        data=[trace, trace1, trace2, trace3, trace4, trace5, trace6, tracel], layout=layout
+        data=[trace, trace1, trace2, trace3, trace4, trace5, trace6, tracel],
+        layout=layout,
     )
 
     # Wire-in the plot callbacks
@@ -654,7 +666,6 @@ def main(CRV_DIR, PREFIX, IS_DWO_DWO, MATCH_CRV_AT_PRECONTG_TIME, V_THRESH, K_TH
     check.observe(response, names="value")
     scatter = g.data[0]
     scatter.on_click(update_serie)
-
 
     ########################################################
     # COMPOUND SCORING
@@ -709,15 +720,15 @@ def main(CRV_DIR, PREFIX, IS_DWO_DWO, MATCH_CRV_AT_PRECONTG_TIME, V_THRESH, K_TH
         )
     )
     print()
-    print('Scoring by measure')
+    print("Scoring by measure")
     print()
     display(grid_bycasevar)
-    display(widgets.VBox([container,g]))
+    display(widgets.VBox([container, g]))
     print()
-    print('Scoring by contingency')
+    print("Scoring by contingency")
     print()
     display(grid_bycase)
     print()
-    print('Scoring Heatmap')
+    print("Scoring Heatmap")
     print()
     display(plot_heatmap(scores_mean))

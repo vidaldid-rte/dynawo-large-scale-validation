@@ -180,7 +180,7 @@ def main():
             )
     else:
         sampling_ratio = 1
-        
+
     # Initialize another dict to keep Astre's (P,Q)-flows of each disconnected branch
     processed_branchesPQ = dict()
 
