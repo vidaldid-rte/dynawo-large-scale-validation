@@ -156,6 +156,14 @@ while true; do
     esac
 done
 
+if [ "$allcontg" == "y" ]; then
+    if [ "$regexlist" != "None" ]; then
+        echo "ERROR: Option --allcontg and --regexlist aren't supported together"
+        exit 1
+    fi    
+fi
+
+
 if [ $h = "y" ]; then
     usage
     exit 0

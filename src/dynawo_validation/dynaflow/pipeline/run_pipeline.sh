@@ -155,6 +155,13 @@ while true; do
     esac
 done
 
+if [ "$allcontg" == "y" ]; then
+    if [ "$regexlist" != "None" ]; then
+        echo "ERROR: Option --allcontg and --regexlist aren't supported together"
+        exit 1
+    fi    
+fi
+
 if [ $h = "y" ]; then
     usage
     exit 0
@@ -237,9 +244,17 @@ for DEVICE in "${!create_contg[@]}"; do
        set +x
        echo
 
-       colormsg "*** COMPUTING DIFF METRICS:"   
-       python3 "$CONTG_SRC"/calc_global_pf_diffmetrics.py "$RESULTS_DIR"/pf_sol "$DEVICE"_
-       echo
+       if [ -t 1 ] ; then
+          # stdout is a terminal
+          colormsg "*** COMPUTING DIFF METRICS:"   
+          python3 "$CONTG_SRC"/calc_global_pf_diffmetrics.py "$RESULTS_DIR"/pf_sol "$DEVICE"_ "0"
+          echo
+       else
+          # stdout isn't a terminal
+          colormsg "*** COMPUTING DIFF METRICS:"   
+          python3 "$CONTG_SRC"/calc_global_pf_diffmetrics.py "$RESULTS_DIR"/pf_sol "$DEVICE"_ "1"
+          echo
+       fi
     
        colormsg "*** CREATING NOTEBOOK:" 
        # Create notebook

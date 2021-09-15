@@ -26,6 +26,11 @@ parser.add_argument(
     "prefix",
     help="Contingency prefix",
 )
+
+parser.add_argument(
+    "isout",
+    help="The output is redirected to txt or not",
+)
 args = parser.parse_args()
 
 
@@ -43,34 +48,64 @@ def main():
 
     Path(PF_METRICS_DIR).mkdir(parents=False, exist_ok=True)
 
-    for filepath in tqdm(files):
-        # Depending on the path
-        # cont = filepath.split('_')[3].split('-')[0]
-        cont = filepath.split("_")[2].split("-")[0]
-        # print(cont)
-        delta = pd.read_csv(filepath, sep=";", index_col=False, compression="infer")
-        delta["DIFF"] = delta.VALUE_A - delta.VALUE_B
-        delta_max = delta.groupby("VAR").max()
-        delta_mean = delta.groupby("VAR").mean()
-        res1 = (
-            [cont]
-            + ["ALL"]
-            + list(delta_max["DIFF"].values)
-            + list(delta_mean["DIFF"].values)
-        )
-        res = res + [res1]
-        volt_levels = np.sort(delta["VOLT_LEVEL"].unique())
-        for volt_level in volt_levels:
-            temp_df = delta.loc[(delta.VOLT_LEVEL == volt_level)]
-            temp_df_max = temp_df.groupby("VAR").max()
-            temp_df_mean = temp_df.groupby("VAR").mean()
-            res2 = (
+    if args.isout == "0":
+        for filepath in tqdm(files):
+            # Depending on the path
+            # cont = filepath.split('_')[3].split('-')[0]
+            cont = filepath.split("_")[2].split("-")[0]
+            # print(cont)
+            delta = pd.read_csv(filepath, sep=";", index_col=False, compression="infer")
+            delta["DIFF"] = delta.VALUE_A - delta.VALUE_B
+            delta_max = delta.groupby("VAR").max()
+            delta_mean = delta.groupby("VAR").mean()
+            res1 = (
                 [cont]
-                + [str(volt_level)]
-                + list(temp_df_max["DIFF"].values)
-                + list(temp_df_mean["DIFF"].values)
+                + ["ALL"]
+                + list(delta_max["DIFF"].values)
+                + list(delta_mean["DIFF"].values)
             )
-            res = res + [res2]
+            res = res + [res1]
+            volt_levels = np.sort(delta["VOLT_LEVEL"].unique())
+            for volt_level in volt_levels:
+                temp_df = delta.loc[(delta.VOLT_LEVEL == volt_level)]
+                temp_df_max = temp_df.groupby("VAR").max()
+                temp_df_mean = temp_df.groupby("VAR").mean()
+                res2 = (
+                    [cont]
+                    + [str(volt_level)]
+                    + list(temp_df_max["DIFF"].values)
+                    + list(temp_df_mean["DIFF"].values)
+                )
+                res = res + [res2]
+    else:
+        for filepath in files:
+            # Depending on the path
+            # cont = filepath.split('_')[3].split('-')[0]
+            cont = filepath.split("_")[2].split("-")[0]
+            # print(cont)
+            delta = pd.read_csv(filepath, sep=";", index_col=False, compression="infer")
+            delta["DIFF"] = delta.VALUE_A - delta.VALUE_B
+            delta_max = delta.groupby("VAR").max()
+            delta_mean = delta.groupby("VAR").mean()
+            res1 = (
+                [cont]
+                + ["ALL"]
+                + list(delta_max["DIFF"].values)
+                + list(delta_mean["DIFF"].values)
+            )
+            res = res + [res1]
+            volt_levels = np.sort(delta["VOLT_LEVEL"].unique())
+            for volt_level in volt_levels:
+                temp_df = delta.loc[(delta.VOLT_LEVEL == volt_level)]
+                temp_df_max = temp_df.groupby("VAR").max()
+                temp_df_mean = temp_df.groupby("VAR").mean()
+                res2 = (
+                    [cont]
+                    + [str(volt_level)]
+                    + list(temp_df_max["DIFF"].values)
+                    + list(temp_df_mean["DIFF"].values)
+                )
+                res = res + [res2]  
 
     df = pd.DataFrame(
         res,

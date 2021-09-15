@@ -39,47 +39,10 @@ def get_curve_dfs(crv_dir, prefix, contg_case, IS_DWO_DWO):
     if IS_DWO_DWO == 0:
         ast_case = crv_dir + "/" + prefix + contg_case + "-AstreCurves.csv.xz"
         dwo_case = crv_dir + "/" + prefix + contg_case + "-DynawoCurves.csv.xz"
-        if os.path.isfile(ast_case) == False:
-            ast_case = (
-                crv_dir
-                + "/"
-                + prefix
-                + "merged_"
-                + prefix
-                + contg_case
-                + "-AstreCurves.csv.xz"
-            )
-        if os.path.isfile(dwo_case) == False:
-            dwo_case = (
-                crv_dir
-                + "/"
-                + prefix
-                + "merged_"
-                + prefix
-                + contg_case
-                + "-DynawoCurvesA.csv.xz"
-            )
     elif IS_DWO_DWO == 1:
         ast_case = crv_dir + "/" + prefix + contg_case + "-DynawoCurvesA.csv.xz"
         dwo_case = crv_dir + "/" + prefix + contg_case + "-DynawoCurvesB.csv.xz"
-        if os.path.isfile(ast_case) == False:
-            ast_case = (
-                crv_dir
-                + prefix
-                + "merged_"
-                + prefix
-                + contg_case
-                + "-DynawoCurvesA.csv.xz"
-            )
-        if os.path.isfile(dwo_case) == False:
-            dwo_case = (
-                crv_dir
-                + prefix
-                + "merged_"
-                + prefix
-                + contg_case
-                + "-DynawoCurvesA.csv.xz"
-            )
+
     df_ast = pd.read_csv(ast_case, sep=";", index_col=False, compression="infer")
     df_dwo = pd.read_csv(dwo_case, sep=";", index_col=False, compression="infer")
     # TODO: ASTDWO/DWODWO DEPENDENCY:

@@ -40,7 +40,13 @@ def extract_bus(iidm_file, bus_name):
         bus = shunt.get("connectableBus")
         if bus == bus_name: 
             find = True
-            print("Shunt id = " + shunt.get("id"))                      
+            print("Shunt id = " + shunt.get("id")) 
+    for twoWindingsTransformer in root.iter("{%s}twoWindingsTransformer" % ns):
+        bus1 = twoWindingsTransformer.get("connectableBus1")
+        bus2 = twoWindingsTransformer.get("connectableBus2")
+        if bus1 == bus_name or bus2 == bus_name:  
+            find = True
+            print("TwoWindingsTransformer id = " + twoWindingsTransformer.get("id"))                      
     if find == False:
         raise ValueError(f"Bus doesn't exist")
     

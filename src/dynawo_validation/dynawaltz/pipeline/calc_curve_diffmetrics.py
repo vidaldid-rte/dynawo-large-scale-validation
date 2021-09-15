@@ -116,7 +116,10 @@ def list_inputfiles(case_type, crv_dir, prefix):
     Crv_Pair = namedtuple("Crv_Pair", ["caseA", "caseB"])
     file_list = dict()
     for caseA_file in caseA_files:
-        case_label = caseA_file.split(caseA_suffix)[0].split(prefix)[-1]
+        case_label = caseA_file.split(caseA_suffix)[0]
+        case_label = [e+prefix for e in case_label.split(prefix) if e][1:]
+        case_label[-1] = case_label[-1].replace(prefix,"")
+        case_label = ''.join(case_label)
         caseB_file = caseA_file.split(caseA_suffix)[0] + caseB_suffix
         if not (os.path.isfile(caseB_file)):
             raise ValueError("'case B' crv file %s not found\n" % caseB_file)
