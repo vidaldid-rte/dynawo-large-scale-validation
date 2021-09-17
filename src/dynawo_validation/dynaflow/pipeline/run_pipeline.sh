@@ -84,7 +84,9 @@ EOF
 
 colormsg()
 {
-    echo -e "${GREEN}$1${NC}"
+    if [ -t 1 ] ; then
+        echo -e "${GREEN}$1${NC}"
+    fi
 }
 
 #######################################

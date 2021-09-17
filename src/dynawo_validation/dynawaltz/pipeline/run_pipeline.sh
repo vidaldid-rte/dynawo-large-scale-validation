@@ -230,7 +230,7 @@ for DEVICE in "${!create_contg[@]}"; do
        echo -e "No cases with pattern $DEVICE"_"* found under $CASE_DIR"
     else
        colormsg "*** RUNNING CONTINGENCY CASES:"
-       RESULTS_DIR="$RESULTS_BASEDIR"/"$DEVICE"s
+       RESULTS_DIR="$RESULTS_BASEDIR"/"$DEVICE"
        mkdir -p "$RESULTS_DIR"
        set -x
        "$CONTG_SRC"/run_all_contg.sh "${RUN_OPTS[@]}" -o "$RESULTS_DIR" -A "$A" -B "$B" "$CASE_DIR" "$BASECASE" "$DEVICE"_
@@ -246,7 +246,7 @@ for DEVICE in "${!create_contg[@]}"; do
        echo
 
        colormsg "*** CREATING NOTEBOOK:"
-       python3 "$DWO_VALIDATION_SRC"/notebooks/generate_notebooks.py "$(cd "$(dirname "$RESULTS_DIR")"; pwd)/$DEVICE"s "$BASECASE" "$DEVICE"_
+       python3 "$DWO_VALIDATION_SRC"/notebooks/generate_notebooks.py "$(cd "$(dirname "$RESULTS_DIR")"; pwd)/$DEVICE" "$BASECASE" "$DEVICE"_
        mkdir -p "$RESULTS_DIR"/notebooks
        cp "$DWO_VALIDATION_SRC"/notebooks/"simulator_A_vs_simulator_B_final.ipynb" "$RESULTS_DIR"/notebooks
        rm "$DWO_VALIDATION_SRC"/notebooks/"simulator_A_vs_simulator_B_final.ipynb"
