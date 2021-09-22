@@ -78,6 +78,7 @@ Usage: $0 [OPTIONS] BASECASE RESULTS_DIR
     -B | --launcherB  Defines the launcher of simulator B
     -a | --allcontg   Run all the contingencies
     -l | --regexlist  Run all the contingencies of a .txt file
+    -r | --random     Run a different random sample of contingencies
     -h | --help       This help message
 EOF
 }
@@ -102,8 +103,8 @@ if [[ ${PIPESTATUS[0]} -ne 4 ]]; then
 fi
 
 
-OPTIONS=A:B:hal:
-LONGOPTS=launcherB:,launcherA:,help,allcontg,regexlist:
+OPTIONS=A:B:hal:r
+LONGOPTS=launcherB:,launcherA:,help,allcontg,regexlist:,random
 
 # -regarding ! and PIPESTATUS see above
 # -temporarily store output to be able to check for errors
@@ -119,7 +120,7 @@ fi
 # read getopt’s output this way to handle the quoting right:
 eval set -- "$PARSED"
 
-A="dynawo.sh" B="dynawo.sh" h=n allcontg=n regexlist="None"
+A="dynawo.sh" B="dynawo.sh" h=n allcontg=n regexlist="None" random=n
 # now enjoy the options in order and nicely split until we see --
 while true; do
     case "$1" in
@@ -145,7 +146,11 @@ while true; do
             regexlist="$2"
             echo "Read regex from $2 file"
             shift 2
-            ;;    
+            ;;   
+        -r|--random)
+            random=y
+            shift
+            ;;      
         --)
             shift
             break
@@ -160,6 +165,20 @@ done
 if [ "$allcontg" == "y" ]; then
     if [ "$regexlist" != "None" ]; then
         echo "ERROR: Option --allcontg and --regexlist aren't supported together"
+        exit 1
+    fi    
+fi
+
+if [ "$regexlist" != "None" ]; then
+    if [ "$random" == "y" ]; then
+        echo "ERROR: Option --regexlist and --random aren't supported together"
+        exit 1
+    fi    
+fi
+
+if [ "$allcontg" == "y" ]; then
+    if [ "$random" == "y" ]; then
+        echo "ERROR: Option --allcontg and --random aren't supported together"
         exit 1
     fi    
 fi
@@ -213,9 +232,15 @@ for DEVICE in "${!create_contg[@]}"; do
     
     if [ "$allcontg" = "n" ]; then
        if [ "$regexlist" = "None" ]; then
-          set -x
-          python3 "$CONTG_SRC"/"${create_contg[$DEVICE]}" "$BASECASE"
-          set +x
+          if [ "$random" = "n" ]; then
+             set -x
+             python3 "$CONTG_SRC"/"${create_contg[$DEVICE]}" "$BASECASE"
+             set +x
+          else
+             set -x
+             python3 "$CONTG_SRC"/"${create_contg[$DEVICE]}" "-r" "$BASECASE"
+             set +x   
+          fi   
        else
           set -x
           python3 "$CONTG_SRC"/"${create_contg[$DEVICE]}" "-t" "$regexlist" "$BASECASE"

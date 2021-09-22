@@ -95,12 +95,14 @@ def create_colors(data):
         elif datanum >= 225:
             colordata.append("rgb(0,255,0)")
         elif datanum >= 150:
-            colordata.append("rgb(0,0,255)")
+            colordata.append("rgb(0,255,255)")
         elif datanum >= 90:
-            colordata.append("rgb(0,0,0)")
+            colordata.append("rgb(255,255,0)")
         elif datanum >= 63:
-            colordata.append("rgb(64,64,64)")
+            colordata.append("rgb(170,0,255)")
         elif datanum >= 45:
+            colordata.append("rgb(64,64,64)")
+        elif datanum >= 42:
             colordata.append("rgb(128,128,128)")
         elif datanum >= 20:
             colordata.append("rgb(196,196,196)")
@@ -108,10 +110,11 @@ def create_colors(data):
             colordata.append("rgb(255,255,255)")
     patch_380 = patches.Patch(color=(255 / 255, 0, 0), label="380 kV")
     patch_225 = patches.Patch(color=(0, 255 / 255, 0), label="225 kV")
-    patch_150 = patches.Patch(color=(0, 0, 255 / 255), label="150 kV")
-    patch_90 = patches.Patch(color=(0, 0, 0), label="90 kV")
-    patch_63 = patches.Patch(color=(64 / 255, 64 / 255, 64 / 255), label="63 kV")
-    patch_45 = patches.Patch(color=(128 / 255, 128 / 255, 128 / 255), label="45 kV")
+    patch_150 = patches.Patch(color=(0, 255 / 255, 255 / 255), label="150 kV")
+    patch_90 = patches.Patch(color=(255 / 255, 255 / 255, 0), label="90 kV")
+    patch_63 = patches.Patch(color=(170 / 255, 0, 255 / 255), label="63 kV")
+    patch_45 = patches.Patch(color=(64 / 255, 64 / 255, 64 / 255), label="45 kV")
+    patch_42 = patches.Patch(color=(128 / 255, 128 / 255, 128 / 255), label="45 kV")
     patch_20 = patches.Patch(color=(196 / 255, 196 / 255, 196 / 255), label="20 kV")
     pyplot.legend(
         handles=[
@@ -121,12 +124,13 @@ def create_colors(data):
             patch_90,
             patch_63,
             patch_45,
+            patch_42,
             patch_20,
         ]
     )
     pyplot.savefig("legend0.png")
     pyplot.close()
-    legend0 = pl.imread("legend0.png")[40:150, 300:385, :]
+    legend0 = pl.imread("legend0.png")[40:170, 300:385, :]
     addwhite0 = np.zeros((100, legend0.shape[1], legend0.shape[2]))
     addwhite1 = np.zeros((300, legend0.shape[1], legend0.shape[2]))
     legend0 = np.concatenate((addwhite0, legend0, addwhite1), axis=0)
