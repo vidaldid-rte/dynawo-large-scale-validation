@@ -75,7 +75,6 @@ from dynawo_validation.dynaflow.pipeline.dwo_jobinfo import (
 
 
 MAX_NCASES = 5  # limits the no. of contingency cases (via random sampling)
-RNG_SEED = 42
 HADES_PATH = "/Hades/donneesEntreeHADES2.xml"
 
 # This dictionary refers to the possible load models. Depending on each of them, the
