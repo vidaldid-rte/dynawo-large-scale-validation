@@ -97,7 +97,10 @@ parser.add_argument(
     "-a", "--allcontg", help="generate all the contingencies", action="store_true"
 )
 parser.add_argument(
-    "-r", "--randomc", help="generate a different random sample of contingencies", action="store_true"
+    "-r",
+    "--randomc",
+    help="generate a different random sample of contingencies",
+    action="store_true",
 )
 parser.add_argument("base_case", help="enter base case directory")
 args = parser.parse_args()
@@ -122,7 +125,7 @@ def main():
             while re.compile("") in filter_list:
                 filter_list.remove(re.compile(""))
     if args.randomc:
-        RNG_SEED = random.randint(1,1000)
+        RNG_SEED = random.randint(1, 1000)
     # remove a possible trailing slash
     if base_case[-1] == "/":
         base_case = base_case[:-1]

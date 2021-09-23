@@ -35,7 +35,7 @@ def run_pipeline(
                     + "/run_pipeline.sh -A %s -B %s -a %s %s"
                     % (launcherA, launcherB, base_case, results_dir),
                     shell=True,
-                )    
+                )
         else:
             if random:
                 Process = run(
@@ -50,7 +50,7 @@ def run_pipeline(
                     + "/run_pipeline.sh -A %s -B %s -a -l %s %s %s"
                     % (launcherA, launcherB, regexlist, base_case, results_dir),
                     shell=True,
-                )    
+                )
     else:
         if regexlist is None:
             if random:
@@ -66,7 +66,7 @@ def run_pipeline(
                     + "/run_pipeline.sh -A %s -B %s %s %s"
                     % (launcherA, launcherB, base_case, results_dir),
                     shell=True,
-                )    
+                )
         else:
             if random:
                 Process = run(
@@ -81,4 +81,4 @@ def run_pipeline(
                     + "/run_pipeline.sh -A %s -B %s -l %s %s %s"
                     % (launcherA, launcherB, regexlist, base_case, results_dir),
                     shell=True,
-                )    
+                )

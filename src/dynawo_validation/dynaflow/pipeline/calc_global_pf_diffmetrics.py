@@ -105,7 +105,7 @@ def main():
                     + list(temp_df_max["DIFF"].values)
                     + list(temp_df_mean["DIFF"].values)
                 )
-                res = res + [res2]  
+                res = res + [res2]
 
     df = pd.DataFrame(
         res,
