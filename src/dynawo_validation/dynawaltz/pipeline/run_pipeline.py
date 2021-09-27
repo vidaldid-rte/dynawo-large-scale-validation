@@ -17,35 +17,68 @@ def run_pipeline(
     launcherB="dynawo.sh",
     allcontg=False,
     regexlist=None,
+    random=False,
 ):
     file_path = os.path.abspath(os.path.dirname(__file__))
     if allcontg:
         if regexlist is None:
-            Process = run(
-                file_path
-                + "/run_pipeline.sh -A %s -B %s -a %s %s"
-                % (launcherA, launcherB, base_case, results_dir),
-                shell=True,
-            )
+            if random:
+                Process = run(
+                    file_path
+                    + "/run_pipeline.sh -A %s -B %s -a -r %s %s"
+                    % (launcherA, launcherB, base_case, results_dir),
+                    shell=True,
+                )
+            else:
+                Process = run(
+                    file_path
+                    + "/run_pipeline.sh -A %s -B %s -a %s %s"
+                    % (launcherA, launcherB, base_case, results_dir),
+                    shell=True,
+                )
         else:
-            Process = run(
-                file_path
-                + "/run_pipeline.sh -A %s -B %s -a -l %s %s %s"
-                % (launcherA, launcherB, regexlist, base_case, results_dir),
-                shell=True,
-            )
+            if random:
+                Process = run(
+                    file_path
+                    + "/run_pipeline.sh -A %s -B %s -a -l %s -r %s %s"
+                    % (launcherA, launcherB, regexlist, base_case, results_dir),
+                    shell=True,
+                )
+            else:
+                Process = run(
+                    file_path
+                    + "/run_pipeline.sh -A %s -B %s -a -l %s %s %s"
+                    % (launcherA, launcherB, regexlist, base_case, results_dir),
+                    shell=True,
+                )
     else:
         if regexlist is None:
-            Process = run(
-                file_path
-                + "/run_pipeline.sh -A %s -B %s %s %s"
-                % (launcherA, launcherB, base_case, results_dir),
-                shell=True,
-            )
+            if random:
+                Process = run(
+                    file_path
+                    + "/run_pipeline.sh -A %s -B %s -r %s %s"
+                    % (launcherA, launcherB, base_case, results_dir),
+                    shell=True,
+                )
+            else:
+                Process = run(
+                    file_path
+                    + "/run_pipeline.sh -A %s -B %s %s %s"
+                    % (launcherA, launcherB, base_case, results_dir),
+                    shell=True,
+                )
         else:
-            Process = run(
-                file_path
-                + "/run_pipeline.sh -A %s -B %s -l %s %s %s"
-                % (launcherA, launcherB, regexlist, base_case, results_dir),
-                shell=True,
-            )
+            if random:
+                Process = run(
+                    file_path
+                    + "/run_pipeline.sh -A %s -B %s -l %s -r %s %s"
+                    % (launcherA, launcherB, regexlist, base_case, results_dir),
+                    shell=True,
+                )
+            else:
+                Process = run(
+                    file_path
+                    + "/run_pipeline.sh -A %s -B %s -l %s %s %s"
+                    % (launcherA, launcherB, regexlist, base_case, results_dir),
+                    shell=True,
+                )
