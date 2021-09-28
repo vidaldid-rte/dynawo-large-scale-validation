@@ -63,8 +63,8 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{document}
 
-\title{Black-box validation and A/B testing of large-scale cases with DynaFlow
-  and DynaWaltz simulators}
+\title{Development of an Open Source Tool to Compare Simulators on Large-Scale Cases - Application on Dyna$\omega$o}% A proposal for a new title
+%\title{Black-box validation and A/B testing of large-scale cases with DynaFlow and DynaWaltz simulators}
 
 
 \author{
@@ -82,9 +82,8 @@
     Email: \{marinjl, gaitanv, omsg\}@aia.es
   }
   \IEEEauthorblockA{
-    \IEEEauthorrefmark{2}RTE -- Direction R\&D\\
-    Coeur defense -- 100 Esplanade du General de Gaulle -- tour B\\
-    92932 Paris La Defense cedex\\
+    \IEEEauthorrefmark{2}RTE R\&D department\\
+    7C place du Dôme, 92073 Paris La Défense Cedex\\
     Email: \{adrien.guironnet, marco.chiaramello, quentin.cossart\}@rte-france.com
   }
 }
@@ -93,12 +92,12 @@
 
 % Remember: no symbols, special chars, footnotes, or math in Title or Abstract
 \begin{abstract}
-  Dynawo is an open source suite of simulation tools for power systems, geared
+  Dyna$\omega$o is an open source hybrid Modelica/C++ suite of simulation tools for power systems, geared
   towards the dynamic simulation of large transmission networks at different
-  time scales. In this paper we present a set of tools designed for: (a)
-  validation of Dynawo based on black-box testing against existing established
-  simulators, or against previous validated versions of Dynawo; (b) exploration
-  and analysis of the effects of modeling changes and model parameters on the
+  time scales, from the steady-state calculation to transient stability analysis. In this paper we present a set of open source tools designed for: (a)
+  validation of Dyna$\omega$o based on black-box testing against existing established
+  simulators, or against previous validated versions of Dyna$\omega$o; (b) exploration
+  and analysis of the effects of modelling changes and model parameters on the
   network response, by means of A/B testing. In both cases the methodology is
   based on the automatic generation of an extensive set of cases derived from a
   given base case, typically by means of N-1 contingencies. These tools, based
@@ -108,7 +107,7 @@
 \end{abstract}
 
 \begin{IEEEkeywords}
-  powerflow, dynamic simulation, blackbox validation
+  steady state calculation, dynamic simulation, blackbox validation
 \end{IEEEkeywords}
 
 
@@ -120,20 +119,20 @@
 \Dynawo{}\cite{Guironnet18} is a suite of tools for the dynamic simulation, at
 different time resolution levels, of modern power networks. It has been mainly
 developed by RTE, and then released as open source under the umbrella of the
-Linux Foundation Energy.  Its design is based on two major guiding principles:
-the use of a high-level modelling language (Modelica) and a strict separation
+Linux Foundation Energy \textcolor{red}{Not in the LFE yet, so we can remove the mention}.  Its design is based on two major guiding principles:
+the use of a high-level modelling language (Modelica \textcolor{red}{maybe put a reference presenting the language}) and a strict separation
 between the modelling and the solving mechanisms.  Its implementation brings to
 the table a novel hybrid approach that combines the power of declarative,
-computationally acausal modelling (also referred to as equation-based modeling)
+computationally acausal modelling (also referred to as equation-based modelling)
 with certain high-performance C/C++ modifications that take advantage of the
 specific optimization opportunities available in large power networks (such as,
 for instance, the extensive work on high-performance DAE solvers for these
 highly sparse systems).  \Dynawo{} thus aims at providing power system
-stakeholders with a next-generation dynamic simulator that overcomes the
+stakeholders with a next-generation of open source simulation tools that overcome the
 limitations of legacy closed-source programs, while being performant enough to
 be used in production settings at large transmission operators. The key goals
-are transparency and flexibility of modeling, which will result in robustness
-and interoperability. I is hoped that this will enable an effective
+are transparency and flexibility of modelling, which will result in robustness
+and interoperability. It is hoped that this will enable an effective
 collaboration and cooperation in the power system community, something that has
 been difficult to achieve with legacy commercial tools.  For a recent update on
 \Dynawo{} developments, see the presentation \cite{Guironnet21} or consult the
@@ -141,7 +140,8 @@ official website~\cite{Dynawo}.
 
 
 
-\subsection{Aims: not just validation}
+\subsection{Objectives of the developed comparison tools}
+%\subsection{Aims: not just validation}
 
 %% Stress the possibilites offered by the tool to validate or observe the
 %% influence of one parameter or model change on the system reponse, in a
@@ -154,8 +154,8 @@ algorithmic controls), one needs whole-system functional testing in order to
 assess the behavior on complete network cases. As in any hierarchical
 system-of-systems, it is not always evident how the lower-level details (device
 model choices, parameters, etc.)  affect the behavior of the whole network. This
-sort of testing is necessarily``black-box'' in style, since there is no
-systematic way to link the knowledge of the lower-level modeling to the behavior
+sort of testing is necessarily ``black-box'' in style, since there is no
+systematic way to link the knowledge of the lower-level modelling to the behavior
 of the higher-level, other than running simulations---in a certain limited
 sense, what we have here is an ``emergent behavior''.  Therefore this sort of
 black box simulations are not only useful for validating the software against
@@ -171,7 +171,7 @@ configure extensive sets of test cases derived from a given base case, and
 efficiently manage large amounts of output. Initially developed for the
 validation of \Dynawo{} at the functional level, they are now also used for the
 generation and exploration of extensive sets of cases. These are designed for a
-couple of settings: long-term stability studies and power flow studies. We also
+couple of settings: long-term stability studies, with DynaWaltz, and steady state calculation studies, with DynaFlow. We also
 report on our early experience using these on recent versions of \Dynawo{} and
 several large network cases (actual cases from RTE's operational environment,
 used for stability studies). Let us now briefly describe the aims and scope of
@@ -183,13 +183,12 @@ the tools in each of these two cases.
 
 \Dynawo{} is flexible enough to accommodate several time scales: from sub-second
 near-EMT (electro-magnetic trainsients)~\cite{Masoon21}, to long-term stability,
-to static powerflow~\cite{Cossart21} studies.  So one could say that DynaWaltz
-is just \Dynawo's personality when dealing with long-term stability studies,
+to steady-state calculation~\cite{Cossart21} studies. DynaWaltz is the \Dynawo{} tool used for long-term stability studies,
 where the time scales are measured in minutes and the typical time steps can be
 of the order of a few seconds. Used in this mode, \Dynawo{} simulates the grid
 in the so-called quasi steady state, and contains most models impacting the
 system slow dynamics: tap-changers, loads, static var compensators, etc.; as
-well as secondary voltage regulation and special protection schemes.
+well as secondary voltage regulation and special protection schemes. It is mostly used to study voltage collapses.
 
 Long-term stability studies are a core process of transmission operation whose
 role is ensuring power system stability: they consist in analyzing whether the
@@ -201,19 +200,19 @@ production at RTE (in progressive stages that will start by end of 2021), for
 $n$-day ahead operational security studies.
 
 Initially, our overall approach was the use of another well-established
-simulator (Astre) as the reference for comparison and assessment. More
+simulator, Astre, which is the currently used tool at RTE for long-term stability studies, as the reference for comparison and assessment. More
 specifically, the validation efforts were focused on the results obtained for
 the behavior of the coordinated Secondary Voltage Control systems. Shortly
 after, the tools were extended to accommodate the comparison between different
-Dynawo versions, or between variations of case models, model parameters, and
+Dyna$\omega$o versions, or between variations of case models, model parameters, and
 solver parameters.
 
 
 
 \subsection{DynaFlow}
 
-DynaFlow~\cite{Cossart21} is a novel approach to the calculation of power flow
-that leverages the \Dynawo's flexibility for modeling the dynamics at different
+DynaFlow~\cite{Cossart21} is a novel approach to the calculation of steady states
+that leverages the \Dynawo's flexibility for modelling the dynamics at different
 time scales. It overcomes an inherent problem that all static power flows have
 when presented with controls: discrete event actions, dead-bands, and regulation
 limits (control type-switching) all conspire to produce several possible
@@ -231,24 +230,19 @@ different dynamics of different competing controls.
 
 In the current scenario, where more complex power electronic devices and complex
 algorithm-based controls are being introduced each year, this problem is getting
-worse. DynaWaltz solves these types of problems by simulating the network in the
+worse. DynaFlow solves these types of problems by simulating the network in the
 time domain and using the actual time constants that govern the actions of
 relevant controls. It also contemplates protection schemes, including modern
-special protection schemes (SOS), thus opening the door to the realistic
-simulation of cascading effects in contingency studies.
+Special Protection Schemes (SPS), thus opening the door to the realistic
+simulation of cascading effects in contingency studies and interactions between controllers.
 
 Following the work done for DynaWaltz validation, we built a similar set of
 tools for the validation of DynaFlow, as well as the exploration of extensive
 sets of (contingency) cases.  Again, the approach to validation is based on
-comparison against a well-established power flow (this time, Hades 2). But in
-addition, the tool is also prepared for comparing different DynaWaltz versions,
+comparison against a well-established power flow, Hades 2, which is the currently used tool at RTE for steady state calculation. But in
+addition, the tool is also prepared for comparing different DynaFlow versions,
 and more generallly for assessing the effects of varying the case models, model
 parameters, and solver parameters.
-
-
-
-
-
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -282,13 +276,12 @@ Here follows a high-level description of the structure of the tools, along with
 the typical workflow that the user is expected to carry out when using them.
 For the details on installation instructions and its requirements, please refer
 to the software documentation on the github repository, which is to be located
-under the main Dynawo project pages~\cite{DwoGitRepos}.
+under the main Dyna$\omega$o project pages~\cite{DwoGitRepos}.
 
 As described above, this validation system is based on comparing results against
-a well-known reference system, the Astre simulator. The cases used for
+a well-known reference system, the Astre simulator for the validation of DynaWaltz, and Hades 2 for the validation of DynaFlow. The cases used for
 comparison are essentially all possible single-element disconnections (shunts,
-lines, etc.), since one of DynaWaltz's major use cases will be contingency
-studies. Therefore the tools are currently oriented towards the generation of
+lines, etc.). Therefore the tools are currently oriented towards the generation of
 contingency cases derived from a given base case. However, the design is quite
 modular; it is easy to modify the corresponding scripts so that the set of cases
 would be something other than contingencies, such as, for instance, variations
@@ -299,23 +292,23 @@ of a given set of model parameters, or the solver timestep, etc.
 The basic workflow of this system, from a functional point of view, is
 as follows:
 \begin{enumerate}
-  \item Obtain a study case containing matching Dynawo and Astre files
+  \item Obtain a study case containing matching DynaWaltz/DynaFlow and Astre/Hades 2 files
         (in a standard file structure, see below)
   \item Prepare the base case: standardize the XML format and
-        standardize the curves to be extracted
-  \item Create the contingency cases derived from the base case
-  \item Run Astre and Dynawo on the contingency cases, collecting logs
+        standardize the curves to be extracted;
+  \item Create the contingency cases derived from the base case;
+  \item Run Astre/Hades 2 and DynaWaltz/DynaFlow on the contingency cases, collecting logs;
         and results into organized (and compressed) storage
-  \item Extract result data in a format common to Astre and Dynawo
+  \item Extract result data in a format common to Astre/Hades 2 and DynaWaltz/DynaFlow
         (this is for automata events, as curves have already been
-        standardized in step 2)
+        standardized in step 2);
   \item Compute metrics on the results obtained (both for curves and
-        selected automata events)
+        selected automata events);
   \item Use the Jupyter notebook to browse and analyze the results,
         and obtain lists of contingency cases that can be ranked according
-        to various compound scores built on those metrics.
+        to various compound scores built on those metrics;
   \item Further analysis is possible using the ranked tables that the
-        notebook exports to CSV files (e.g. using Excel)
+        notebook exports to CSV files (e.g. using Excel).
 \end{enumerate}
 
 The study case (Step 1) is the main input to this whole process, and it is
@@ -332,13 +325,13 @@ manually step by step.
 \begin{figure}
   \centering
   \includegraphics[width=0.48\textwidth]{figs/pipeline1}
-  \caption{The processing pipeline for validating Dynawo against
-    Astre, based on contingency cases.}
+  \caption{The processing pipeline for validating DynaWaltz/DynaFlow against
+    Astre/Hades 2, based on contingency cases.}
   \label{fig:pipeline1}
 \end{figure}
 
-In terms of input, the system requires a valid case, in which the Astre and
-Dynawo should obviously correspond to the same grid model and steady state.
+In terms of input, the system requires a valid case, in which the Astre/Hades 2 and
+DynaWaltz/DynaFlow should obviously correspond to the same grid model and steady state.
 They should be arranged with the following directory structure and file names:
 \begin{console}
   <INPUTCASE_DIRNAME>
@@ -361,7 +354,7 @@ The directory file names should be exactly these, otherwise there will be
 several parts of the pipeline that will fail. The parent directory name is free
 (it's usually the date-time of the case).
 
-Additionally, the system expects the input case (both in Astre and Dynawo) to
+Additionally, the system expects the input case (both in Astre/Hades 2 and DynaWaltz/DynaFlow) to
 contain at least one disconnection event, since this is used as the reference to
 obtain the time of the event. In other words, the scripts read
 \code{"event\_tEvent"} and \code{"instant"} from the files, instead of
@@ -401,7 +394,7 @@ contingency event.
     \item Directory structure of the results
     \item Notebook: where they are created
     \item Discuss briefly the difficulties involved in making sure we're
-          configuring the same event in Astre vs Dynawo.
+          configuring the same event in Astre vs DynaWaltz.
     \item Discuss briefly some of the difficulties encountered, as in the
           case of NODE\_BREAKER vs BUS\_BREAKER w.r.t. bus contingencies.
   \end{itemize}
@@ -434,10 +427,10 @@ contingency event.
   \itshape  Outline:
   \begin{itemize}
     \item \TODO: select interesting cases
-    \item DynaWaltz: cases where Dynawo and Astre differed in the
+    \item DynaWaltz: cases where DynaWaltz and Astre differed in the
           reactive/active injection of some generators?
     \item DynaFlow: mention the problem of ensuring that the steady-state
-          is really attained? (i.e. flagging instability)
+          is really attained? (i.e. flagging instability), mentioning cascaded disconnections, modelling of SVarC that are different (U+Lambda*Q in DynaFlow, not in Hades), modelling of loads that can explain some differences (restorative loads with voltage limitations), special protection schemes in DynaFlow and not in Hades 2 (SMACC, ACMC, ADA, etc.)
     \item \textbf{Fig} of some graph from the Notebooks
   \end{itemize}
 \end{center}
@@ -483,7 +476,7 @@ contingency event.
           tools from the Python ecosystem (Pandas, Jupyter Notebooks) to
           accomplish this. Can automatically configure extensive sets of test
           case and manage large amounts of output
-    \item to be released as Open Source under the Dynawo project
+    \item to be released as Open Source under the Dyna$\omega$o project
           repo. Easily customizable and extensible.
   \end{itemize}
 \end{center}
