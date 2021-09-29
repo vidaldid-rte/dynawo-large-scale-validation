@@ -1,5 +1,5 @@
-#!/bin/bash
-#
+#!/bin/bash -i
+# (shell made "interactive" in order to see user-defined aliases for launchers)
 #
 # run_one_contg.sh:
 #
@@ -36,6 +36,29 @@ EOF
 }
 
 
+set_launcher() {
+    COMMAND_TYPE=$(type -t "$1" || true)  # OR trick to avoid non-zero exit status (because of errexit)
+    case "$COMMAND_TYPE" in
+        "file")
+            # standard executable file
+            LAUNCHER=$1
+            ;;
+        "alias")
+            # aliases cannot be directly invoked from a variable
+            LAUNCHER=${BASH_ALIASES[$1]}
+            ;;
+        "function")
+            # functions can be invoked just as regular executable files
+            LAUNCHER=$1
+            ;;
+        *)
+            echo "*** ERROR: launcher $1 not found"
+            exit 2
+            ;;
+    esac
+}
+
+
 run_astre(){
     if [ ! -d "$CONTG_CASE"/Astre ]; then
         echo "Directory $CONTG_CASE/Astre not found."
@@ -44,7 +67,9 @@ run_astre(){
     OLD_PWD=$(pwd)
     cd "$CONTG_CASE"/Astre
     RUNLOG=Astre.runStdout
-    "$1" donneesModelesEntree.xml > "$RUNLOG" 2>&1
+    echo "Running Astre for case: $CONTG_CASE"
+    set_launcher "$1"
+    $LAUNCHER donneesModelesEntree.xml > "$RUNLOG" 2>&1
     if [ ! -f donneesModelesSortie.csv ]; then
         echo "Astre run failed. Check the runlog: $CONTG_CASE/Astre/$RUNLOG"
         exit 1
@@ -68,7 +93,8 @@ run_hades(){
     cd "$HADES_DIR"
     RUNLOG=Hades.RunStdout.txt
     echo "Running Hades for case: $CONTG_CASE"
-    "$1" donneesEntreeHADES2.xml out.xml log.xml > "$RUNLOG" 2>&1
+    set_launcher "$1"
+    $LAUNCHER donneesEntreeHADES2.xml out.xml log.xml > "$RUNLOG" 2>&1
     if [ ! -f out.xml ]; then
         echo "Hades run failed. Check the run log: $HADES_DIR/$RUNLOG"
         exit 1
@@ -90,7 +116,8 @@ run_dynawo(){
     cd "$CONTG_CASE"
     RUNLOG=Dynawo"$1".runStdout
     echo "Running Dynawo for case: $CONTG_CASE"
-    "$2" jobs "$DWO_JOBFILE" > "$RUNLOG" 2>&1 || true  # allow it to fail while using errexit flag
+    set_launcher "$2"
+    $LAUNCHER jobs "$DWO_JOBFILE" > "$RUNLOG" 2>&1 || true  # allow it to fail while using errexit flag
     if [ ! -f ./"$DWO_OUTPUT_DIR"/curves/curves.csv ]; then
         if [ -f ./"$DWO_OUTPUT_DIR"/curves/curves.xml ]; then
             echo "Dynawo$1 run: output curves file found in XML format; required format is CSV"
@@ -297,6 +324,7 @@ if  [ "$CASE_TYPE" != "astdwo" ]; then
     # Extracts the PF solution vaules from the xml output to CSV,
     # using a standardized format to allow comparisons
     scripts_basedir=$(dirname "$0")
+    echo "Extracting the powerflow solutions for case: $CONTG_CASE"
     python3 "$scripts_basedir"/extract_powerflow_values.py "$CONTG_CASE"
 
     # Collect and compress all results
@@ -317,6 +345,7 @@ if  [ "$CASE_TYPE" != "dwohds" ]; then
     # Extracts EVENTS from the xml output to CSV, using standardized
     # labels to allow comparison
     scripts_basedir=$(dirname "$0")/..
+    echo "Extracting the automata events for case: $CONTG_CASE"
     python3 "$scripts_basedir"/pipeline/extract_automata_changes.py "$CONTG_CASE"
 
     # Collect and compress all results
