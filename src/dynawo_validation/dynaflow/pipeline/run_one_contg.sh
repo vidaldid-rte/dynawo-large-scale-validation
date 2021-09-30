@@ -1,5 +1,4 @@
-#!/bin/bash -i
-# (shell made "interactive" in order to see user-defined aliases for launchers)
+#!/bin/bash
 #
 # run_one_contg.sh:
 #
@@ -12,6 +11,13 @@
 # (c) Grupo AIA
 # marinjl@aia.es
 #
+
+# We source ~/.bashrc in order to make aliases visible here. This could also be
+# done by running as "bash -i", but GNU parallel chokes if the shell is interactive.
+if [ -f "$HOME/.bashrc" ]; then
+  # shellcheck source=/dev/null
+  source "$HOME/.bashrc"
+fi
 
 # For saner programming:
 set -o nounset  # don't set noclobber because we do need to overwrite files with ">"
