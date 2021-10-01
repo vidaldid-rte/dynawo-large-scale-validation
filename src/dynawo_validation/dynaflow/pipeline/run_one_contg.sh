@@ -14,6 +14,7 @@
 
 # We source ~/.bashrc in order to make aliases visible here. This could also be
 # done by running as "bash -i", but GNU parallel chokes if the shell is interactive.
+
 if [ -f "$HOME/.bashrc" ]; then
   # shellcheck source=/dev/null
   source "$HOME/.bashrc"
@@ -298,18 +299,39 @@ fi
 #####################################################################
 DWO_JOBINFO_SCRIPT=$(dirname "$0")/dwo_jobinfo.py
 CASE_TYPE=$(python3 "$DWO_JOBINFO_SCRIPT" "$CONTG_CASE" | grep -F "CASE_TYPE" | cut -d'=' -f2)
+hadestring=${A:0:5}
 if [ "$CASE_TYPE" = "astdwo" ]; then
-    run_astre "$A"
-    DWO_JOBFILE=$(python3 "$DWO_JOBINFO_SCRIPT" "$CONTG_CASE" | grep -F "job_file" | cut -d'=' -f2)
-    DWO_JOBFILE=$(basename "$DWO_JOBFILE")
-    DWO_OUTPUT_DIR=$(python3 "$DWO_JOBINFO_SCRIPT" "$CONTG_CASE" | grep -F "outputs_directory" | cut -d'=' -f2)
-    run_dynawo "" "$B"
+    if [ "$hadestring" == "astre" ]; then
+        run_astre "$A"
+        DWO_JOBFILE=$(python3 "$DWO_JOBINFO_SCRIPT" "$CONTG_CASE" | grep -F "job_file" | cut -d'=' -f2)
+        DWO_JOBFILE=$(basename "$DWO_JOBFILE")
+        DWO_OUTPUT_DIR=$(python3 "$DWO_JOBINFO_SCRIPT" "$CONTG_CASE" | grep -F "outputs_directory" | cut -d'=' -f2)
+        run_dynawo "" "$B"
+    else
+        DWO_JOBFILE=$(python3 "$DWO_JOBINFO_SCRIPT" "$CONTG_CASE" | grep -F "job_file" | cut -d'=' -f2)
+        DWO_JOBFILE=$(basename "$DWO_JOBFILE")
+        DWO_OUTPUT_DIR=$(python3 "$DWO_JOBINFO_SCRIPT" "$CONTG_CASE" | grep -F "outputs_directory" | cut -d'=' -f2)
+        run_dynawo "" "$A"
+        run_astre "$B"  
+    fi     
 elif [ "$CASE_TYPE" = "dwohds" ]; then
-    run_hades "$A"
-    DWO_JOBFILE=$(python3 "$DWO_JOBINFO_SCRIPT" "$CONTG_CASE" | grep -F "job_file" | cut -d'=' -f2)
-    DWO_JOBFILE=$(basename "$DWO_JOBFILE")
-    DWO_OUTPUT_DIR=$(python3 "$DWO_JOBINFO_SCRIPT" "$CONTG_CASE" | grep -F "outputs_directory" | cut -d'=' -f2)
-    run_dynawo "" "$B" 
+    if [ "$hadestring" == "hades" ]; then
+        run_hades "$A"
+        DWO_JOBFILE=$(python3 "$DWO_JOBINFO_SCRIPT" "$CONTG_CASE" | grep -F "job_file" | cut -d'=' -f2)
+        DWO_JOBFILE=$(basename "$DWO_JOBFILE")
+        DWO_OUTPUT_DIR=$(python3 "$DWO_JOBINFO_SCRIPT" "$CONTG_CASE" | grep -F "outputs_directory" | cut -d'=' -f2)
+        run_dynawo "" "$B" 
+        basename "$A" > "$outDir"/../.LAUNCHER_A_WAS_"$A" 2>&1 "$outDir"/../.LAUNCHER_A_WAS_"$A" || true
+        basename "$B" version > "$outDir"/../.LAUNCHER_B_WAS_"$B" 2>&1 "$outDir"/../.LAUNCHER_B_WAS_"$B" || true
+    else
+        DWO_JOBFILE=$(python3 "$DWO_JOBINFO_SCRIPT" "$CONTG_CASE" | grep -F "job_file" | cut -d'=' -f2)
+        DWO_JOBFILE=$(basename "$DWO_JOBFILE")
+        DWO_OUTPUT_DIR=$(python3 "$DWO_JOBINFO_SCRIPT" "$CONTG_CASE" | grep -F "outputs_directory" | cut -d'=' -f2)
+        run_dynawo "" "$A" 
+        run_hades "$B"  
+	basename "$A" version > "$outDir"/../.LAUNCHER_A_WAS_"$A" 2>&1 "$outDir"/../.LAUNCHER_A_WAS_"$A" || true 
+        basename "$B" > "$outDir"/../.LAUNCHER_B_WAS_"$B" 2>&1 "$outDir"/../.LAUNCHER_B_WAS_"$B" || true 
+    fi    
 else
     DWO_JOBFILE=$(python3 "$DWO_JOBINFO_SCRIPT" "$CONTG_CASE" | grep -F "job_fileA" | cut -d'=' -f2)
     DWO_JOBFILE=$(basename "$DWO_JOBFILE")
@@ -319,6 +341,8 @@ else
     DWO_JOBFILE=$(basename "$DWO_JOBFILE")
     DWO_OUTPUT_DIR=$(python3 "$DWO_JOBINFO_SCRIPT" "$CONTG_CASE" | grep -F "outputs_directoryB" | cut -d'=' -f2)
     run_dynawo "B" "$B"
+    basename "$A" version > "$outDir"/../.LAUNCHER_A_WAS_"$A" 2>&1 "$outDir"/../.LAUNCHER_A_WAS_"$A" || true 
+    basename "$B" version > "$outDir"/../.LAUNCHER_B_WAS_"$B" 2>&1 "$outDir"/../.LAUNCHER_B_WAS_"$B" || true
 fi
 
 
@@ -331,7 +355,7 @@ if  [ "$CASE_TYPE" != "astdwo" ]; then
     # using a standardized format to allow comparisons
     scripts_basedir=$(dirname "$0")
     echo "Extracting the powerflow solutions for case: $CONTG_CASE"
-    python3 "$scripts_basedir"/extract_powerflow_values.py "$CONTG_CASE"
+    python3 "$scripts_basedir"/extract_powerflow_values.py "$CONTG_CASE" "$outDir"/..
 
     # Collect and compress all results
     xz -c9 "$CONTG_CASE"/pfsolution_AB.csv > "$outDir"/pf_sol/"$prefix"-pfsolution_AB.csv.xz

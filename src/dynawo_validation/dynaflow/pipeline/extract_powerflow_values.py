@@ -80,10 +80,11 @@ verbose = True
 
 def main():
 
-    if len(sys.argv) != 2:
-        print(f"\nUsage: {sys.argv[0]} case_dir\n")
+    if len(sys.argv) != 3:
+        print(f"\nUsage: {sys.argv[0]} case_dir results_dir\n")
         return 2
     case_dir = sys.argv[1]
+    results_dir = sys.argv[2]
 
     if is_dwohds(case_dir):
         dwohds = True
@@ -97,21 +98,34 @@ def main():
 
     dwo_solution = DYNAWO_OUTPUTS_DIR + DYNAWO_SOLUTION
     if dwohds:
+        launcherA, launcherB = find_launchers(results_dir)
         check_inputfiles(case_dir, HDS_SOLUTION, dwo_solution)
-        # Extract the solution values from Dynawo results
-        df_dwo, vl_nomV, branch_info = extract_dynawo_solution(case_dir + dwo_solution)
-
-        # Extract the solution values from Hades results
-        df_hds = extract_hades_solution(
-            case_dir + HDS_INPUT, case_dir + HDS_SOLUTION, vl_nomV, branch_info
-        )
-        # Merge, sort, and save
-        save_extracted_values(df_dwo, df_hds, case_dir + OUTPUT_FILE)
-        save_nonmatching_elements(
-            df_dwo, df_hds, case_dir + ERRORS_A_FILE, case_dir + ERRORS_B_FILE
-        )
+        if launcherA[:5] == "hades":
+            # Extract the solution values from Dynawo results
+            df_dwo, vl_nomV, branch_info = extract_dynawo_solution(case_dir + dwo_solution)
+            # Extract the solution values from Hades results
+            df_hds = extract_hades_solution(
+                case_dir + HDS_INPUT, case_dir + HDS_SOLUTION, vl_nomV, branch_info
+            )
+            # Merge, sort, and save
+            save_extracted_values(df_hds, df_dwo, case_dir + OUTPUT_FILE)
+            save_nonmatching_elements(
+                df_hds, df_dwo, case_dir + ERRORS_A_FILE, case_dir + ERRORS_B_FILE
+            )
+        else:
+            # Extract the solution values from Dynawo results
+            df_dwo, vl_nomV, branch_info = extract_dynawo_solution(case_dir + dwo_solution)
+            # Extract the solution values from Hades results
+            df_hds = extract_hades_solution(
+                case_dir + HDS_INPUT, case_dir + HDS_SOLUTION, vl_nomV, branch_info
+            )
+            # Merge, sort, and save
+            save_extracted_values(df_dwo, df_hds, case_dir + OUTPUT_FILE)
+            save_nonmatching_elements(
+                df_dwo, df_hds, case_dir + ERRORS_A_FILE, case_dir + ERRORS_B_FILE
+            )
     else:
-        check_inputfiles(case_dir, "/B" + dwo_solution, "/A" + dwo_solution)
+        check_inputfiles(case_dir, "/A" + dwo_solution, "/B" + dwo_solution)
         # Extract the solution values from Dynawo results
         df_dwoA, vl_nomVA, branch_infoA = extract_dynawo_solution(
             case_dir + "/A" + dwo_solution
@@ -120,13 +134,27 @@ def main():
             case_dir + "/B" + dwo_solution, caseb=True
         )
         # Merge, sort, and save
-        save_extracted_values(df_dwoA, df_dwoB, case_dir + OUTPUT_FILE)
+        save_extracted_values(df_dwoA, df_dwoB.loc[:, df_dwoB.columns != "VOLT_LEVEL"], case_dir + OUTPUT_FILE)
         save_nonmatching_elements(
             df_dwoA, df_dwoB, case_dir + ERRORS_A_FILE, case_dir + ERRORS_B_FILE
         )
 
     return 0
 
+def find_launchers(pathtofiles):
+    launcherA = None
+    launcherB = None
+    for file in os.listdir(pathtofiles):
+        basefile = os.path.basename(file)
+        if ".LAUNCHER_A_WAS_" == basefile[:16] and launcherA == None:
+            launcherA = basefile[16:]
+        elif ".LAUNCHER_A_WAS_" == basefile[:16]:  
+            raise ValueError(f"Two or more .LAUNCHER_WAS_A in results dir")
+        elif ".LAUNCHER_B_WAS_" == basefile[:16] and launcherB == None:
+            launcherB = basefile[16:]
+        elif ".LAUNCHER_B_WAS_" == basefile[:16]:     
+            raise ValueError(f"Two or more .LAUNCHER_WAS_A in results dir")    
+    return launcherA, launcherB    
 
 def check_inputfiles(case_dir, solution_1, solution_2):
     if not os.path.isdir(case_dir):
@@ -576,7 +604,7 @@ def save_extracted_values(df_a, df_b, output_file):
     key_fields = ["ELEMENT_TYPE", "ID", "VAR"]
     df = pd.merge(
         df_a,
-        df_b.loc[:, df_b.columns != "VOLT_LEVEL"],
+        df_b,
         how="inner",
         on=key_fields,
         validate="one_to_one",
