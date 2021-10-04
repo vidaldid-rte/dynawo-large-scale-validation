@@ -102,7 +102,7 @@ def main():
         check_inputfiles(case_dir, HDS_SOLUTION, dwo_solution)
         if launcherA[:5] == "hades":
             # Extract the solution values from Dynawo results
-            df_dwo, vl_nomV, branch_info = extract_dynawo_solution(case_dir + dwo_solution)
+            df_dwo, vl_nomV, branch_info = extract_dynawo_solution(case_dir + dwo_solution, caseb=True)
             # Extract the solution values from Hades results
             df_hds = extract_hades_solution(
                 case_dir + HDS_INPUT, case_dir + HDS_SOLUTION, vl_nomV, branch_info
@@ -117,7 +117,7 @@ def main():
             df_dwo, vl_nomV, branch_info = extract_dynawo_solution(case_dir + dwo_solution)
             # Extract the solution values from Hades results
             df_hds = extract_hades_solution(
-                case_dir + HDS_INPUT, case_dir + HDS_SOLUTION, vl_nomV, branch_info
+                case_dir + HDS_INPUT, case_dir + HDS_SOLUTION, vl_nomV, branch_info, caseb=True
             )
             # Merge, sort, and save
             save_extracted_values(df_dwo, df_hds, case_dir + OUTPUT_FILE)
@@ -359,7 +359,7 @@ def extract_dwo_bus_inj(root, data, vl_nomv):
     print(f" {len(q_inj):5d} Q-injections")
 
 
-def extract_hades_solution(hades_input, hades_output, vl_nomv, dwo_branches):
+def extract_hades_solution(hades_input, hades_output, vl_nomv, dwo_branches, caseb = False):
     """Read all output and return a dataframe."""
     # Some structural info is not in the output; we need to get it from the Hades input
     gridinfo = extract_hds_gridinfo(hades_input)
@@ -367,7 +367,9 @@ def extract_hades_solution(hades_input, hades_output, vl_nomv, dwo_branches):
     tree = etree.parse(hades_output)
     root = tree.getroot()
     # We'll be using a dataframe, for sorting
-    column_list = ["ID", "ELEMENT_TYPE", "VAR", "VALUE_B"]
+    column_list = ["ID", "ELEMENT_TYPE", "VAR", "VALUE_A"]
+    if caseb:
+        column_list = ["ID", "ELEMENT_TYPE", "VAR", "VALUE_B"]
     data = []
     print("   found in Hades file:", end="")
     # Buses: get V & angle
@@ -626,6 +628,8 @@ def save_extracted_values(df_a, df_b, output_file):
     print(f'   (angle offset adjusted; zero angle at bus: {df.at[swing_idx, "ID"]})')
     # Sort and save to file
     sort_order = [True, True, True]
+    tempcol = df.pop('VOLT_LEVEL')
+    df.insert(2, 'VOLT_LEVEL', tempcol)
     df.sort_values(
         by=key_fields, ascending=sort_order, inplace=True, na_position="first"
     )
