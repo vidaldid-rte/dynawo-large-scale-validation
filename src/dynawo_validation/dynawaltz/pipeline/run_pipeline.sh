@@ -252,7 +252,7 @@ for DEVICE in "${!create_contg[@]}"; do
     
     dirList=$(find_cmd "$DEVICE"_)
     if [ -z "$dirList" ]; then
-       echo -e "No cases with pattern $DEVICE"_"* found under $CASE_DIR"
+       echo -e "No cases with pattern $DEVICE""_* found under $CASE_DIR"
     else
        colormsg "*** RUNNING CONTINGENCY CASES:"
        RESULTS_DIR="$RESULTS_BASEDIR"/"$DEVICE"
@@ -273,8 +273,8 @@ for DEVICE in "${!create_contg[@]}"; do
        colormsg "*** CREATING NOTEBOOK:"
        python3 "$DWO_VALIDATION_SRC"/notebooks/generate_notebooks.py "$(cd "$(dirname "$RESULTS_DIR")"; pwd)/$DEVICE" "$BASECASE" "$DEVICE"_
        mkdir -p "$RESULTS_DIR"/notebooks
-       cp "$DWO_VALIDATION_SRC"/notebooks/"simulator_A_vs_simulator_B_final.ipynb" "$RESULTS_DIR"/notebooks
-       rm "$DWO_VALIDATION_SRC"/notebooks/"simulator_A_vs_simulator_B_final.ipynb"
+       cp "$DWO_VALIDATION_SRC""/notebooks/simulator_A_vs_simulator_B_final.ipynb" "$RESULTS_DIR"/notebooks
+       rm "$DWO_VALIDATION_SRC""/notebooks/simulator_A_vs_simulator_B_final.ipynb"
        echo
     fi
 

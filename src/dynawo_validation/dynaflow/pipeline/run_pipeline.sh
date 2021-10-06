@@ -261,7 +261,7 @@ for DEVICE in "${!create_contg[@]}"; do
     
     dirList=$(find_cmd "$DEVICE"_)
     if [ -z "$dirList" ]; then
-       echo -e "No cases with pattern $DEVICE"_"* found under $CASE_DIR"
+       echo -e "No cases with pattern $DEVICE""_* found under $CASE_DIR"
     else
        colormsg "*** RUNNING CONTINGENCY CASES:"
        RESULTS_DIR="$RESULTS_BASEDIR"/"$DEVICE"

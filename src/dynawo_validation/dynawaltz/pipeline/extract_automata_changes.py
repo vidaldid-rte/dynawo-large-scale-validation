@@ -105,11 +105,17 @@ def main():
         # Sort and save
         if launcherA[:5] == "astre":
             save_extracted_events(
-                df_ast, df_dwo, run_case + ASTRE_EVENTS_OUT, run_case + DYNAWO_EVENTS_OUT
+                df_ast,
+                df_dwo,
+                run_case + ASTRE_EVENTS_OUT,
+                run_case + DYNAWO_EVENTS_OUT,
             )
         else:
             save_extracted_events(
-                df_dwo, df_ast, run_case + DYNAWO_EVENTS_OUT, run_case + ASTRE_EVENTS_OUT 
+                df_dwo,
+                df_ast,
+                run_case + DYNAWO_EVENTS_OUT,
+                run_case + ASTRE_EVENTS_OUT,
             )
     elif is_dwodwo(run_case):
         # construct Dynawo paths from the info in the JOB_A and JOB_B files
@@ -134,6 +140,7 @@ def main():
 
     return 0
 
+
 def find_launchers(pathtofiles):
     launcherA = None
     launcherB = None
@@ -141,13 +148,13 @@ def find_launchers(pathtofiles):
         basefile = os.path.basename(file)
         if ".LAUNCHER_A_WAS_" == basefile[:16] and launcherA == None:
             launcherA = basefile[16:]
-        elif ".LAUNCHER_A_WAS_" == basefile[:16]:  
+        elif ".LAUNCHER_A_WAS_" == basefile[:16]:
             raise ValueError(f"Two or more .LAUNCHER_WAS_A in results dir")
         elif ".LAUNCHER_B_WAS_" == basefile[:16] and launcherB == None:
             launcherB = basefile[16:]
-        elif ".LAUNCHER_B_WAS_" == basefile[:16]:     
-            raise ValueError(f"Two or more .LAUNCHER_WAS_A in results dir")    
-    return launcherA, launcherB  
+        elif ".LAUNCHER_B_WAS_" == basefile[:16]:
+            raise ValueError(f"Two or more .LAUNCHER_WAS_A in results dir")
+    return launcherA, launcherB
 
 
 def check_inputfiles(run_case, events_in_1, events_in_2):

@@ -93,6 +93,7 @@ def main():
 
     return 0
 
+
 def find_launchers(pathtofiles):
     launcherA = None
     launcherB = None
@@ -100,24 +101,25 @@ def find_launchers(pathtofiles):
         basefile = os.path.basename(file)
         if ".LAUNCHER_A_WAS_" == basefile[:16] and launcherA == None:
             launcherA = basefile[16:]
-        elif ".LAUNCHER_A_WAS_" == basefile[:16]:  
+        elif ".LAUNCHER_A_WAS_" == basefile[:16]:
             raise ValueError(f"Two or more .LAUNCHER_WAS_A in results dir")
         elif ".LAUNCHER_B_WAS_" == basefile[:16] and launcherB == None:
             launcherB = basefile[16:]
-        elif ".LAUNCHER_B_WAS_" == basefile[:16]:     
-            raise ValueError(f"Two or more .LAUNCHER_WAS_A in results dir")    
-    return launcherA, launcherB    
-    
+        elif ".LAUNCHER_B_WAS_" == basefile[:16]:
+            raise ValueError(f"Two or more .LAUNCHER_WAS_A in results dir")
+    return launcherA, launcherB
+
+
 def list_inputfiles(case_type, crv_dir, prefix):
     if not os.path.isdir(crv_dir):
         raise ValueError("input directory %s not found" % crv_dir)
-    launcherA, launcherB = find_launchers(crv_dir+'/../../')    
+    launcherA, launcherB = find_launchers(crv_dir + "/../../")
     if case_type == "astdwo":
-        if launcherA[:5] == 'astre':
+        if launcherA[:5] == "astre":
             caseA_suffix = AST_SUFFIX
             caseB_suffix = DWO_SUFFIX
         else:
-            caseA_suffix = DWO_SUFFIX 
+            caseA_suffix = DWO_SUFFIX
             caseB_suffix = AST_SUFFIX
     elif case_type == "dwodwo":
         caseA_suffix = DWO_SUFFIX_A
@@ -136,9 +138,9 @@ def list_inputfiles(case_type, crv_dir, prefix):
     file_list = dict()
     for caseA_file in caseA_files:
         case_label = caseA_file.split(caseA_suffix)[0]
-        case_label = [e+prefix for e in case_label.split(prefix) if e][1:]
-        case_label[-1] = case_label[-1].replace(prefix,"")
-        case_label = ''.join(case_label)
+        case_label = [e + prefix for e in case_label.split(prefix) if e][1:]
+        case_label[-1] = case_label[-1].replace(prefix, "")
+        case_label = "".join(case_label)
         caseB_file = caseA_file.split(caseA_suffix)[0] + caseB_suffix
         if not (os.path.isfile(caseB_file)):
             raise ValueError("'case B' crv file %s not found\n" % caseB_file)
@@ -171,8 +173,8 @@ def process_all_curves(case_type, crv_dir, file_list, start_time, t_event):
 
         # Clean Dynawo's extra ";" at end-of-lines
         if case_type == "astdwo":
-            launcherA, launcherB = find_launchers(crv_dir+'/../../')
-            if launcherA[:5] == 'astre':
+            launcherA, launcherB = find_launchers(crv_dir + "/../../")
+            if launcherA[:5] == "astre":
                 crv_B = crv_B.iloc[:, :-1]
             else:
                 crv_A = crv_A.iloc[:, :-1]
@@ -196,7 +198,7 @@ def process_all_curves(case_type, crv_dir, file_list, start_time, t_event):
                     " the one in the BASECASE!\n" % case_label
                 )
             crv_A["time"] = crv_A["time"] - start_time
-        
+
         if case_type == "astdwo" and launcherA[:5] == "astre":
             if abs(float(crv_B["time"].iloc[0]) - float(start_time)) > T_TOL:
                 raise ValueError(

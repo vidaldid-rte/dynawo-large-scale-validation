@@ -102,7 +102,9 @@ def main():
         check_inputfiles(case_dir, HDS_SOLUTION, dwo_solution)
         if launcherA[:5] == "hades":
             # Extract the solution values from Dynawo results
-            df_dwo, vl_nomV, branch_info = extract_dynawo_solution(case_dir + dwo_solution, caseb=True)
+            df_dwo, vl_nomV, branch_info = extract_dynawo_solution(
+                case_dir + dwo_solution, caseb=True
+            )
             # Extract the solution values from Hades results
             df_hds = extract_hades_solution(
                 case_dir + HDS_INPUT, case_dir + HDS_SOLUTION, vl_nomV, branch_info
@@ -114,10 +116,16 @@ def main():
             )
         else:
             # Extract the solution values from Dynawo results
-            df_dwo, vl_nomV, branch_info = extract_dynawo_solution(case_dir + dwo_solution)
+            df_dwo, vl_nomV, branch_info = extract_dynawo_solution(
+                case_dir + dwo_solution
+            )
             # Extract the solution values from Hades results
             df_hds = extract_hades_solution(
-                case_dir + HDS_INPUT, case_dir + HDS_SOLUTION, vl_nomV, branch_info, caseb=True
+                case_dir + HDS_INPUT,
+                case_dir + HDS_SOLUTION,
+                vl_nomV,
+                branch_info,
+                caseb=True,
             )
             # Merge, sort, and save
             save_extracted_values(df_dwo, df_hds, case_dir + OUTPUT_FILE)
@@ -134,12 +142,17 @@ def main():
             case_dir + "/B" + dwo_solution, caseb=True
         )
         # Merge, sort, and save
-        save_extracted_values(df_dwoA, df_dwoB.loc[:, df_dwoB.columns != "VOLT_LEVEL"], case_dir + OUTPUT_FILE)
+        save_extracted_values(
+            df_dwoA,
+            df_dwoB.loc[:, df_dwoB.columns != "VOLT_LEVEL"],
+            case_dir + OUTPUT_FILE,
+        )
         save_nonmatching_elements(
             df_dwoA, df_dwoB, case_dir + ERRORS_A_FILE, case_dir + ERRORS_B_FILE
         )
 
     return 0
+
 
 def find_launchers(pathtofiles):
     launcherA = None
@@ -148,13 +161,14 @@ def find_launchers(pathtofiles):
         basefile = os.path.basename(file)
         if ".LAUNCHER_A_WAS_" == basefile[:16] and launcherA == None:
             launcherA = basefile[16:]
-        elif ".LAUNCHER_A_WAS_" == basefile[:16]:  
+        elif ".LAUNCHER_A_WAS_" == basefile[:16]:
             raise ValueError(f"Two or more .LAUNCHER_WAS_A in results dir")
         elif ".LAUNCHER_B_WAS_" == basefile[:16] and launcherB == None:
             launcherB = basefile[16:]
-        elif ".LAUNCHER_B_WAS_" == basefile[:16]:     
-            raise ValueError(f"Two or more .LAUNCHER_WAS_A in results dir")    
-    return launcherA, launcherB    
+        elif ".LAUNCHER_B_WAS_" == basefile[:16]:
+            raise ValueError(f"Two or more .LAUNCHER_WAS_A in results dir")
+    return launcherA, launcherB
+
 
 def check_inputfiles(case_dir, solution_1, solution_2):
     if not os.path.isdir(case_dir):
@@ -359,7 +373,9 @@ def extract_dwo_bus_inj(root, data, vl_nomv):
     print(f" {len(q_inj):5d} Q-injections")
 
 
-def extract_hades_solution(hades_input, hades_output, vl_nomv, dwo_branches, caseb = False):
+def extract_hades_solution(
+    hades_input, hades_output, vl_nomv, dwo_branches, caseb=False
+):
     """Read all output and return a dataframe."""
     # Some structural info is not in the output; we need to get it from the Hades input
     gridinfo = extract_hds_gridinfo(hades_input)
@@ -628,8 +644,8 @@ def save_extracted_values(df_a, df_b, output_file):
     print(f'   (angle offset adjusted; zero angle at bus: {df.at[swing_idx, "ID"]})')
     # Sort and save to file
     sort_order = [True, True, True]
-    tempcol = df.pop('VOLT_LEVEL')
-    df.insert(2, 'VOLT_LEVEL', tempcol)
+    tempcol = df.pop("VOLT_LEVEL")
+    df.insert(2, "VOLT_LEVEL", tempcol)
     df.sort_values(
         by=key_fields, ascending=sort_order, inplace=True, na_position="first"
     )
