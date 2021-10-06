@@ -203,13 +203,32 @@ def main():
 
     return 0
 
+def find_launchers(pathtofiles):
+    launcherA = None
+    launcherB = None
+    for file in os.listdir(pathtofiles):
+        basefile = os.path.basename(file)
+        if ".LAUNCHER_A_WAS_" == basefile[:16] and launcherA == None:
+            launcherA = basefile[16:]
+        elif ".LAUNCHER_A_WAS_" == basefile[:16]:  
+            raise ValueError(f"Two or more .LAUNCHER_WAS_A in results dir")
+        elif ".LAUNCHER_B_WAS_" == basefile[:16] and launcherB == None:
+            launcherB = basefile[16:]
+        elif ".LAUNCHER_B_WAS_" == basefile[:16]:     
+            raise ValueError(f"Two or more .LAUNCHER_WAS_A in results dir")    
+    return launcherA, launcherB    
 
 def list_inputfiles(case_type, aut_dir, prefix):
     if not os.path.isdir(aut_dir):
-        raise ValueError("Automata data input directory %s not found" % aut_dir)
+        raise ValueError("input directory %s not found" % aut_dir)
+    launcherA, launcherB = find_launchers(aut_dir+'/../../')    
     if case_type == "astdwo":
-        caseA_suffix = AST_SUFFIX
-        caseB_suffix = DWO_SUFFIX
+        if launcherA[:5] == 'astre':
+            caseA_suffix = AST_SUFFIX
+            caseB_suffix = DWO_SUFFIX
+        else:
+            caseA_suffix = DWO_SUFFIX 
+            caseB_suffix = AST_SUFFIX
     elif case_type == "dwodwo":
         caseA_suffix = DWO_SUFFIX_A
         caseB_suffix = DWO_SUFFIX_B

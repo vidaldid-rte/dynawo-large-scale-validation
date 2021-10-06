@@ -81,16 +81,18 @@ verbose = True
 
 def main():
 
-    if len(sys.argv) != 2:
-        print("\nUsage: %s run_case\n" % sys.argv[0])
+    if len(sys.argv) != 3:
+        print("\nUsage: %s run_case results_dir\n" % sys.argv[0])
         return 2
     run_case = sys.argv[1]
+    results_dir = sys.argv[2]
 
     if verbose:
         print("Extracting automata changes for case: %s" % run_case)
 
     # Manage here whether it is an Astre-vs-Dynawo or a DynawoA-vs-DynawoB case
     if is_astdwo(run_case):
+        launcherA, launcherB = find_launchers(results_dir)
         # construct Dynawo paths from the info in the JOB file
         dwo_paths = get_dwo_jobpaths(run_case)
         dwo_events_in = "/" + dwo_paths.outputs_directory + DYNAWO_TIMELINE
@@ -101,9 +103,14 @@ def main():
         # Extract the events from Dynawo results
         df_dwo = extract_dynawo_events(run_case + dwo_events_in, run_case + dyd_file)
         # Sort and save
-        save_extracted_events(
-            df_ast, df_dwo, run_case + ASTRE_EVENTS_OUT, run_case + DYNAWO_EVENTS_OUT
-        )
+        if launcherA[:5] == "astre":
+            save_extracted_events(
+                df_ast, df_dwo, run_case + ASTRE_EVENTS_OUT, run_case + DYNAWO_EVENTS_OUT
+            )
+        else:
+            save_extracted_events(
+                df_dwo, df_ast, run_case + DYNAWO_EVENTS_OUT, run_case + ASTRE_EVENTS_OUT 
+            )
     elif is_dwodwo(run_case):
         # construct Dynawo paths from the info in the JOB_A and JOB_B files
         dwo_pathsA, dwo_pathsB = get_dwodwo_jobpaths(run_case)
@@ -126,6 +133,21 @@ def main():
         raise ValueError("Case %s is neither an ast-dwo nor a dwo-dwo case" % run_case)
 
     return 0
+
+def find_launchers(pathtofiles):
+    launcherA = None
+    launcherB = None
+    for file in os.listdir(pathtofiles):
+        basefile = os.path.basename(file)
+        if ".LAUNCHER_A_WAS_" == basefile[:16] and launcherA == None:
+            launcherA = basefile[16:]
+        elif ".LAUNCHER_A_WAS_" == basefile[:16]:  
+            raise ValueError(f"Two or more .LAUNCHER_WAS_A in results dir")
+        elif ".LAUNCHER_B_WAS_" == basefile[:16] and launcherB == None:
+            launcherB = basefile[16:]
+        elif ".LAUNCHER_B_WAS_" == basefile[:16]:     
+            raise ValueError(f"Two or more .LAUNCHER_WAS_A in results dir")    
+    return launcherA, launcherB  
 
 
 def check_inputfiles(run_case, events_in_1, events_in_2):

@@ -237,12 +237,25 @@ fi
 #####################################################################
 DWO_JOBINFO_SCRIPT=$(dirname "$0")/dwo_jobinfo.py
 CASE_TYPE=$(python3 "$DWO_JOBINFO_SCRIPT" "$CONTG_CASE" | grep -F "CASE_TYPE" | cut -d'=' -f2)
+astrestring=${A:0:5}
 if [ "$CASE_TYPE" = "astdwo" ]; then
-    run_astre "$A"
-    DWO_JOBFILE=$(python3 "$DWO_JOBINFO_SCRIPT" "$CONTG_CASE" | grep -F "job_file" | cut -d'=' -f2)
-    DWO_JOBFILE=$(basename "$DWO_JOBFILE")
-    DWO_OUTPUT_DIR=$(python3 "$DWO_JOBINFO_SCRIPT" "$CONTG_CASE" | grep -F "outputs_directory" | cut -d'=' -f2)
-    run_dynawo "" "$B"
+    if [ "$astrestring" == "astre" ]; then
+        run_astre "$A"
+        DWO_JOBFILE=$(python3 "$DWO_JOBINFO_SCRIPT" "$CONTG_CASE" | grep -F "job_file" | cut -d'=' -f2)
+        DWO_JOBFILE=$(basename "$DWO_JOBFILE")
+        DWO_OUTPUT_DIR=$(python3 "$DWO_JOBINFO_SCRIPT" "$CONTG_CASE" | grep -F "outputs_directory" | cut -d'=' -f2)
+        run_dynawo "" "$B"
+        basename "$A" > "$outDir"/../.LAUNCHER_A_WAS_"$A" 2>&1 "$outDir"/../.LAUNCHER_A_WAS_"$A" || true
+        basename "$B" version > "$outDir"/../.LAUNCHER_B_WAS_"$B" 2>&1 "$outDir"/../.LAUNCHER_B_WAS_"$B" || true
+    else
+        DWO_JOBFILE=$(python3 "$DWO_JOBINFO_SCRIPT" "$CONTG_CASE" | grep -F "job_file" | cut -d'=' -f2)
+        DWO_JOBFILE=$(basename "$DWO_JOBFILE")
+        DWO_OUTPUT_DIR=$(python3 "$DWO_JOBINFO_SCRIPT" "$CONTG_CASE" | grep -F "outputs_directory" | cut -d'=' -f2)
+        run_dynawo "" "$A"
+        run_astre "$B"
+        basename "$A" version > "$outDir"/../.LAUNCHER_A_WAS_"$A" 2>&1 "$outDir"/../.LAUNCHER_A_WAS_"$A" || true 
+        basename "$B" > "$outDir"/../.LAUNCHER_B_WAS_"$B" 2>&1 "$outDir"/../.LAUNCHER_B_WAS_"$B" || true 
+    fi
 else
     DWO_JOBFILE=$(python3 "$DWO_JOBINFO_SCRIPT" "$CONTG_CASE" | grep -F "job_fileA" | cut -d'=' -f2)
     DWO_JOBFILE=$(basename "$DWO_JOBFILE")
@@ -252,6 +265,8 @@ else
     DWO_JOBFILE=$(basename "$DWO_JOBFILE")
     DWO_OUTPUT_DIR=$(python3 "$DWO_JOBINFO_SCRIPT" "$CONTG_CASE" | grep -F "outputs_directoryB" | cut -d'=' -f2)
     run_dynawo "B" "$B"
+    basename "$A" version > "$outDir"/../.LAUNCHER_A_WAS_"$A" 2>&1 "$outDir"/../.LAUNCHER_A_WAS_"$A" || true 
+    basename "$B" version > "$outDir"/../.LAUNCHER_B_WAS_"$B" 2>&1 "$outDir"/../.LAUNCHER_B_WAS_"$B" || true
 fi
 
 
@@ -261,7 +276,7 @@ fi
 # Extracts EVENTS from the xml output to CSV, using standardized
 # labels to allow comparison
 scripts_basedir=$(dirname "$0")
-python3 "$scripts_basedir"/extract_automata_changes.py "$CONTG_CASE"
+python3 "$scripts_basedir"/extract_automata_changes.py "$CONTG_CASE" "$outDir"/../
 
 # Collect and compress all results
 if [ "$CASE_TYPE" = "astdwo" ]; then
