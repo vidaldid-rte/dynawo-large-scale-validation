@@ -76,6 +76,9 @@ Usage: $0 [OPTIONS] BASECASE RESULTS_DIR
   Options:
     -A | --launcherA  Defines the launcher of simulator A
     -B | --launcherB  Defines the launcher of simulator B
+    -c | --cleanup    Delete input cases after getting the results
+    -d | --debug      More debug messages    
+    -s | --sequential Run jobs sequentially (defult is parallel)
     -a | --allcontg   Run all the contingencies
     -l | --regexlist  Run all the contingencies of a .txt file
     -r | --random     Run a different random sample of contingencies
@@ -103,8 +106,8 @@ if [[ ${PIPESTATUS[0]} -ne 4 ]]; then
 fi
 
 
-OPTIONS=A:B:hal:r
-LONGOPTS=launcherB:,launcherA:,help,allcontg,regexlist:,random
+OPTIONS=A:B:hal:rsdc
+LONGOPTS=launcherB:,launcherA:,help,allcontg,regexlist:,random,sequential,debug,cleanup
 
 # -regarding ! and PIPESTATUS see above
 # -temporarily store output to be able to check for errors
@@ -120,7 +123,7 @@ fi
 # read getopt’s output this way to handle the quoting right:
 eval set -- "$PARSED"
 
-A="dynawo.sh" B="dynawo.sh" h=n allcontg=n regexlist="None" random=n
+A="dynawo.sh" B="dynawo.sh" h=n allcontg=n regexlist="None" random=n sequential=n debug=n cleanup=n
 # now enjoy the options in order and nicely split until we see --
 while true; do
     case "$1" in
@@ -150,7 +153,19 @@ while true; do
         -r|--random)
             random=y
             shift
-            ;;      
+            ;;
+        -s|--sequential)
+            sequential=y
+            shift
+            ;;
+        -d|--debug)
+            debug=y
+            shift
+            ;;
+        -c|--cleanup)
+            cleanup=y
+            shift
+            ;;                  
         --)
             shift
             break
@@ -183,9 +198,27 @@ if [ "$allcontg" == "y" ]; then
     fi    
 fi
 
+runallopts=""
+space=" "
+
 if [ $h = "y" ]; then
     usage
     exit 0
+fi
+
+if [ $sequential = "y" ]; then
+    runallopts+=-s
+    runallopts+=$space
+fi
+
+if [ $debug = "y" ]; then
+    runallopts+=-d
+    runallopts+=$space
+fi
+
+if [ $cleanup = "y" ]; then
+    runallopts+=-c 
+    runallopts+=$space
 fi
 
 # handle non-option arguments
@@ -267,7 +300,7 @@ for DEVICE in "${!create_contg[@]}"; do
        RESULTS_DIR="$RESULTS_BASEDIR"/"$DEVICE"
        mkdir -p "$RESULTS_DIR"
        set -x
-       "$CONTG_SRC"/run_all_contg.sh "${RUN_OPTS[@]}" -o "$RESULTS_DIR" -A "$A" -B "$B" "$CASE_DIR" "$BASECASE" "$DEVICE"_
+       "$CONTG_SRC"/run_all_contg.sh "${RUN_OPTS[@]}" $runallopts -o "$RESULTS_DIR" -A "$A" -B "$B" "$CASE_DIR" "$BASECASE" "$DEVICE"_
        set +x
        echo
 
