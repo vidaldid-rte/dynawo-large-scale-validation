@@ -44,6 +44,24 @@ parser.add_argument(
     action="store_true",
     help="Run a different random sample of contingencies",
 )
+parser.add_argument(
+    "-s",
+    "--sequential",
+    action="store_true",
+    help="Run jobs sequentially (defult is parallel)",
+)
+parser.add_argument(
+    "-d",
+    "--debug",
+    action="store_true",
+    help="More debug messages",
+)
+parser.add_argument(
+    "-c",
+    "--cleanup",
+    action="store_true",
+    help="Delete input cases after getting the results",
+)
 
 args = parser.parse_args()
 
@@ -57,6 +75,9 @@ def main():
         args.allcontg,
         args.regexlist,
         args.random,
+        args.sequential,
+        args.debug,
+        args.cleanup,
     )
 
 
