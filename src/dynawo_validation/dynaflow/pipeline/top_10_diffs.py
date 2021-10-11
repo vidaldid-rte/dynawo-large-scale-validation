@@ -27,7 +27,8 @@ args = parser.parse_args()
 def main():
     pf_solutions_dir = args.pf_solutions_dir
     data = read_case(pf_solutions_dir)
-    datasorteddiff = data.sort_values("DIFF", ascending=False)
+    '''datasorteddiff = data.sort_values("DIFF", ascending=False)'''
+    pd.get_option("display.max_columns")
     '''
     print("TOP 10 VALUES OF POSITIVE DIFF") 
     print()
@@ -51,13 +52,14 @@ def main():
     print()
     print(datasortedrel[:10])
     '''
-    #TODO: val abs y val rel - value A value B
     file=open(args.results_dir+ args.prefix + "-top_10_errors.txt", "w+")
-    file.write("\n\nTOP 10 VALUES OF POSITIVE DIFF\n")
+    '''
+    file.write("TOP 10 VALUES OF POSITIVE DIFF\n")
     file.write(str(datasorteddiff[:10]))
     file.write("\n\nTOP 10 VALUES OF NEGATIVE DIFF\n")
     file.write(str(datasorteddiff[-10:]))
-    file.write("\n\nTOP 10 VALUES OF ABS_ERR\n")
+    '''
+    file.write("TOP 10 VALUES OF ABS_ERR\n")
     file.write(str(datasortedabs[:10]))
     file.write("\n\nTOP 10 VALUES OF REL_ERR\n")
     file.write(str(datasortedrel[:10]))
