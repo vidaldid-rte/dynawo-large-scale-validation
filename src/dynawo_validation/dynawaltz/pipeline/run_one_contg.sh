@@ -12,6 +12,13 @@
 # (c) Grupo AIA
 # marinjl@aia.es
 #
+# We source ~/.bashrc in order to make aliases visible here. This could also be
+# done by running as "bash -i", but GNU parallel chokes if the shell is interactive.
+
+if [ -f "$HOME/.bashrc" ]; then
+  # shellcheck source=/dev/null
+  source "$HOME/.bashrc"
+fi
 
 # For saner programming:
 set -o nounset  # don't set noclobber because we do need to overwrite files with ">"
@@ -35,6 +42,27 @@ Usage: $0 [OPTIONS] BASECASE CONTINGENCY_CASE
 EOF
 }
 
+set_launcher() {
+    COMMAND_TYPE=$(type -t "$1" || true)  # OR trick to avoid non-zero exit status (because of errexit)
+    case "$COMMAND_TYPE" in
+        "file")
+            # standard executable file
+            LAUNCHER=$1
+            ;;
+        "alias")
+            # aliases cannot be directly invoked from a variable
+            LAUNCHER=${BASH_ALIASES[$1]}
+            ;;
+        "function")
+            # functions can be invoked just as regular executable files
+            LAUNCHER=$1
+            ;;
+        *)
+            echo "*** ERROR: launcher $1 not found"
+            exit 2
+            ;;
+    esac
+}
 
 run_astre(){
     if [ ! -d "$CONTG_CASE"/Astre ]; then
@@ -44,7 +72,9 @@ run_astre(){
     OLD_PWD=$(pwd)
     cd "$CONTG_CASE"/Astre
     RUNLOG=Astre.runStdout
-    "$1" donneesModelesEntree.xml > "$RUNLOG" 2>&1
+    echo "Running Astre for case: $CONTG_CASE"
+    set_launcher "$1"
+    $LAUNCHER donneesModelesEntree.xml > "$RUNLOG" 2>&1
     if [ ! -f donneesModelesSortie.csv ]; then
         echo "Astre run failed. Check the runlog: $CONTG_CASE/Astre/$RUNLOG"
         exit 1
@@ -66,7 +96,8 @@ run_dynawo(){
     OLD_PWD=$(pwd)
     cd "$CONTG_CASE"
     RUNLOG=Dynawo"$1".runStdout
-    "$2" jobs "$DWO_JOBFILE" > "$RUNLOG" 2>&1 || true  # allow it to fail while using errexit flag
+    set_launcher "$2"
+    $LAUNCHER jobs "$DWO_JOBFILE" > "$RUNLOG" 2>&1 || true  # allow it to fail while using errexit flag
     if [ ! -f ./"$DWO_OUTPUT_DIR"/curves/curves.csv ]; then
         if [ -f ./"$DWO_OUTPUT_DIR"/curves/curves.xml ]; then
             echo "Dynawo$1 run: output curves file found in XML format; required format is CSV"

@@ -25,52 +25,56 @@ args = parser.parse_args()
 
 
 def main():
+    pd.set_option("display.max_columns", 999)
     pf_solutions_dir = args.pf_solutions_dir
     data = read_case(pf_solutions_dir)
-    '''datasorteddiff = data.sort_values("DIFF", ascending=False)'''
-    pd.get_option("display.max_columns")
-    '''
-    print("TOP 10 VALUES OF POSITIVE DIFF") 
-    print()
-    print(datasorteddiff[:10])
-    print()
-    print("TOP 10 VALUES OF NEGATIVE DIFF") 
-    print()
-    print(datasorteddiff[-10:])
-    '''
-    datasortedabs = data.sort_values("ABS_ERR", ascending=False)
-    '''
-    print()
-    print("TOP 10 VALUES OF ABS_ERR") 
-    print()
-    print(datasortedabs[:10])
-    '''
-    datasortedrel = data.sort_values("REL_ERR", ascending=False)
-    '''
-    print()
-    print("TOP 10 VALUES OF REL_ERR") 
-    print()
-    print(datasortedrel[:10])
-    '''
-    file=open(args.results_dir+ args.prefix + "-top_10_errors.txt", "w+")
-    '''
-    file.write("TOP 10 VALUES OF POSITIVE DIFF\n")
-    file.write(str(datasorteddiff[:10]))
-    file.write("\n\nTOP 10 VALUES OF NEGATIVE DIFF\n")
-    file.write(str(datasorteddiff[-10:]))
-    '''
-    file.write("TOP 10 VALUES OF ABS_ERR\n")
-    file.write(str(datasortedabs[:10]))
-    file.write("\n\nTOP 10 VALUES OF REL_ERR\n")
-    file.write(str(datasortedrel[:10]))
-    file.close()
     
-# Read a specific contingency    
+    
+    databusvolt = data.loc[(data.VAR == "v") & (data.ELEMENT_TYPE == "bus")]
+    databusvoltsortedabs = databusvolt.sort_values("ABS_ERR", ascending=False)
+    databusvoltsortedrel = databusvolt.sort_values("REL_ERR", ascending=False)
+    
+    databranchp = data.loc[((data.VAR == "p1") | (data.VAR == "p2")) & (data.ELEMENT_TYPE != "bus")]
+    databranchpsortedabs = databranchp.sort_values("ABS_ERR", ascending=False)
+    databranchpsortedrel = databranchp.sort_values("REL_ERR", ascending=False)
+    
+    databusp = data.loc[(data.VAR == "p") & (data.ELEMENT_TYPE == "bus")]
+    databuspsortedabs = databusp.sort_values("ABS_ERR", ascending=False)
+    databuspsortedrel = databusp.sort_values("REL_ERR", ascending=False)
+    
+    databusq = data.loc[(data.VAR == "q") & (data.ELEMENT_TYPE == "bus")]
+    databusqsortedabs = databusq.sort_values("ABS_ERR", ascending=False)
+    databusqsortedrel = databusq.sort_values("REL_ERR", ascending=False)
+   
+    
+    file = open(args.results_dir + args.prefix + "-top_10_errors.txt", "w+")
+    file.write("TOP 10 VALUES BUS-V OF ABS_ERR\n")
+    file.write(str(databusvoltsortedabs[:10]))
+    file.write("\n\nTOP 10 VALUES BUS-V OF REL_ERR\n")
+    file.write(str(databusvoltsortedrel[:10]))
+    file.write("\n\n\n\nTOP 10 VALUES BRANCH-P OF ABS_ERR\n")
+    file.write(str(databranchpsortedabs[:10]))
+    file.write("\n\nTOP 10 VALUES BRANCH-P OF REL_ERR\n")
+    file.write(str(databranchpsortedrel[:10]))
+    file.write("\n\n\n\nTOP 10 VALUES BUS-P OF ABS_ERR\n")
+    file.write(str(databuspsortedabs[:10]))
+    file.write("\n\nTOP 10 VALUES BUS-P OF REL_ERR\n")
+    file.write(str(databuspsortedrel[:10]))
+    file.write("\n\n\n\nTOP 10 VALUES BUS-Q OF ABS_ERR\n")
+    file.write(str(databusqsortedabs[:10]))
+    file.write("\n\nTOP 10 VALUES BUS-Q OF REL_ERR\n")
+    file.write(str(databusqsortedrel[:10]))
+    
+    file.close()
+
+
+# Read a specific contingency
 def read_case(pf_solutions_dir):
     data = pd.read_csv(pf_solutions_dir, sep=";", index_col=False, compression="infer")
     data["DIFF"] = data.VALUE_A - data.VALUE_B
     data = calculate_error(data)
-    return data    
+    return data
+
 
 # Calculate absolute and relative error
 def calculate_error(df1):
@@ -80,6 +84,7 @@ def calculate_error(df1):
     df1["ABS_ERR"] = (df1["VALUE_A"] - df1["VALUE_B"]).abs()
     df1["REL_ERR"] = df1["ABS_ERR"] / df1["VALUE_A"].abs().clip(lower=REL_ERR_CLIPPING)
     return df1
+
 
 if __name__ == "__main__":
     sys.exit(main())

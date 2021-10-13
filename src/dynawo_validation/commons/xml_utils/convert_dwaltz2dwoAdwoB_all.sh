@@ -110,7 +110,7 @@ sed -e "s%compileDir=\"%compileDir=\"$LABEL/%" \
     -e "s%dydFile=\"%dydFile=\"$LABEL/%" \
     -e "s%directory=\"%directory=\"$LABEL/%" \
     -e "s%inputFile=\"%inputFile=\"$LABEL/%" \
-    -e "s%file=\"%file=\"$LABEL/%" \
+    -e "s%initialState file=\"%initialState file=\"$LABEL/%" \
     "$ORIG_JOB_FILE" > "$DWODWO_CASE"/JOB_"$LABEL".xml
 
 LABEL=B    
@@ -121,7 +121,7 @@ sed -e "s%compileDir=\"%compileDir=\"$LABEL/%" \
     -e "s%dydFile=\"%dydFile=\"$LABEL/%" \
     -e "s%directory=\"%directory=\"$LABEL/%" \
     -e "s%inputFile=\"%inputFile=\"$LABEL/%" \
-    -e "s%file=\"%file=\"$LABEL/%" \
+    -e "s%initialState file=\"%initialState file=\"$LABEL/%" \
     "$ORIG_JOB_FILE" > "$DWODWO_CASE"/JOB_"$LABEL".xml
 echo "OK."
 
