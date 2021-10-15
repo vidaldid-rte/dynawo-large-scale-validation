@@ -28,25 +28,25 @@ def main():
     pd.set_option("display.width", 999)
     pf_solutions_dir = args.pf_solutions_dir
     data = read_case(pf_solutions_dir)
-    
-    
+
     databusvolt = data.loc[(data.VAR == "v") & (data.ELEMENT_TYPE == "bus")]
     databusvoltsortedabs = databusvolt.sort_values("ABS_ERR", ascending=False)
     databusvoltsortedrel = databusvolt.sort_values("REL_ERR", ascending=False)
-    
-    databranchp = data.loc[((data.VAR == "p1") | (data.VAR == "p2")) & (data.ELEMENT_TYPE != "bus")]
+
+    databranchp = data.loc[
+        ((data.VAR == "p1") | (data.VAR == "p2")) & (data.ELEMENT_TYPE != "bus")
+    ]
     databranchpsortedabs = databranchp.sort_values("ABS_ERR", ascending=False)
     databranchpsortedrel = databranchp.sort_values("REL_ERR", ascending=False)
-    
+
     databusp = data.loc[(data.VAR == "p") & (data.ELEMENT_TYPE == "bus")]
     databuspsortedabs = databusp.sort_values("ABS_ERR", ascending=False)
     databuspsortedrel = databusp.sort_values("REL_ERR", ascending=False)
-    
+
     databusq = data.loc[(data.VAR == "q") & (data.ELEMENT_TYPE == "bus")]
     databusqsortedabs = databusq.sort_values("ABS_ERR", ascending=False)
     databusqsortedrel = databusq.sort_values("REL_ERR", ascending=False)
-   
-    
+
     file = open(args.results_dir + "/" + args.prefix + "-top_10_errors.txt", "w+")
     file.write("TOP 10 VALUES BUS-V OF ABS_ERR\n")
     file.write(str(databusvoltsortedabs[:10]))
@@ -64,7 +64,7 @@ def main():
     file.write(str(databusqsortedabs[:10]))
     file.write("\n\nTOP 10 VALUES BUS-Q OF REL_ERR\n")
     file.write(str(databusqsortedrel[:10]))
-    
+
     file.close()
 
 
