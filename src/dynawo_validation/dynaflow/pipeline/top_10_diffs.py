@@ -25,6 +25,7 @@ args = parser.parse_args()
 
 def main():
     pd.set_option("display.max_columns", 999)
+    pd.set_option("display.width", 999)
     pf_solutions_dir = args.pf_solutions_dir
     data = read_case(pf_solutions_dir)
     
@@ -46,7 +47,7 @@ def main():
     databusqsortedrel = databusq.sort_values("REL_ERR", ascending=False)
    
     
-    file = open(args.results_dir + args.prefix + "-top_10_errors.txt", "w+")
+    file = open(args.results_dir + "/" + args.prefix + "-top_10_errors.txt", "w+")
     file.write("TOP 10 VALUES BUS-V OF ABS_ERR\n")
     file.write(str(databusvoltsortedabs[:10]))
     file.write("\n\nTOP 10 VALUES BUS-V OF REL_ERR\n")

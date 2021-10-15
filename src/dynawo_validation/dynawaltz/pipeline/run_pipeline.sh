@@ -294,6 +294,7 @@ for DEVICE in "${!create_contg[@]}"; do
 
        colormsg "*** COMPUTING CURVE METRICS:"
        python3 "$CONTG_SRC"/calc_curve_diffmetrics.py "$RESULTS_DIR"/crv "$DEVICE"_ "$BASECASE"
+       python3 "$DWO_VALIDATION_SRC"/pipeline/top_10_diffs.py "$RESULTS_DIR"/metrics/crv_reducedparams.csv "$RESULTS_DIR"/metrics/
        echo
     
        colormsg "*** COMPUTING AUTOMATA EVENT METRICS:"
