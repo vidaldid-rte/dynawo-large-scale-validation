@@ -22,6 +22,7 @@ parser.add_argument(
     "crv_reducedparams_dir", help="enter crv_reducedparams_dir directory"
 )
 parser.add_argument("results_dir", help="enter results_dir directory")
+parser.add_argument("device", help="enter device name")
 args = parser.parse_args()
 
 
@@ -35,11 +36,15 @@ def main():
         (data.is_preStab_ast == "False") | (data.is_preStab_dwo == "False")
     ]
     datafirstfalsesorted = datafirstfalse.sort_values("dev", ascending=False)
+    datafirstfalsesorted = datafirstfalsesorted.drop(["dPP_ast","dPP_dwo", "TT_ast", "TT_dwo", "period_ast", "period_dwo", "damp_ast", "damp_dwo","dSS_ast", "dSS_dwo"], axis=1)
+
 
     datafinalfalse = data.loc[
         (data.is_postStab_ast == "False") | (data.is_postStab_dwo == "False")
     ]
     datafinalfalsesorted = datafinalfalse.sort_values("dev", ascending=False)
+    datafinalfalsesorted = datafinalfalsesorted.drop(["dPP_ast","dPP_dwo", "TT_ast", "TT_dwo", "period_ast", "period_dwo", "damp_ast", "damp_dwo","dSS_ast", "dSS_dwo"], axis=1)
+
 
     data_U_IMPIN_value = copy.deepcopy(data)
     data_U_IMPIN_value["DIFF_dSS_U_IMPIN"] = (
@@ -51,6 +56,8 @@ def main():
     data_U_IMPIN_valuesorted = data_U_IMPIN_value_fil.sort_values(
         "DIFF_dSS_U_IMPIN", ascending=False
     )
+    data_U_IMPIN_valuesorted = data_U_IMPIN_valuesorted.drop(["dPP_ast","dPP_dwo", "TT_ast", "TT_dwo", "period_ast", "period_dwo", "damp_ast", "damp_dwo", "is_preStab_ast", "is_preStab_dwo", "is_postStab_ast", "is_postStab_dwo", "is_crv_time_matching"], axis=1)
+
 
     data_levelK_value = copy.deepcopy(data)
     data_levelK_value["DIFF_dPP_levelK"] = (
@@ -62,6 +69,8 @@ def main():
     data_levelK_valuesorted = data_levelK_value_fil.sort_values(
         "DIFF_dPP_levelK", ascending=False
     )
+    data_levelK_valuesorted = data_levelK_valuesorted.drop(["dSS_ast", "dSS_dwo", "TT_ast", "TT_dwo", "period_ast", "period_dwo", "damp_ast", "damp_dwo", "is_preStab_ast", "is_preStab_dwo", "is_postStab_ast", "is_postStab_dwo", "is_crv_time_matching"], axis=1)
+    
 
     PGen_value = copy.deepcopy(data)
     PGen_value["DIFF_dSS_PGen"] = (PGen_value["dSS_ast"] - PGen_value["dSS_dwo"]).abs()
@@ -69,6 +78,8 @@ def main():
         lambda x: x["vars"].str.contains(r"_PGen", regex=True)
     ]
     PGen_valuesorted = PGen_value_fil.sort_values("DIFF_dSS_PGen", ascending=False)
+    PGen_valuesorted = PGen_valuesorted.drop(["dPP_ast", "dPP_dwo", "TT_ast", "TT_dwo", "period_ast", "period_dwo", "damp_ast", "damp_dwo", "is_preStab_ast", "is_preStab_dwo", "is_postStab_ast", "is_postStab_dwo", "is_crv_time_matching"], axis=1)
+
 
     QGen_value = copy.deepcopy(data)
     QGen_value["DIFF_dSS_QGen"] = (QGen_value["dSS_ast"] - QGen_value["dSS_dwo"]).abs()
@@ -76,8 +87,9 @@ def main():
         lambda x: x["vars"].str.contains(r"_QGen", regex=True)
     ]
     QGen_valuesorted = QGen_value_fil.sort_values("DIFF_dSS_QGen", ascending=False)
+    QGen_valuesorted = QGen_valuesorted.drop(["dPP_ast", "dPP_dwo", "TT_ast", "TT_dwo", "period_ast", "period_dwo", "damp_ast", "damp_dwo", "is_preStab_ast", "is_preStab_dwo", "is_postStab_ast", "is_postStab_dwo", "is_crv_time_matching"], axis=1)
 
-    file = open(args.results_dir + "/top_10_errors.txt", "w+")
+    file = open(args.results_dir + "/top_10_errors_"+args.device+".txt", "w+")
     file.write("START STABLE CONTG\n")
     file.write(str(datafirstfalsesorted[:10]))
     file.write("\n\nFINAL STABLE CONTG\n")
