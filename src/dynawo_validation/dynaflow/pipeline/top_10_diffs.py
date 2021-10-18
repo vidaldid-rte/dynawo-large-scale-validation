@@ -14,12 +14,12 @@ import re
 import sys
 import pandas as pd
 import argparse
+import copy
 
 
 parser = argparse.ArgumentParser()
 parser.add_argument("pf_solutions_dir", help="enter pf_solutions_dir directory")
-parser.add_argument("results_dir", help="enter results_dir directory")
-parser.add_argument("prefix", help="enter prefix name")
+parser.add_argument("--regex", help="enter prefix name", default=".*")
 args = parser.parse_args()
 
 
@@ -27,45 +27,99 @@ def main():
     pd.set_option("display.max_columns", 999)
     pd.set_option("display.width", 999)
     pf_solutions_dir = args.pf_solutions_dir
-    data = read_case(pf_solutions_dir)
+    data_files = os.listdir(pf_solutions_dir)
+    first_iteration = True
+    
+    for i in data_files:
+        if re.match(args.regex+"-pfsolution_AB.csv.xz", i) and first_iteration:
+            first_iteration = False
+            data = read_case(pf_solutions_dir+i)
+            data.insert(0,'CONTG_ID', i[:-21])
+            databusvolt = data.loc[(data.VAR == "v") & (data.ELEMENT_TYPE == "bus")]
+            databusvoltsortedabs = databusvolt.sort_values("ABS_ERR", ascending=False)
+            databusvoltsortedrel = databusvolt.sort_values("REL_ERR", ascending=False)
+            
+            databranchp = data.loc[
+                ((data.VAR == "p1") | (data.VAR == "p2")) & (data.ELEMENT_TYPE != "bus")
+            ]
+            databranchpsortedabs = databranchp.sort_values("ABS_ERR", ascending=False)
+            databranchpsortedrel = databranchp.sort_values("REL_ERR", ascending=False)
+            
+            databusp = data.loc[(data.VAR == "p") & (data.ELEMENT_TYPE == "bus")]
+            databuspsortedabs = databusp.sort_values("ABS_ERR", ascending=False)
+            databuspsortedrel = databusp.sort_values("REL_ERR", ascending=False)
+            
+            databusq = data.loc[(data.VAR == "q") & (data.ELEMENT_TYPE == "bus")]
+            databusqsortedabs = databusq.sort_values("ABS_ERR", ascending=False)
+            databusqsortedrel = databusq.sort_values("REL_ERR", ascending=False)
+            
+            databusvoltsortedabstotal = copy.deepcopy(databusvoltsortedabs[:10])
+            databusvoltsortedreltotal = copy.deepcopy(databusvoltsortedrel[:10])
+            databranchpsortedabstotal = copy.deepcopy(databranchpsortedabs[:10])
+            databranchpsortedreltotal = copy.deepcopy(databranchpsortedrel[:10])
+            databuspsortedabstotal = copy.deepcopy(databuspsortedabs[:10])
+            databuspsortedreltotal = copy.deepcopy(databuspsortedrel[:10])
+            databusqsortedabstotal = copy.deepcopy(databusqsortedabs[:10])
+            databusqsortedreltotal = copy.deepcopy(databusqsortedrel[:10])
+                        
+        elif re.match(args.regex+"-pfsolution_AB.csv.xz", i):
+            data = read_case(pf_solutions_dir+i)
+            data.insert(0,'CONTG_ID', i[:-21])
+            databusvolt = data.loc[(data.VAR == "v") & (data.ELEMENT_TYPE == "bus")]
+            databusvoltsortedabs = databusvolt.sort_values("ABS_ERR", ascending=False)
+            databusvoltsortedrel = databusvolt.sort_values("REL_ERR", ascending=False)
+            
+            databranchp = data.loc[
+                ((data.VAR == "p1") | (data.VAR == "p2")) & (data.ELEMENT_TYPE != "bus")
+            ]
+            databranchpsortedabs = databranchp.sort_values("ABS_ERR", ascending=False)
+            databranchpsortedrel = databranchp.sort_values("REL_ERR", ascending=False)
+            
+            databusp = data.loc[(data.VAR == "p") & (data.ELEMENT_TYPE == "bus")]
+            databuspsortedabs = databusp.sort_values("ABS_ERR", ascending=False)
+            databuspsortedrel = databusp.sort_values("REL_ERR", ascending=False)
+            
+            databusq = data.loc[(data.VAR == "q") & (data.ELEMENT_TYPE == "bus")]
+            databusqsortedabs = databusq.sort_values("ABS_ERR", ascending=False)
+            databusqsortedrel = databusq.sort_values("REL_ERR", ascending=False)
+            
+            databusvoltsortedabstotal = pd.concat([databusvoltsortedabstotal, databusvoltsortedabs[:10]])
+            databusvoltsortedreltotal = pd.concat([databusvoltsortedreltotal, databusvoltsortedrel[:10]])
+            databranchpsortedabstotal = pd.concat([databranchpsortedabstotal, databranchpsortedabs[:10]])
+            databranchpsortedreltotal = pd.concat([databranchpsortedreltotal, databranchpsortedrel[:10]])
+            databuspsortedabstotal = pd.concat([databuspsortedabstotal, databuspsortedabs[:10]])
+            databuspsortedreltotal = pd.concat([databuspsortedreltotal, databuspsortedrel[:10]])
+            databusqsortedabstotal = pd.concat([databusqsortedabstotal, databusqsortedabs[:10]])
+            databusqsortedreltotal = pd.concat([databusqsortedreltotal, databusqsortedrel[:10]])
 
-    databusvolt = data.loc[(data.VAR == "v") & (data.ELEMENT_TYPE == "bus")]
-    databusvoltsortedabs = databusvolt.sort_values("ABS_ERR", ascending=False)
-    databusvoltsortedrel = databusvolt.sort_values("REL_ERR", ascending=False)
+    
+    databusvoltsortedabstotal = databusvoltsortedabstotal.sort_values("ABS_ERR", ascending=False)
+    databusvoltsortedreltotal = databusvoltsortedreltotal.sort_values("REL_ERR", ascending=False)
+    databranchpsortedabstotal = databranchpsortedabstotal.sort_values("ABS_ERR", ascending=False)
+    databranchpsortedreltotal = databranchpsortedreltotal.sort_values("REL_ERR", ascending=False)
+    databuspsortedabstotal = databuspsortedabstotal.sort_values("ABS_ERR", ascending=False)
+    databuspsortedreltotal = databuspsortedreltotal.sort_values("REL_ERR", ascending=False)
+    databusqsortedabstotal = databusqsortedabstotal.sort_values("ABS_ERR", ascending=False)
+    databusqsortedreltotal = databusqsortedreltotal.sort_values("REL_ERR", ascending=False)
+    
 
-    databranchp = data.loc[
-        ((data.VAR == "p1") | (data.VAR == "p2")) & (data.ELEMENT_TYPE != "bus")
-    ]
-    databranchpsortedabs = databranchp.sort_values("ABS_ERR", ascending=False)
-    databranchpsortedrel = databranchp.sort_values("REL_ERR", ascending=False)
+    print("TOP 10 VALUES BUS-V OF ABS_ERR\n")
+    print(str(databusvoltsortedabstotal[:10]))
+    print("\n\nTOP 10 VALUES BUS-V OF REL_ERR\n")
+    print(str(databusvoltsortedreltotal[:10]))
+    print("\n\n\n\nTOP 10 VALUES BRANCH-P OF ABS_ERR\n")
+    print(str(databranchpsortedabstotal[:10]))
+    print("\n\nTOP 10 VALUES BRANCH-P OF REL_ERR\n")
+    print(str(databranchpsortedreltotal[:10]))
+    print("\n\n\n\nTOP 10 VALUES BUS-P OF ABS_ERR\n")
+    print(str(databuspsortedabstotal[:10]))
+    print("\n\nTOP 10 VALUES BUS-P OF REL_ERR\n")
+    print(str(databuspsortedreltotal[:10]))
+    print("\n\n\n\nTOP 10 VALUES BUS-Q OF ABS_ERR\n")
+    print(str(databusqsortedabstotal[:10]))
+    print("\n\nTOP 10 VALUES BUS-Q OF REL_ERR\n")
+    print(str(databusqsortedreltotal[:10]))
 
-    databusp = data.loc[(data.VAR == "p") & (data.ELEMENT_TYPE == "bus")]
-    databuspsortedabs = databusp.sort_values("ABS_ERR", ascending=False)
-    databuspsortedrel = databusp.sort_values("REL_ERR", ascending=False)
-
-    databusq = data.loc[(data.VAR == "q") & (data.ELEMENT_TYPE == "bus")]
-    databusqsortedabs = databusq.sort_values("ABS_ERR", ascending=False)
-    databusqsortedrel = databusq.sort_values("REL_ERR", ascending=False)
-
-    file = open(args.results_dir + "/" + args.prefix + "-top_10_errors.txt", "w+")
-    file.write("TOP 10 VALUES BUS-V OF ABS_ERR\n")
-    file.write(str(databusvoltsortedabs[:10]))
-    file.write("\n\nTOP 10 VALUES BUS-V OF REL_ERR\n")
-    file.write(str(databusvoltsortedrel[:10]))
-    file.write("\n\n\n\nTOP 10 VALUES BRANCH-P OF ABS_ERR\n")
-    file.write(str(databranchpsortedabs[:10]))
-    file.write("\n\nTOP 10 VALUES BRANCH-P OF REL_ERR\n")
-    file.write(str(databranchpsortedrel[:10]))
-    file.write("\n\n\n\nTOP 10 VALUES BUS-P OF ABS_ERR\n")
-    file.write(str(databuspsortedabs[:10]))
-    file.write("\n\nTOP 10 VALUES BUS-P OF REL_ERR\n")
-    file.write(str(databuspsortedrel[:10]))
-    file.write("\n\n\n\nTOP 10 VALUES BUS-Q OF ABS_ERR\n")
-    file.write(str(databusqsortedabs[:10]))
-    file.write("\n\nTOP 10 VALUES BUS-Q OF REL_ERR\n")
-    file.write(str(databusqsortedrel[:10]))
-
-    file.close()
 
 
 # Read a specific contingency

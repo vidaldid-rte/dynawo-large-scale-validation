@@ -9,6 +9,8 @@
 # Exclude emacs backups and Python bytecode caches:
 *~
 __pycache__/
+dist/
+*.egg-info/
 
 
 

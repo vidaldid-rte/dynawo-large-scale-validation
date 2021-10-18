@@ -364,12 +364,6 @@ if  [ "$CASE_TYPE" != "astdwo" ]; then
             xz -c9 "$CONTG_CASE"/"$error_file" > "$outDir"/pf_sol/"$prefix"-"$error_file".xz
         fi
     done
-
-########################################
-# Extract top 10 diffs
-########################################
-    python3 "$scripts_basedir"/top_10_diffs.py "$outDir"/pf_sol/"$prefix"-pfsolution_AB.csv.xz "$outDir"/pf_sol/ "$prefix"
-
 fi
 
 ########################################
