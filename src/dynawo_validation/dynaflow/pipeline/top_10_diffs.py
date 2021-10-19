@@ -19,7 +19,7 @@ import copy
 
 parser = argparse.ArgumentParser()
 parser.add_argument("pf_solutions_dir", help="enter pf_solutions_dir directory")
-parser.add_argument("--regex", help="enter prefix name", default=".*")
+parser.add_argument("--regex", nargs = "+", help="enter prefix name", default=[".*"])
 args = parser.parse_args()
 
 
@@ -30,8 +30,15 @@ def main():
     data_files = os.listdir(pf_solutions_dir)
     first_iteration = True
     
+    data_files_list = []
     for i in data_files:
-        if re.match(args.regex+"-pfsolution_AB.csv.xz", i) and first_iteration:
+        for j in args.regex:
+            if i not in data_files_list and re.match(j+"-pfsolution_AB.csv.xz", i):
+                data_files_list.append(i)
+                 
+    
+    for i in data_files_list:
+        if first_iteration:
             first_iteration = False
             data = read_case(pf_solutions_dir+i)
             data.insert(0,'CONTG_ID', i[:-21])
@@ -53,16 +60,16 @@ def main():
             databusqsortedabs = databusq.sort_values("ABS_ERR", ascending=False)
             databusqsortedrel = databusq.sort_values("REL_ERR", ascending=False)
             
-            databusvoltsortedabstotal = copy.deepcopy(databusvoltsortedabs[:10])
-            databusvoltsortedreltotal = copy.deepcopy(databusvoltsortedrel[:10])
-            databranchpsortedabstotal = copy.deepcopy(databranchpsortedabs[:10])
-            databranchpsortedreltotal = copy.deepcopy(databranchpsortedrel[:10])
-            databuspsortedabstotal = copy.deepcopy(databuspsortedabs[:10])
-            databuspsortedreltotal = copy.deepcopy(databuspsortedrel[:10])
-            databusqsortedabstotal = copy.deepcopy(databusqsortedabs[:10])
-            databusqsortedreltotal = copy.deepcopy(databusqsortedrel[:10])
+            databusvoltsortedabstotal = databusvoltsortedabs[:10]
+            databusvoltsortedreltotal = databusvoltsortedrel[:10]
+            databranchpsortedabstotal = databranchpsortedabs[:10]
+            databranchpsortedreltotal = databranchpsortedrel[:10]
+            databuspsortedabstotal = databuspsortedabs[:10]
+            databuspsortedreltotal = databuspsortedrel[:10]
+            databusqsortedabstotal = databusqsortedabs[:10]
+            databusqsortedreltotal = databusqsortedrel[:10]
                         
-        elif re.match(args.regex+"-pfsolution_AB.csv.xz", i):
+        else:
             data = read_case(pf_solutions_dir+i)
             data.insert(0,'CONTG_ID', i[:-21])
             databusvolt = data.loc[(data.VAR == "v") & (data.ELEMENT_TYPE == "bus")]

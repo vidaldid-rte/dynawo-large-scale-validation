@@ -21,8 +21,6 @@ parser = argparse.ArgumentParser()
 parser.add_argument(
     "crv_reducedparams_dir", help="enter crv_reducedparams_dir directory"
 )
-parser.add_argument("results_dir", help="enter results_dir directory")
-parser.add_argument("device", help="enter device name")
 args = parser.parse_args()
 
 
@@ -89,21 +87,20 @@ def main():
     QGen_valuesorted = QGen_value_fil.sort_values("DIFF_dSS_QGen", ascending=False)
     QGen_valuesorted = QGen_valuesorted.drop(["dPP_ast", "dPP_dwo", "TT_ast", "TT_dwo", "period_ast", "period_dwo", "damp_ast", "damp_dwo", "is_preStab_ast", "is_preStab_dwo", "is_postStab_ast", "is_postStab_dwo", "is_crv_time_matching"], axis=1)
 
-    file = open(args.results_dir + "/top_10_errors_"+args.device+".txt", "w+")
-    file.write("START STABLE CONTG\n")
-    file.write(str(datafirstfalsesorted[:10]))
-    file.write("\n\nFINAL STABLE CONTG\n")
-    file.write(str(datafinalfalsesorted[:10]))
-    file.write("\n\nDIFF dSS U_IMPIN_value\n")
-    file.write(str(data_U_IMPIN_valuesorted[:10]))
-    file.write("\n\nDIFF dPP levelK_value\n")
-    file.write(str(data_levelK_valuesorted[:10]))
-    file.write("\n\nDIFF dSS PGen\n")
-    file.write(str(PGen_valuesorted[:10]))
-    file.write("\n\nDIFF dSS QGen\n")
-    file.write(str(QGen_valuesorted[:10]))
+    print("START STABLE CONTG\n")
+    print(str(datafirstfalsesorted[:10]))
+    print("\n\nFINAL STABLE CONTG\n")
+    print(str(datafinalfalsesorted[:10]))
+    print("\n\nDIFF dSS U_IMPIN_value\n")
+    print(str(data_U_IMPIN_valuesorted[:10]))
+    print("\n\nDIFF dPP levelK_value\n")
+    print(str(data_levelK_valuesorted[:10]))
+    print("\n\nDIFF dSS PGen\n")
+    print(str(PGen_valuesorted[:10]))
+    print("\n\nDIFF dSS QGen\n")
+    print(str(QGen_valuesorted[:10]))
 
-    file.close()
+
 
 
 # Read a specific contingency

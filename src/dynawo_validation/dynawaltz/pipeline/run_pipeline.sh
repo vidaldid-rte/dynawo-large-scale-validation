@@ -297,7 +297,7 @@ for DEVICE in "${!create_contg[@]}"; do
        echo
        
        colormsg "*** COMPUTING TOP 10 DIFFS:"
-       python3 "$DWO_VALIDATION_SRC"/pipeline/top_10_diffs.py "$RESULTS_DIR"/metrics/crv_reducedparams.csv "$RESULTS_DIR"/../ "$DEVICE"
+       python3 "$DWO_VALIDATION_SRC"/pipeline/top_10_diffs.py "$RESULTS_DIR"/metrics/crv_reducedparams.csv > "$RESULTS_DIR"/../top_10_diffs_"$DEVICE".txt
        echo
     
        colormsg "*** COMPUTING AUTOMATA EVENT METRICS:"
