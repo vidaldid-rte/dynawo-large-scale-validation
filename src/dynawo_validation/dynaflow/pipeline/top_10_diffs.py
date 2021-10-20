@@ -88,44 +88,81 @@ def main():
             
             databusq = data.loc[(data.VAR == "q") & (data.ELEMENT_TYPE == "bus")]
             databusqsortedabs = databusq.sort_values("ABS_ERR", ascending=False)
-            databusqsortedrel = databusq.sort_values("REL_ERR", ascending=False)
+            databusqsortedrel = databusq.sort_values("REL_ERR", ascending=False)           
             
-            databusvoltsortedabstotal = pd.concat([databusvoltsortedabstotal, databusvoltsortedabs[:10]])
-            databusvoltsortedreltotal = pd.concat([databusvoltsortedreltotal, databusvoltsortedrel[:10]])
-            databranchpsortedabstotal = pd.concat([databranchpsortedabstotal, databranchpsortedabs[:10]])
-            databranchpsortedreltotal = pd.concat([databranchpsortedreltotal, databranchpsortedrel[:10]])
-            databuspsortedabstotal = pd.concat([databuspsortedabstotal, databuspsortedabs[:10]])
-            databuspsortedreltotal = pd.concat([databuspsortedreltotal, databuspsortedrel[:10]])
-            databusqsortedabstotal = pd.concat([databusqsortedabstotal, databusqsortedabs[:10]])
-            databusqsortedreltotal = pd.concat([databusqsortedreltotal, databusqsortedrel[:10]])
-
-    
-    databusvoltsortedabstotal = databusvoltsortedabstotal.sort_values("ABS_ERR", ascending=False)
-    databusvoltsortedreltotal = databusvoltsortedreltotal.sort_values("REL_ERR", ascending=False)
-    databranchpsortedabstotal = databranchpsortedabstotal.sort_values("ABS_ERR", ascending=False)
-    databranchpsortedreltotal = databranchpsortedreltotal.sort_values("REL_ERR", ascending=False)
-    databuspsortedabstotal = databuspsortedabstotal.sort_values("ABS_ERR", ascending=False)
-    databuspsortedreltotal = databuspsortedreltotal.sort_values("REL_ERR", ascending=False)
-    databusqsortedabstotal = databusqsortedabstotal.sort_values("ABS_ERR", ascending=False)
-    databusqsortedreltotal = databusqsortedreltotal.sort_values("REL_ERR", ascending=False)
-    
-
+            
+            for i in range(10):
+                if databusvoltsortedabs.iloc[i]["ABS_ERR"] > databusvoltsortedabstotal.iloc[9]["ABS_ERR"]:
+                    databusvoltsortedabstotal = pd.concat([databusvoltsortedabstotal, databusvoltsortedabs[i:i+1]])
+                    databusvoltsortedabstotal = databusvoltsortedabstotal.sort_values("ABS_ERR", ascending=False)[:10]
+                else:
+                    break
+            
+            for i in range(10):
+                if databusvoltsortedrel.iloc[i]["REL_ERR"] > databusvoltsortedreltotal.iloc[9]["REL_ERR"]:
+                    databusvoltsortedreltotal = pd.concat([databusvoltsortedreltotal, databusvoltsortedrel[i:i+1]])
+                    databusvoltsortedreltotal = databusvoltsortedreltotal.sort_values("REL_ERR", ascending=False)[:10] 
+                else:
+                    break
+                    
+            for i in range(10):
+                if databranchpsortedabs.iloc[i]["ABS_ERR"] > databranchpsortedabstotal.iloc[9]["ABS_ERR"]:
+                    databranchpsortedabstotal = pd.concat([databranchpsortedabstotal, databranchpsortedabs[i:i+1]])
+                    databranchpsortedabstotal = databranchpsortedabstotal.sort_values("ABS_ERR", ascending=False)[:10]
+                else:
+                    break
+                    
+            for i in range(10):
+                if databranchpsortedrel.iloc[i]["REL_ERR"] > databranchpsortedreltotal.iloc[9]["REL_ERR"]:
+                    databranchpsortedreltotal = pd.concat([databranchpsortedreltotal, databranchpsortedrel[i:i+1]])
+                    databranchpsortedreltotal = databranchpsortedreltotal.sort_values("REL_ERR", ascending=False)[:10]
+                else:
+                    break
+                    
+            for i in range(10):
+                if databuspsortedabs.iloc[i]["ABS_ERR"] > databuspsortedabstotal.iloc[9]["ABS_ERR"]:
+                    databuspsortedabstotal = pd.concat([databuspsortedabstotal, databuspsortedabs[i:i+1]])
+                    databuspsortedabstotal = databuspsortedabstotal.sort_values("ABS_ERR", ascending=False)[:10]
+                else:
+                    break
+                    
+            for i in range(10):
+                if databuspsortedrel.iloc[i]["REL_ERR"] > databuspsortedreltotal.iloc[9]["REL_ERR"]:
+                    databuspsortedreltotal = pd.concat([databuspsortedreltotal, databuspsortedrel[i:i+1]])
+                    databuspsortedreltotal = databuspsortedreltotal.sort_values("REL_ERR", ascending=False)[:10]
+                else:
+                    break
+                    
+            for i in range(10):
+                if databusqsortedabs.iloc[i]["ABS_ERR"] > databusqsortedabstotal.iloc[9]["ABS_ERR"]:
+                    databusqsortedabstotal = pd.concat([databusqsortedabstotal, databusqsortedabs[i:i+1]])
+                    databusqsortedabstotal = databusqsortedabstotal.sort_values("ABS_ERR", ascending=False)[:10]
+                else:
+                    break
+                    
+            for i in range(10):
+                if databusqsortedrel.iloc[i]["REL_ERR"] > databusqsortedreltotal.iloc[9]["REL_ERR"]:
+                    databusqsortedreltotal = pd.concat([databusqsortedreltotal, databusqsortedrel[i:i+1]])
+                    databusqsortedreltotal = databusqsortedreltotal.sort_values("REL_ERR", ascending=False)[:10]
+                else:
+                    break                                                      
+                        
     print("TOP 10 VALUES BUS-V OF ABS_ERR\n")
-    print(str(databusvoltsortedabstotal[:10]))
+    print(str(databusvoltsortedabstotal))
     print("\n\nTOP 10 VALUES BUS-V OF REL_ERR\n")
-    print(str(databusvoltsortedreltotal[:10]))
+    print(str(databusvoltsortedreltotal))
     print("\n\n\n\nTOP 10 VALUES BRANCH-P OF ABS_ERR\n")
-    print(str(databranchpsortedabstotal[:10]))
+    print(str(databranchpsortedabstotal))
     print("\n\nTOP 10 VALUES BRANCH-P OF REL_ERR\n")
-    print(str(databranchpsortedreltotal[:10]))
+    print(str(databranchpsortedreltotal))
     print("\n\n\n\nTOP 10 VALUES BUS-P OF ABS_ERR\n")
-    print(str(databuspsortedabstotal[:10]))
+    print(str(databuspsortedabstotal))
     print("\n\nTOP 10 VALUES BUS-P OF REL_ERR\n")
-    print(str(databuspsortedreltotal[:10]))
+    print(str(databuspsortedreltotal))
     print("\n\n\n\nTOP 10 VALUES BUS-Q OF ABS_ERR\n")
-    print(str(databusqsortedabstotal[:10]))
+    print(str(databusqsortedabstotal))
     print("\n\nTOP 10 VALUES BUS-Q OF REL_ERR\n")
-    print(str(databusqsortedreltotal[:10]))
+    print(str(databusqsortedreltotal))
 
 
 
