@@ -178,11 +178,13 @@ fi
 run_case=$(dirname "$0")/run_one_contg.sh
 if [ $s = "y" ] || ! [ -x "$(type -p parallel)" ]; then
     echo "*** Running sequentially"
-    set +e   # allow to continue if any case fails
+    #set +e    # allow to continue if any case fails
+    set -e
     find_cmd | while read -r CONTG_CASE; do
 	echo "   $CONTG_CASE"
-	$run_case "${OPTS[@]}" "$CONTG_CASE"
+	$run_case "${OPTS[@]}" "$CONTG_CASE"	
     done
+    set +e 
 else
     echo "*** Running in parallel"
     find_cmd | parallel -j 50% --verbose "$run_case" "${OPTS[@]}" {}

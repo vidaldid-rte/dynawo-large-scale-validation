@@ -63,6 +63,13 @@ parser.add_argument(
     help="Run a different random sample of contingencies",
 )
 
+parser.add_argument(
+    "-p",
+    "--randomseed",
+    default=None,
+    help="Run a different random sample of contingencies with a seed",
+)
+
 args = parser.parse_args()
 
 
@@ -78,6 +85,7 @@ def main():
         args.sequential,
         args.debug,
         args.cleanup,
+        args.randomseed,
     )
 
 

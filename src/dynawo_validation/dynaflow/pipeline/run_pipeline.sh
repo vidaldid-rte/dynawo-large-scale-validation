@@ -82,6 +82,7 @@ Usage: $0 [OPTIONS] BASECASE RESULTS_DIR
     -a | --allcontg   Run all the contingencies
     -l | --regexlist  Run all the contingencies of a .txt file
     -r | --random     Run a different random sample of contingencies
+    -p | --prandom    Run a different random sample of contingencies with defined seed
     -h | --help       This help message
 EOF
 }
@@ -106,8 +107,8 @@ if [[ ${PIPESTATUS[0]} -ne 4 ]]; then
 fi
 
 
-OPTIONS=A:B:hal:rsdc
-LONGOPTS=launcherB:,launcherA:,help,allcontg,regexlist:,random,sequential,debug,cleanup
+OPTIONS=A:B:hal:rsdcp:
+LONGOPTS=launcherB:,launcherA:,help,allcontg,regexlist:,random,sequential,debug,cleanup,prandom:
 
 # -regarding ! and PIPESTATUS see above
 # -temporarily store output to be able to check for errors
@@ -123,7 +124,7 @@ fi
 # read getopt’s output this way to handle the quoting right:
 eval set -- "$PARSED"
 
-A="dynawo.sh" B="dynawo.sh" h=n allcontg=n regexlist="None" random=n sequential=n debug=n cleanup=n
+A="dynawo.sh" B="dynawo.sh" h=n allcontg=n regexlist="None" random=n sequential=n debug=n cleanup=n prandom="None"
 # now enjoy the options in order and nicely split until we see --
 while true; do
     case "$1" in
@@ -165,7 +166,12 @@ while true; do
         -c|--cleanup)
             cleanup=y
             shift
-            ;;                  
+            ;;
+        -p|--prandom)
+            prandom="$2"
+            echo "Defined seed $2"
+            shift 2
+            ;;                        
         --)
             shift
             break
@@ -194,6 +200,27 @@ fi
 if [ "$allcontg" == "y" ]; then
     if [ "$random" == "y" ]; then
         echo "ERROR: Option --allcontg and --random aren't supported together"
+        exit 1
+    fi    
+fi
+
+if [ "$regexlist" != "None" ]; then
+    if [ "$prandom" != "None" ]; then
+        echo "ERROR: Option --regexlist and --prandom aren't supported together"
+        exit 1
+    fi    
+fi
+
+if [ "$allcontg" == "y" ]; then
+    if [ "$prandom" != "None" ]; then
+        echo "ERROR: Option --allcontg and --prandom aren't supported together"
+        exit 1
+    fi    
+fi
+
+if [ "$random" == "y" ]; then
+    if [ "$prandom" != "None" ]; then
+        echo "ERROR: Option --random and --prandom aren't supported together"
         exit 1
     fi    
 fi
@@ -266,9 +293,15 @@ for DEVICE in "${!create_contg[@]}"; do
     if [ "$allcontg" = "n" ]; then
        if [ "$regexlist" = "None" ]; then
           if [ "$random" = "n" ]; then
-             set -x
-             python3 "$CONTG_SRC"/"${create_contg[$DEVICE]}" "$BASECASE"
-             set +x
+             if [ "$prandom" = "None" ]; then
+                set -x
+                python3 "$CONTG_SRC"/"${create_contg[$DEVICE]}" "$BASECASE"
+                set +x
+             else
+                set -x
+                python3 "$CONTG_SRC"/"${create_contg[$DEVICE]}" "-p" "$prandom" "$BASECASE"
+                set +x  
+             fi    
           else
              set -x
              python3 "$CONTG_SRC"/"${create_contg[$DEVICE]}" "-r" "$BASECASE"
