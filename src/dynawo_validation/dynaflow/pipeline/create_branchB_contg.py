@@ -131,7 +131,7 @@ def main():
     if args.randomc:
         RNG_SEED = random.randint(1, 1000)
     if args.prandom:
-        RNG_SEED = int(args.prandom)    
+        RNG_SEED = int(args.prandom)
     # remove a possible trailing slash
     if base_case[-1] == "/":
         base_case = base_case[:-1]
@@ -146,7 +146,7 @@ def main():
 
     # Contingency cases will be created under the same dir as the basecase
     dirname = os.path.dirname(os.path.abspath(base_case))
-    
+
     print("RNG_SEED used to create contingencies = " + str(RNG_SEED))
 
     # Check whether it's a Dynawo-vs-Hades or a Dynawo-vs-Dynawo case

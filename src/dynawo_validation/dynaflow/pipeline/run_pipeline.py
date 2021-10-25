@@ -25,31 +25,35 @@ def run_pipeline(
 ):
     file_path = os.path.abspath(os.path.dirname(__file__))
     runallopts = ""
-    if (sequential == True):
-        runallopts+="-s "
+    if sequential == True:
+        runallopts += "-s "
 
-    if (debug == True):
-        runallopts+="-d "
+    if debug == True:
+        runallopts += "-d "
 
-    if (cleanup == True):
-        runallopts+="-c "
-    
-    if (random == True):
-        runallopts+="-r "
+    if cleanup == True:
+        runallopts += "-c "
+
+    if random == True:
+        runallopts += "-r "
 
     if allcontg:
         if regexlist is None:
             if randomseed is not None:
                 Process = run(
                     file_path
-                    + "/run_pipeline.sh " + runallopts + "-A %s -B %s -a -p %s %s %s"
+                    + "/run_pipeline.sh "
+                    + runallopts
+                    + "-A %s -B %s -a -p %s %s %s"
                     % (launcherA, launcherB, randomseed, base_case, results_dir),
                     shell=True,
                 )
             else:
                 Process = run(
                     file_path
-                    + "/run_pipeline.sh " + runallopts + "-A %s -B %s -a %s %s"
+                    + "/run_pipeline.sh "
+                    + runallopts
+                    + "-A %s -B %s -a %s %s"
                     % (launcherA, launcherB, base_case, results_dir),
                     shell=True,
                 )
@@ -57,14 +61,25 @@ def run_pipeline(
             if randomseed is not None:
                 Process = run(
                     file_path
-                    + "/run_pipeline.sh " + runallopts + "-A %s -B %s -a -l %s -p %s %s %s"
-                    % (launcherA, launcherB, regexlist, randomseed, base_case, results_dir),
+                    + "/run_pipeline.sh "
+                    + runallopts
+                    + "-A %s -B %s -a -l %s -p %s %s %s"
+                    % (
+                        launcherA,
+                        launcherB,
+                        regexlist,
+                        randomseed,
+                        base_case,
+                        results_dir,
+                    ),
                     shell=True,
                 )
             else:
                 Process = run(
                     file_path
-                    + "/run_pipeline.sh " + runallopts + "-A %s -B %s -a -l %s %s %s"
+                    + "/run_pipeline.sh "
+                    + runallopts
+                    + "-A %s -B %s -a -l %s %s %s"
                     % (launcherA, launcherB, regexlist, base_case, results_dir),
                     shell=True,
                 )
@@ -73,14 +88,18 @@ def run_pipeline(
             if randomseed is not None:
                 Process = run(
                     file_path
-                    + "/run_pipeline.sh " + runallopts + "-A %s -B %s -p %s %s %s"
+                    + "/run_pipeline.sh "
+                    + runallopts
+                    + "-A %s -B %s -p %s %s %s"
                     % (launcherA, launcherB, randomseed, base_case, results_dir),
                     shell=True,
                 )
             else:
                 Process = run(
                     file_path
-                    + "/run_pipeline.sh " + runallopts + "-A %s -B %s %s %s"
+                    + "/run_pipeline.sh "
+                    + runallopts
+                    + "-A %s -B %s %s %s"
                     % (launcherA, launcherB, base_case, results_dir),
                     shell=True,
                 )
@@ -88,14 +107,25 @@ def run_pipeline(
             if randomseed is not None:
                 Process = run(
                     file_path
-                    + "/run_pipeline.sh " + runallopts + "-A %s -B %s -l %s -p %s %s %s"
-                    % (launcherA, launcherB, regexlist, randomseed, base_case, results_dir),
+                    + "/run_pipeline.sh "
+                    + runallopts
+                    + "-A %s -B %s -l %s -p %s %s %s"
+                    % (
+                        launcherA,
+                        launcherB,
+                        regexlist,
+                        randomseed,
+                        base_case,
+                        results_dir,
+                    ),
                     shell=True,
                 )
             else:
                 Process = run(
                     file_path
-                    + "/run_pipeline.sh " + runallopts + "-A %s -B %s -l %s %s %s"
+                    + "/run_pipeline.sh "
+                    + runallopts
+                    + "-A %s -B %s -l %s %s %s"
                     % (launcherA, launcherB, regexlist, base_case, results_dir),
                     shell=True,
                 )
