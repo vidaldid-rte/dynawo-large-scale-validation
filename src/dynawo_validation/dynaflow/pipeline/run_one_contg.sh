@@ -366,24 +366,22 @@ if  [ "$CASE_TYPE" != "astdwo" ]; then
     done
 fi
 
+
 ########################################
 # Extract automata changes
 ########################################
-if  [ "$CASE_TYPE" != "dwohds" ]; then
-    # Extracts EVENTS from the xml output to CSV, using standardized
-    # labels to allow comparison
-    scripts_basedir=$(dirname "$0")/..
-    echo "Extracting the automata events for case: $CONTG_CASE"
-    python3 "$scripts_basedir"/pipeline/extract_automata_changes.py "$CONTG_CASE"
+# Extracts EVENTS from the xml output to CSV, using standardized
+# labels to allow comparison
+scripts_basedir=$(dirname "$0")/../../commons
+python3 "$scripts_basedir"/extract_automata_changes.py "$CONTG_CASE" "$outDir"/../
 
-    # Collect and compress all results
-    if [ "$CASE_TYPE" = "astdwo" ]; then
-        xz -c9 "$CONTG_CASE"/Astre/Astre_automata_changes.csv > "$outDir"/aut/"$prefix"-AstreAutomata.csv.xz
-        xz -c9 "$CONTG_CASE"/Dynawo_automata_changes.csv      > "$outDir"/aut/"$prefix"-DynawoAutomata.csv.xz
-    else
-        xz -c9 "$CONTG_CASE"/DynawoA_automata_changes.csv      > "$outDir"/aut/"$prefix"-DynawoAutomataA.csv.xz
-        xz -c9 "$CONTG_CASE"/DynawoB_automata_changes.csv      > "$outDir"/aut/"$prefix"-DynawoAutomataB.csv.xz
-    fi
+# Collect and compress all results
+if [ "$CASE_TYPE" = "dwohds" ]; then
+    xz -c9 "$CONTG_CASE"/Hades/Hades_automata_changes.csv > "$outDir"/aut/"$prefix"-HadesAutomata.csv.xz
+    xz -c9 "$CONTG_CASE"/Dynawo_automata_changes.csv      > "$outDir"/aut/"$prefix"-DynawoAutomata.csv.xz
+else
+    xz -c9 "$CONTG_CASE"/DynawoA_automata_changes.csv      > "$outDir"/aut/"$prefix"-DynawoAutomataA.csv.xz
+    xz -c9 "$CONTG_CASE"/DynawoB_automata_changes.csv      > "$outDir"/aut/"$prefix"-DynawoAutomataB.csv.xz
 fi
 
 
