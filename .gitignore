@@ -9,8 +9,13 @@
 # Exclude emacs backups and Python bytecode caches:
 *~
 __pycache__/
+
+
+# Exclude package build artifacts:
 dist/
 *.egg-info/
 
 
+# Exclude the recommended virtual env:
+dwo_venv/
 
