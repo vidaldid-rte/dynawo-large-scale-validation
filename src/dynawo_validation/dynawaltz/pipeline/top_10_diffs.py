@@ -38,11 +38,13 @@ def main():
     # Reading the cases and organizing the values ​​according to the different metrics
     # Removing columns that are not part of the selected metric
     data = read_case(crv_reducedparams_dir)
+    
+    data = data.rename(columns={"dev":"CONTG_CASE"})
 
     datafirstfalse = data.loc[
         (data.is_preStab_ast == "False") | (data.is_preStab_dwo == "False")
     ]
-    datafirstfalsesorted = datafirstfalse.sort_values("dev", ascending=False)
+    datafirstfalsesorted = datafirstfalse.sort_values("CONTG_CASE", ascending=False)
     datafirstfalsesorted = datafirstfalsesorted.drop(
         [
             "dPP_ast",
@@ -62,7 +64,7 @@ def main():
     datafinalfalse = data.loc[
         (data.is_postStab_ast == "False") | (data.is_postStab_dwo == "False")
     ]
-    datafinalfalsesorted = datafinalfalse.sort_values("dev", ascending=False)
+    datafinalfalsesorted = datafinalfalse.sort_values("CONTG_CASE", ascending=False)
     datafinalfalsesorted = datafinalfalsesorted.drop(
         [
             "dPP_ast",
