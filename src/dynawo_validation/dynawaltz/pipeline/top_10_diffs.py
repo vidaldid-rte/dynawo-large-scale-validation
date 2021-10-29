@@ -189,17 +189,17 @@ def main():
 
     # Display the results
     print("START STABLE CONTG\n")
-    print(str(datafirstfalsesorted[:10]))
+    print(datafirstfalsesorted[:10].to_string(index=False))
     print("\n\nFINAL STABLE CONTG\n")
-    print(str(datafinalfalsesorted[:10]))
+    print(datafinalfalsesorted[:10].to_string(index=False))
     print("\n\nDIFF dSS U_IMPIN_value\n")
-    print(str(data_U_IMPIN_valuesorted[:10]))
+    print(data_U_IMPIN_valuesorted[:10].to_string(index=False))
     print("\n\nDIFF dPP levelK_value\n")
-    print(str(data_levelK_valuesorted[:10]))
+    print(data_levelK_valuesorted[:10].to_string(index=False))
     print("\n\nDIFF dSS PGen\n")
-    print(str(PGen_valuesorted[:10]))
+    print(PGen_valuesorted[:10].to_string(index=False))
     print("\n\nDIFF dSS QGen\n")
-    print(str(QGen_valuesorted[:10]))
+    print(QGen_valuesorted[:10].to_string(index=False))
 
 
 # Read a specific contingency

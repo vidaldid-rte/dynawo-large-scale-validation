@@ -33,6 +33,10 @@ def main():
 
     # argument management
     pf_solutions_dir = args.pf_solutions_dir
+    
+    if (pf_solutions_dir[-1] != "/"):
+        pf_solutions_dir = pf_solutions_dir + "/"
+    
     data_files = os.listdir(pf_solutions_dir)
     first_iteration = True
 
@@ -221,21 +225,21 @@ def main():
 
     # Print results on screen
     print("TOP 10 VALUES BUS-V OF ABS_ERR\n")
-    print(str(databusvoltsortedabstotal))
+    print(databusvoltsortedabstotal.to_string(index=False))
     print("\n\nTOP 10 VALUES BUS-V OF REL_ERR\n")
-    print(str(databusvoltsortedreltotal))
+    print(databusvoltsortedreltotal.to_string(index=False))
     print("\n\n\n\nTOP 10 VALUES BRANCH-P OF ABS_ERR\n")
-    print(str(databranchpsortedabstotal))
+    print(databranchpsortedabstotal.to_string(index=False))
     print("\n\nTOP 10 VALUES BRANCH-P OF REL_ERR\n")
-    print(str(databranchpsortedreltotal))
+    print(databranchpsortedreltotal.to_string(index=False))
     print("\n\n\n\nTOP 10 VALUES BUS-P OF ABS_ERR\n")
-    print(str(databuspsortedabstotal))
+    print(databuspsortedabstotal.to_string(index=False))
     print("\n\nTOP 10 VALUES BUS-P OF REL_ERR\n")
-    print(str(databuspsortedreltotal))
+    print(databuspsortedreltotal.to_string(index=False))
     print("\n\n\n\nTOP 10 VALUES BUS-Q OF ABS_ERR\n")
-    print(str(databusqsortedabstotal))
+    print(databusqsortedabstotal.to_string(index=False))
     print("\n\nTOP 10 VALUES BUS-Q OF REL_ERR\n")
-    print(str(databusqsortedreltotal))
+    print(databusqsortedreltotal.to_string(index=False))
 
 
 # Read a specific contingency
