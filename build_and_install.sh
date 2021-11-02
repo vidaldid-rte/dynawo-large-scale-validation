@@ -77,7 +77,13 @@ colormsg "OK."
 
 # Step 4: upgrade all deps
 echo
-colormsg "Upgrading all dependencies. .. "
+colormsg "Upgrading all dependencies... "
 pip install -U --upgrade-strategy eager  "$PKG"
 colormsg "OK."
+
+
+# Step 5: some packages do not automatically register their notebook extensions
+colormsg "Registering qgrid as a Jupyter Notebook extension... "
+jupyter nbextension enable --py --sys-prefix qgrid
+colormsg "OK. (to check all extensions, execute: jupyter nbextension list)"
 
