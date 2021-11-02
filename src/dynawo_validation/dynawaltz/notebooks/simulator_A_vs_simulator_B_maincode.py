@@ -266,6 +266,7 @@ def main(
                 g.layout.yaxis.title = var.value + " Dynawo B"
             else:
                 raise ValueError("IS_DWO_DWO must be 0 or 1.")
+        print_subfig_globalscatter()
 
     def response2(change):
         df_ast, df_dwo, df_lk, _ = get_curve_dfs(CRV_DIR, PREFIX, dev.value, IS_DWO_DWO)
@@ -294,6 +295,9 @@ def main(
             g.data[5].y = df_m["shunt_netchanges"]
             g.data[6].y = df_lk["deltaLevelK"]
             g.layout.yaxis2.title = var2.value
+        print_subfig_curve()
+        print_subfig_eventdiffs()
+        print_subfig_curve_and_events()
 
     def response3(change):
         df_ast, df_dwo, df_lk, _ = get_curve_dfs(CRV_DIR, PREFIX, dev.value, IS_DWO_DWO)
@@ -319,6 +323,8 @@ def main(
             g.data[5].y = df_m["shunt_netchanges"]
             g.data[6].y = df_lk["deltaLevelK"]
             g.layout.yaxis2.title = var2.value
+        print_subfig_curve()
+        print_subfig_curve_and_events()
 
     def update_serie(trace, points, selector):
         # t = list(scatter.text)
@@ -329,6 +335,53 @@ def main(
                 dev1 = scatter.text[i].split(">")[1]
                 dev.value = dev0
                 var2.value = dev1
+        print_subfig_curve()
+        print_subfig_eventdiffs()
+        print_subfig_curve_and_events()
+
+    # Functions for printing figs to PDF (from the callbacks)
+    def print_subfig_globalscatter():
+        subfig_globalscatter = go.Figure(
+            data=[g.data[0]],
+            layout=go.Layout(
+                xaxis=dict(title="dSS Astre"),
+                yaxis=dict(title="dSS Dynawo", scaleanchor="x", scaleratio=1),
+            ),
+        )
+        subfig_globalscatter.write_image("fig_globalscatter.pdf", engine="kaleido")
+
+    def print_subfig_curve():
+        subfig_curve = go.Figure(
+            data=[g.data[1], g.data[2]],
+            layout=go.Layout(
+                xaxis2=dict(title="t"), yaxis2=dict(title=var0), showlegend=False
+            ),
+        )
+        subfig_curve.write_image("fig_curve.pdf", engine="kaleido")
+
+    def print_subfig_eventdiffs():
+        subfig_eventdiffs = go.Figure(
+            data=[g.data[3], g.data[4], g.data[5], g.data[6]],
+            layout=go.Layout(
+                xaxis3=dict(title="t"), yaxis3=dict(title="% changes"), showlegend=False
+            ),
+        )
+        subfig_eventdiffs.write_image("fig_eventdiffs.pdf", engine="kaleido")
+
+    def print_subfig_curve_and_events():
+        subfig_curve_and_events = go.Figure(
+            data=[g.data[1], g.data[2], g.data[3], g.data[4], g.data[5], g.data[6]],
+            layout=go.Layout(
+                xaxis2=dict(title="t"),
+                yaxis2=dict(title=var0, domain=[0, 0.7]),
+                xaxis3=dict(title="t"),
+                yaxis3=dict(title="% changes", domain=[0.8, 1]),
+                showlegend=True,
+            ),
+        )
+        subfig_curve_and_events.write_image(
+            "fig_curve_and_events.pdf", engine="kaleido"
+        )
 
     display(
         HTML(
