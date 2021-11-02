@@ -11,6 +11,7 @@ import os
 import math
 import sys
 import pandas as pd
+import copy
 import argparse
 import lzma
 from lxml import etree
@@ -50,7 +51,7 @@ def main():
         for variable in regleur.iterfind("./variables", root.nsmap):
             regleur_id = variable.getparent().get("num")
             if regleur_id not in hades_regleurs_basecase:
-                hades_regleurs_basecase[regleur_id] = variable.get("plot")
+                hades_regleurs_basecase[regleur_id] = int(variable.get("plot"))
             else:
                 raise ValueError(f"Tap ID repeated")
 
@@ -60,7 +61,7 @@ def main():
         for variable in dephaseur.iterfind("./variables", root.nsmap):
             dephaseur_id = variable.getparent().get("num")
             if dephaseur_id not in hades_dephaseurs_basecase:
-                hades_dephaseurs_basecase[dephaseur_id] = variable.get("plot")
+                hades_dephaseurs_basecase[dephaseur_id] = int(variable.get("plot"))
             else:
                 raise ValueError(f"Tap ID repeated")
 
@@ -74,7 +75,7 @@ def main():
         for variable in regleur.iterfind("./variables", root.nsmap):
             regleur_id = variable.getparent().get("num")
             if regleur_id not in hades_regleurs_contg:
-                hades_regleurs_contg[regleur_id] = variable.get("plot")
+                hades_regleurs_contg[regleur_id] = int(variable.get("plot"))
             else:
                 raise ValueError(f"Tap ID repeated")
 
@@ -84,39 +85,77 @@ def main():
         for variable in dephaseur.iterfind("./variables", root.nsmap):
             dephaseur_id = variable.getparent().get("num")
             if dephaseur_id not in hades_dephaseurs_contg:
-                hades_dephaseurs_contg[dephaseur_id] = variable.get("plot")
+                hades_dephaseurs_contg[dephaseur_id] = int(variable.get("plot"))
             else:
                 raise ValueError(f"Tap ID repeated")
 
     # MATCHING
-    #TODO: pass to dataframe
-    hades_regleurs_diff = dict()
-    hades_dephaseurs_diff = dict()
+    data_keys = hades_regleurs_basecase.keys()
+    data_list = hades_regleurs_basecase.values()
+    df_hades_regleurs_basecase = pd.DataFrame(data=data_list, index=data_keys, columns=["AUT_VAL"])
+    
+    data_keys = hades_regleurs_contg.keys()
+    data_list = hades_regleurs_contg.values()
+    df_hades_regleurs_contg = pd.DataFrame(data=data_list, index=data_keys, columns=["AUT_VAL"])
+    
+    data_keys = hades_dephaseurs_basecase.keys()
+    data_list = hades_dephaseurs_basecase.values()
+    df_hades_dephaseurs_basecase = pd.DataFrame(data=data_list, index=data_keys, columns=["AUT_VAL"])
+    
+    data_keys = hades_dephaseurs_contg.keys()
+    data_list = hades_dephaseurs_contg.values()
+    df_hades_dephaseurs_contg = pd.DataFrame(data=data_list, index=data_keys, columns=["AUT_VAL"])
+    
+    
+    df_hades_regleurs_diff = copy.deepcopy(df_hades_regleurs_basecase)
+    
+    df_hades_dephaseurs_diff = copy.deepcopy(df_hades_dephaseurs_basecase)
 
-    for key in hades_regleurs_basecase:
-        if hades_regleurs_basecase[key] != hades_regleurs_contg[key]:
-            hades_regleurs_diff[key] = [
-                hades_regleurs_basecase[key],
-                hades_regleurs_contg[key],
-            ]
-
-    for key in hades_dephaseurs_basecase:
-        if hades_dephaseurs_basecase[key] != hades_dephaseurs_contg[key]:
-            hades_dephaseurs_diff[key] = [
-                hades_dephaseurs_basecase[key],
-                hades_dephaseurs_contg[key],
-            ]
-
-    print("REGLEURS CHANGES")
-    print(hades_regleurs_diff)
-    print("\nTOTAL REGLEURS CHANGES")
-    print(len(hades_regleurs_diff), " out of ", len(hades_regleurs_basecase))
-
-    print("\n\n\n\nDEPHASEURS CHANGES")
-    print(hades_dephaseurs_diff)
-    print("\n\nTOTAL DEPHASEURS CHANGES")
-    print(len(hades_dephaseurs_diff), " out of ", len(hades_dephaseurs_basecase))
-
+    
+    df_hades_regleurs_diff["DIFF"] = df_hades_regleurs_basecase["AUT_VAL"] - df_hades_regleurs_contg["AUT_VAL"]
+    
+    df_hades_regleurs_diff["DIFF_ABS"] = df_hades_regleurs_diff["DIFF"].abs()
+    
+    df_hades_regleurs_diff.loc[df_hades_regleurs_diff['DIFF_ABS'] != 0, 'HAS_CHANGED'] = 1 
+    df_hades_regleurs_diff.loc[df_hades_regleurs_diff['DIFF_ABS'] == 0, 'HAS_CHANGED'] = 0
+    
+    df_hades_regleurs_diff["DIFF_POS"] = df_hades_regleurs_diff['DIFF']
+    df_hades_regleurs_diff.loc[df_hades_regleurs_diff['DIFF'] <= 0, 'DIFF_POS'] = 0
+    
+    df_hades_regleurs_diff["DIFF_NEG"] = df_hades_regleurs_diff['DIFF'] 
+    df_hades_regleurs_diff.loc[df_hades_regleurs_diff['DIFF'] >= 0, 'DIFF_NEG'] = 0 
+    
+    df_hades_dephaseurs_diff["DIFF"] = df_hades_regleurs_basecase["AUT_VAL"] - df_hades_regleurs_contg["AUT_VAL"]
+    
+    df_hades_dephaseurs_diff["DIFF_ABS"] = df_hades_regleurs_diff["DIFF"].abs()
+    
+    df_hades_dephaseurs_diff.loc[df_hades_dephaseurs_diff['DIFF_ABS'] != 0, 'HAS_CHANGED'] = 1
+    df_hades_dephaseurs_diff.loc[df_hades_dephaseurs_diff['DIFF_ABS'] == 0, 'HAS_CHANGED'] = 0
+    
+    df_hades_dephaseurs_diff["DIFF_POS"] = df_hades_regleurs_diff['DIFF']
+    df_hades_dephaseurs_diff.loc[df_hades_dephaseurs_diff['DIFF'] <= 0, 'DIFF_POS'] = 0
+    
+    df_hades_dephaseurs_diff["DIFF_NEG"] = df_hades_regleurs_diff['DIFF'] 
+    df_hades_dephaseurs_diff.loc[df_hades_dephaseurs_diff['DIFF'] >= 0, 'DIFF_NEG'] = 0 
+    
+    print("TOTAL DIFFS REGLEURS")
+    print(sum(df_hades_regleurs_diff["DIFF_ABS"]))
+    print("TOTAL CHANGES REGLEURS")
+    print(sum(df_hades_regleurs_diff["HAS_CHANGED"]))
+    print("TOTAL POSITIVE DIFFS REGLEURS")
+    print(sum(df_hades_regleurs_diff["DIFF_POS"]))
+    print("TOTAL NEGATIVE DIFFS REGLEURS")
+    print(sum(df_hades_regleurs_diff["DIFF_NEG"]))
+    
+    print("TOTAL DIFFS DEPHASEURS")
+    print(sum(df_hades_dephaseurs_diff["DIFF_ABS"]))
+    print("TOTAL CHANGES DEPHASEURS")
+    print(sum(df_hades_dephaseurs_diff["HAS_CHANGED"]))
+    print("TOTAL POSITIVE DIFFS DEPHASEURS")
+    print(sum(df_hades_dephaseurs_diff["DIFF_POS"]))
+    print("TOTAL NEGATIVE DIFFS DEPHASEURS")
+    print(sum(df_hades_dephaseurs_diff["DIFF_NEG"]))
+    
 
 if __name__ == "__main__":
     sys.exit(main())
