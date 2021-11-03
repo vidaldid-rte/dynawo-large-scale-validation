@@ -28,7 +28,6 @@ parser.add_argument("--regex", nargs="+", help="enter prefix name", default=[".*
 args = parser.parse_args()
 
 
-
 def main():
     # display format
     pd.set_option("display.max_columns", 999)
@@ -50,28 +49,26 @@ def main():
         data = read_aut_changes(aut_dir + i)
         datatimefilter = data.loc[data.TIME >= 100.0]
         datatimefiltersort = datatimefilter.sort_values("TIME", ascending=True)
-        
+
         electric_groups = []
-        #TODO: First filter with electric distance
-        
-        '''
+        # TODO: First filter with electric distance
+
+        """
         time_gruops = []
         for x in data:
             for y in data:
                 if (y["TIME"] - x["TIME"]) <= TIME_THRESH and :
-        '''         
-        
-    
-        
+        """
+
         print(i)
         print(str(datatimefilter))
         print()
-    
+
+
 # Read a specific contingency
 def read_aut_changes(aut_dir):
     data = pd.read_csv(aut_dir, sep=";", index_col=False, compression="infer")
     return data
-
 
 
 if __name__ == "__main__":

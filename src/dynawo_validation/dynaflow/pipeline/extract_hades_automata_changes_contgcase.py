@@ -25,7 +25,9 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument("xml_CONTGCASE", help="enter xml contg case of Hades")
 parser.add_argument("basecase_files_path", help="enter basecase_files_path")
-parser.add_argument("-s","--save", help="File to save csv instead of print", default="None")
+parser.add_argument(
+    "-s", "--save", help="File to save csv instead of print", default="None"
+)
 
 args = parser.parse_args()
 
@@ -36,7 +38,6 @@ def main():
     hds_contgcase_tree = etree.parse(
         lzma.open(xml_CONTGCASE), etree.XMLParser(remove_blank_text=True)
     )
-
 
     # CONTG
 
@@ -66,79 +67,102 @@ def main():
     save_path = args.basecase_files_path
     if save_path[-1] != "/":
         save_path = save_path + "/"
-        
-    df_hades_regleurs_basecase = pd.read_csv(save_path+"df_hades_regleurs_basecase.csv",sep=";",index_col=0)
-    df_hades_dephaseurs_basecase = pd.read_csv(save_path+"df_hades_dephaseurs_basecase.csv",sep=";",index_col=0)
-    
+
+    df_hades_regleurs_basecase = pd.read_csv(
+        save_path + "df_hades_regleurs_basecase.csv", sep=";", index_col=0
+    )
+    df_hades_dephaseurs_basecase = pd.read_csv(
+        save_path + "df_hades_dephaseurs_basecase.csv", sep=";", index_col=0
+    )
+
     data_keys = hades_regleurs_contg.keys()
     data_list = hades_regleurs_contg.values()
-    df_hades_regleurs_contg = pd.DataFrame(data=data_list, index=data_keys, columns=["AUT_VAL"])    
+    df_hades_regleurs_contg = pd.DataFrame(
+        data=data_list, index=data_keys, columns=["AUT_VAL"]
+    )
 
     data_keys = hades_dephaseurs_contg.keys()
     data_list = hades_dephaseurs_contg.values()
-    df_hades_dephaseurs_contg = pd.DataFrame(data=data_list, index=data_keys, columns=["AUT_VAL"])
-    
-    
+    df_hades_dephaseurs_contg = pd.DataFrame(
+        data=data_list, index=data_keys, columns=["AUT_VAL"]
+    )
+
     df_hades_regleurs_diff = copy.deepcopy(df_hades_regleurs_basecase)
-    
+
     df_hades_dephaseurs_diff = copy.deepcopy(df_hades_dephaseurs_basecase)
 
-    
-    df_hades_regleurs_diff["DIFF"] = df_hades_regleurs_basecase["AUT_VAL"] - df_hades_regleurs_contg["AUT_VAL"]
-    
-    
+    df_hades_regleurs_diff["DIFF"] = (
+        df_hades_regleurs_basecase["AUT_VAL"] - df_hades_regleurs_contg["AUT_VAL"]
+    )
+
     df_hades_regleurs_diff["DIFF_ABS"] = df_hades_regleurs_diff["DIFF"].abs()
-    
-    df_hades_regleurs_diff.loc[df_hades_regleurs_diff['DIFF_ABS'] != 0, 'HAS_CHANGED'] = 1 
-    df_hades_regleurs_diff.loc[df_hades_regleurs_diff['DIFF_ABS'] == 0, 'HAS_CHANGED'] = 0
-    
-    df_hades_regleurs_diff["DIFF_POS"] = df_hades_regleurs_diff['DIFF']
-    df_hades_regleurs_diff.loc[df_hades_regleurs_diff['DIFF'] <= 0, 'DIFF_POS'] = 0
-    
-    df_hades_regleurs_diff["DIFF_NEG"] = df_hades_regleurs_diff['DIFF'] 
-    df_hades_regleurs_diff.loc[df_hades_regleurs_diff['DIFF'] >= 0, 'DIFF_NEG'] = 0 
-    
-    df_hades_dephaseurs_diff["DIFF"] = df_hades_regleurs_basecase["AUT_VAL"] - df_hades_regleurs_contg["AUT_VAL"]
-    
+
+    df_hades_regleurs_diff.loc[
+        df_hades_regleurs_diff["DIFF_ABS"] != 0, "HAS_CHANGED"
+    ] = 1
+    df_hades_regleurs_diff.loc[
+        df_hades_regleurs_diff["DIFF_ABS"] == 0, "HAS_CHANGED"
+    ] = 0
+
+    df_hades_regleurs_diff["DIFF_POS"] = df_hades_regleurs_diff["DIFF"]
+    df_hades_regleurs_diff.loc[df_hades_regleurs_diff["DIFF"] <= 0, "DIFF_POS"] = 0
+
+    df_hades_regleurs_diff["DIFF_NEG"] = df_hades_regleurs_diff["DIFF"]
+    df_hades_regleurs_diff.loc[df_hades_regleurs_diff["DIFF"] >= 0, "DIFF_NEG"] = 0
+
+    df_hades_dephaseurs_diff["DIFF"] = (
+        df_hades_regleurs_basecase["AUT_VAL"] - df_hades_regleurs_contg["AUT_VAL"]
+    )
+
     df_hades_dephaseurs_diff["DIFF_ABS"] = df_hades_regleurs_diff["DIFF"].abs()
-    
-    df_hades_dephaseurs_diff.loc[df_hades_dephaseurs_diff['DIFF_ABS'] != 0, 'HAS_CHANGED'] = 1
-    df_hades_dephaseurs_diff.loc[df_hades_dephaseurs_diff['DIFF_ABS'] == 0, 'HAS_CHANGED'] = 0
-    
-    df_hades_dephaseurs_diff["DIFF_POS"] = df_hades_regleurs_diff['DIFF']
-    df_hades_dephaseurs_diff.loc[df_hades_dephaseurs_diff['DIFF'] <= 0, 'DIFF_POS'] = 0
-    
-    df_hades_dephaseurs_diff["DIFF_NEG"] = df_hades_regleurs_diff['DIFF'] 
-    df_hades_dephaseurs_diff.loc[df_hades_dephaseurs_diff['DIFF'] >= 0, 'DIFF_NEG'] = 0 
-    
+
+    df_hades_dephaseurs_diff.loc[
+        df_hades_dephaseurs_diff["DIFF_ABS"] != 0, "HAS_CHANGED"
+    ] = 1
+    df_hades_dephaseurs_diff.loc[
+        df_hades_dephaseurs_diff["DIFF_ABS"] == 0, "HAS_CHANGED"
+    ] = 0
+
+    df_hades_dephaseurs_diff["DIFF_POS"] = df_hades_regleurs_diff["DIFF"]
+    df_hades_dephaseurs_diff.loc[df_hades_dephaseurs_diff["DIFF"] <= 0, "DIFF_POS"] = 0
+
+    df_hades_dephaseurs_diff["DIFF_NEG"] = df_hades_regleurs_diff["DIFF"]
+    df_hades_dephaseurs_diff.loc[df_hades_dephaseurs_diff["DIFF"] >= 0, "DIFF_NEG"] = 0
+
     if args.save != "None":
         save_csv = args.save
         if save_csv[-4:] != ".csv":
             save_csv = save_csv + ".csv"
-        cols = ["DIFF_ABS","HAS_CHANGED","DIFF_POS","DIFF_NEG"]
-        ind = ["regleurs","dephaseurs"]
-        vals = [[sum(df_hades_regleurs_diff["DIFF_ABS"]),
-        sum(df_hades_regleurs_diff["HAS_CHANGED"]),
-        sum(df_hades_regleurs_diff["DIFF_POS"]),
-        sum(df_hades_regleurs_diff["DIFF_NEG"])],
-        [sum(df_hades_dephaseurs_diff["DIFF_ABS"]),
-        sum(df_hades_dephaseurs_diff["HAS_CHANGED"]),
-        sum(df_hades_dephaseurs_diff["DIFF_POS"]),
-        sum(df_hades_dephaseurs_diff["DIFF_NEG"])]]
-        
+        cols = ["DIFF_ABS", "HAS_CHANGED", "DIFF_POS", "DIFF_NEG"]
+        ind = ["regleurs", "dephaseurs"]
+        vals = [
+            [
+                sum(df_hades_regleurs_diff["DIFF_ABS"]),
+                sum(df_hades_regleurs_diff["HAS_CHANGED"]),
+                sum(df_hades_regleurs_diff["DIFF_POS"]),
+                sum(df_hades_regleurs_diff["DIFF_NEG"]),
+            ],
+            [
+                sum(df_hades_dephaseurs_diff["DIFF_ABS"]),
+                sum(df_hades_dephaseurs_diff["HAS_CHANGED"]),
+                sum(df_hades_dephaseurs_diff["DIFF_POS"]),
+                sum(df_hades_dephaseurs_diff["DIFF_NEG"]),
+            ],
+        ]
+
         df_to_save = pd.DataFrame(data=vals, index=ind, columns=cols)
-        
-        df_to_save.to_csv(save_csv,sep=";")
+
+        df_to_save.to_csv(save_csv, sep=";")
     else:
         print("TOTAL DIFFS REGLEURS")
         print(sum(df_hades_regleurs_diff["DIFF_ABS"]))
         print("TOTAL CHANGES REGLEURS")
         print(sum(df_hades_regleurs_diff["HAS_CHANGED"]))
-        print("TOTAL POSITIVE DIFFS REGLEURS")    
+        print("TOTAL POSITIVE DIFFS REGLEURS")
         print(sum(df_hades_regleurs_diff["DIFF_POS"]))
         print("TOTAL NEGATIVE DIFFS REGLEURS")
         print(sum(df_hades_regleurs_diff["DIFF_NEG"]))
-    
+
         print("\n\n\nTOTAL DIFFS DEPHASEURS")
         print(sum(df_hades_dephaseurs_diff["DIFF_ABS"]))
         print("TOTAL CHANGES DEPHASEURS")
@@ -147,7 +171,7 @@ def main():
         print(sum(df_hades_dephaseurs_diff["DIFF_POS"]))
         print("TOTAL NEGATIVE DIFFS DEPHASEURS")
         print(sum(df_hades_dephaseurs_diff["DIFF_NEG"]))
-    
+
 
 if __name__ == "__main__":
     sys.exit(main())
