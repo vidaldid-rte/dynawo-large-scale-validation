@@ -5,8 +5,7 @@ import plotly.graph_objects as go
 import seaborn as sns
 import qgrid
 from ipywidgets import widgets
-from IPython.display import display, HTML
-from IPython.display import Markdown as md
+from IPython.display import display, HTML, Markdown
 
 
 # Auxiliary function for calculating delta levelK at the aut_tw_metrics points
@@ -209,7 +208,7 @@ def button_action(value):
 
 
 def do_displaybutton():
-    state = False
+    state = True
     toggle_code(state)
     button_descriptions = {False: "Show code", True: "Hide code"}
     button = widgets.ToggleButton(state, description=button_descriptions[state])
@@ -344,8 +343,10 @@ def main(
         subfig_globalscatter = go.Figure(
             data=[g.data[0]],
             layout=go.Layout(
-                xaxis=dict(title="dSS Astre"),
-                yaxis=dict(title="dSS Dynawo", scaleanchor="x", scaleratio=1),
+                xaxis=dict(title=g.layout.xaxis.title),
+                yaxis=dict(title=g.layout.yaxis.title, scaleanchor="x", scaleratio=1),
+                height=800,
+                width=800,
             ),
         )
         subfig_globalscatter.write_image("fig_globalscatter.pdf", engine="kaleido")
@@ -354,28 +355,34 @@ def main(
         subfig_curve = go.Figure(
             data=[g.data[1], g.data[2]],
             layout=go.Layout(
-                xaxis2=dict(title="t"), yaxis2=dict(title=var0), showlegend=False
+                xaxis2=dict(title=g.layout.xaxis2.title),
+                yaxis2=dict(title=g.layout.yaxis2.title),
+                showlegend=False,
             ),
         )
         subfig_curve.write_image("fig_curve.pdf", engine="kaleido")
 
     def print_subfig_eventdiffs():
         subfig_eventdiffs = go.Figure(
-            data=[g.data[3], g.data[4], g.data[5], g.data[6]],
+            data=[g.data[3], g.data[4], g.data[5]],
             layout=go.Layout(
-                xaxis3=dict(title="t"), yaxis3=dict(title="% changes"), showlegend=False
+                xaxis3=dict(title=g.layout.xaxis3.title),
+                yaxis3=dict(title=g.layout.yaxis3.title),
+                showlegend=False,
             ),
         )
         subfig_eventdiffs.write_image("fig_eventdiffs.pdf", engine="kaleido")
 
     def print_subfig_curve_and_events():
         subfig_curve_and_events = go.Figure(
-            data=[g.data[1], g.data[2], g.data[3], g.data[4], g.data[5], g.data[6]],
+            data=[g.data[1], g.data[2], g.data[3], g.data[4], g.data[5]],
+            # NOTE: Plotly bug: the xaxis may labels may show wrong (doubled)
+            # You can fix it here by specifying a hardcoded range in xaxis2, xaxis3
             layout=go.Layout(
-                xaxis2=dict(title="t"),
-                yaxis2=dict(title=var0, domain=[0, 0.7]),
-                xaxis3=dict(title="t"),
-                yaxis3=dict(title="% changes", domain=[0.8, 1]),
+                xaxis2=dict(title=g.layout.xaxis2.title),
+                yaxis2=dict(title=g.layout.yaxis2.title, domain=[0, 0.7]),
+                xaxis3=dict(title=g.layout.xaxis3.title),
+                yaxis3=dict(title=g.layout.yaxis3.title, domain=[0.8, 1]),
                 showlegend=True,
             ),
         )
@@ -521,7 +528,7 @@ def main(
     # Initialize Plot Traces
     if IS_DWO_DWO == 0:
         trace = go.Scatter(
-            name="Astre vs Dynawo",
+            name="A/B var scatter",
             x=df["dSS_ast"],
             y=df["dSS_dwo"],
             mode="markers",
@@ -536,7 +543,7 @@ def main(
         )
     elif IS_DWO_DWO == 1:
         trace = go.Scatter(
-            name="Dynawo A vs Dynawo B",
+            name="A/B var scatter",
             x=df["dSS_ast"],
             y=df["dSS_dwo"],
             mode="markers",
@@ -643,7 +650,6 @@ def main(
 
     if IS_DWO_DWO == 0:
         layout = go.Layout(
-            title=dict(text="Astre vs Dynawo"),
             xaxis=dict(title="dSS Astre", domain=[0, aspect_ratio - 0.05]),
             yaxis=dict(title="dSS Dynawo", scaleanchor="x", scaleratio=1),
             xaxis2=dict(title="t", domain=[aspect_ratio + 0.05, 1], range=[0, T_END]),
@@ -655,7 +661,6 @@ def main(
         )
     elif IS_DWO_DWO == 1:
         layout = go.Layout(
-            title=dict(text="Dynawo A vs Dynawo B"),
             xaxis=dict(title="dSS DynawoA", domain=[0, aspect_ratio - 0.05]),
             yaxis=dict(title="dSS DynawoB", scaleanchor="x", scaleratio=1),
             xaxis2=dict(title="t", domain=[aspect_ratio + 0.05, 1], range=[0, T_END]),
@@ -705,46 +710,29 @@ def main(
     per1_ss = round(scores_mean.iloc[stable].dSS_pass_.mean() * 100, 1)
     per1_pp = round(scores_mean.iloc[stable].dPP_pass_.mean() * 100, 1)
 
-    text = (
-        "# Reading %s data from: %s\n"
-        "## Percentage of contingency cases where all variables pass: \n"
-        "  * Steady State diff thresholds: %.1f%% \n"
-        "  * Peak to Peak diff thresholds: %.1f%% \n\n"
-        "## Percentage of *stable* contingency cases where all variables pass: \n"
-        "  * Steady State Thresholds: %.1f%% \n"
-        "  * Peak to Peak Thresholds: %.1f%% \n\n"
-        "Using threshold parameters:\n"
-        "  * V_THRESH: %.2f\n"
-        "  * K_THRESH: %.2f\n"
-        "  * P_THRESH: %.2f\n"
-        "  * Q_THRESH: %.2f\n"
-    )
-
-    md(
-        text
-        % (
-            PREFIX,
-            CRV_DIR,
-            per_ss,
-            per_pp,
-            per1_ss,
-            per1_pp,
-            V_THRESH,
-            K_THRESH,
-            P_THRESH,
-            Q_THRESH,
+    display(
+        Markdown(
+            f"# Analyzing data from: {CRV_DIR}\n"
+            "## Percentage of contingency cases where all variables pass: \n"
+            f"  * by Steady-State diff thresholds: {per_ss:.1f}% \n"
+            f"  * by Peak-to-Peak diff thresholds: {per_pp:.1f}% \n\n"
+            "## Percentage of *stable* contingency cases where all variables pass: \n"
+            f"  * by Steady-State diff thresholds: {per1_ss:.1f}% \n"
+            f"  * by Peak-to-Peak diff thresholds: {per1_pp:.1f}% \n\n"
+            "Using threshold parameters:\n"
+            f"  * V_THRESH: {V_THRESH:.2f} pu\n"
+            f"  * K_THRESH: {K_THRESH:.2f}\n"
+            f"  * P_THRESH: {P_THRESH:.2f} MW\n"
+            f"  * Q_THRESH: {Q_THRESH:.2f} MW\n"
         )
     )
-    print()
-    print("Scoring by measure")
-    print()
+
+    display(Markdown("# SCORING BY VARIABLE"))
     display(grid_bycasevar)
+    display(Markdown("## Graphical analysis of variables"))
     display(widgets.VBox([container, g]))
-    print()
-    print("Scoring by contingency")
-    print()
+
+    display(Markdown("# SCORING BY CONTINGENCY"))
     display(grid_bycase)
-    print()
-    print("Scoring Heatmap")
-    print()
+    display(Markdown("## Heatmap"))
     display(plot_heatmap(scores_mean))
