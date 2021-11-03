@@ -23,47 +23,20 @@ sys.path.insert(
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument("xml_BASECASE", help="enter xml base case of Hades")
 parser.add_argument("xml_CONTGCASE", help="enter xml contg case of Hades")
+parser.add_argument("basecase_files_path", help="enter basecase_files_path")
+parser.add_argument("-s","--save", help="File to save csv instead of print", default="None")
 
 args = parser.parse_args()
 
 
 def main():
-    xml_BASECASE = args.xml_BASECASE
     xml_CONTGCASE = args.xml_CONTGCASE
 
-    hds_basecase_tree = etree.parse(
-        xml_BASECASE, etree.XMLParser(remove_blank_text=True)
-    )
     hds_contgcase_tree = etree.parse(
         lzma.open(xml_CONTGCASE), etree.XMLParser(remove_blank_text=True)
     )
 
-    # BASECASE
-
-    root = hds_basecase_tree.getroot()
-    reseau = root.find("./reseau", root.nsmap)
-
-    donneesRegleurs = reseau.find("./donneesRegleurs", root.nsmap)
-    hades_regleurs_basecase = dict()
-    for regleur in donneesRegleurs.iterfind("./regleur", root.nsmap):
-        for variable in regleur.iterfind("./variables", root.nsmap):
-            regleur_id = variable.getparent().get("num")
-            if regleur_id not in hades_regleurs_basecase:
-                hades_regleurs_basecase[regleur_id] = int(variable.get("plot"))
-            else:
-                raise ValueError(f"Tap ID repeated")
-
-    donneesDephaseurs = reseau.find("./donneesDephaseurs", root.nsmap)
-    hades_dephaseurs_basecase = dict()
-    for dephaseur in donneesDephaseurs.iterfind("./dephaseur", root.nsmap):
-        for variable in dephaseur.iterfind("./variables", root.nsmap):
-            dephaseur_id = variable.getparent().get("num")
-            if dephaseur_id not in hades_dephaseurs_basecase:
-                hades_dephaseurs_basecase[dephaseur_id] = int(variable.get("plot"))
-            else:
-                raise ValueError(f"Tap ID repeated")
 
     # CONTG
 
@@ -73,7 +46,7 @@ def main():
     hades_regleurs_contg = dict()
     for regleur in donneesRegleurs.iterfind("./regleur", root.nsmap):
         for variable in regleur.iterfind("./variables", root.nsmap):
-            regleur_id = variable.getparent().get("num")
+            regleur_id = int(variable.getparent().get("num"))
             if regleur_id not in hades_regleurs_contg:
                 hades_regleurs_contg[regleur_id] = int(variable.get("plot"))
             else:
@@ -83,25 +56,24 @@ def main():
     hades_dephaseurs_contg = dict()
     for dephaseur in donneesDephaseurs.iterfind("./dephaseur", root.nsmap):
         for variable in dephaseur.iterfind("./variables", root.nsmap):
-            dephaseur_id = variable.getparent().get("num")
+            dephaseur_id = int(variable.getparent().get("num"))
             if dephaseur_id not in hades_dephaseurs_contg:
                 hades_dephaseurs_contg[dephaseur_id] = int(variable.get("plot"))
             else:
                 raise ValueError(f"Tap ID repeated")
 
     # MATCHING
-    data_keys = hades_regleurs_basecase.keys()
-    data_list = hades_regleurs_basecase.values()
-    df_hades_regleurs_basecase = pd.DataFrame(data=data_list, index=data_keys, columns=["AUT_VAL"])
+    save_path = args.basecase_files_path
+    if save_path[-1] != "/":
+        save_path = save_path + "/"
+        
+    df_hades_regleurs_basecase = pd.read_csv(save_path+"df_hades_regleurs_basecase.csv",sep=";",index_col=0)
+    df_hades_dephaseurs_basecase = pd.read_csv(save_path+"df_hades_dephaseurs_basecase.csv",sep=";",index_col=0)
     
     data_keys = hades_regleurs_contg.keys()
     data_list = hades_regleurs_contg.values()
-    df_hades_regleurs_contg = pd.DataFrame(data=data_list, index=data_keys, columns=["AUT_VAL"])
-    
-    data_keys = hades_dephaseurs_basecase.keys()
-    data_list = hades_dephaseurs_basecase.values()
-    df_hades_dephaseurs_basecase = pd.DataFrame(data=data_list, index=data_keys, columns=["AUT_VAL"])
-    
+    df_hades_regleurs_contg = pd.DataFrame(data=data_list, index=data_keys, columns=["AUT_VAL"])    
+
     data_keys = hades_dephaseurs_contg.keys()
     data_list = hades_dephaseurs_contg.values()
     df_hades_dephaseurs_contg = pd.DataFrame(data=data_list, index=data_keys, columns=["AUT_VAL"])
@@ -113,6 +85,7 @@ def main():
 
     
     df_hades_regleurs_diff["DIFF"] = df_hades_regleurs_basecase["AUT_VAL"] - df_hades_regleurs_contg["AUT_VAL"]
+    
     
     df_hades_regleurs_diff["DIFF_ABS"] = df_hades_regleurs_diff["DIFF"].abs()
     
@@ -138,23 +111,42 @@ def main():
     df_hades_dephaseurs_diff["DIFF_NEG"] = df_hades_regleurs_diff['DIFF'] 
     df_hades_dephaseurs_diff.loc[df_hades_dephaseurs_diff['DIFF'] >= 0, 'DIFF_NEG'] = 0 
     
-    print("TOTAL DIFFS REGLEURS")
-    print(sum(df_hades_regleurs_diff["DIFF_ABS"]))
-    print("TOTAL CHANGES REGLEURS")
-    print(sum(df_hades_regleurs_diff["HAS_CHANGED"]))
-    print("TOTAL POSITIVE DIFFS REGLEURS")
-    print(sum(df_hades_regleurs_diff["DIFF_POS"]))
-    print("TOTAL NEGATIVE DIFFS REGLEURS")
-    print(sum(df_hades_regleurs_diff["DIFF_NEG"]))
+    if args.save != "None":
+        save_csv = args.save
+        if save_csv[-4:] != ".csv":
+            save_csv = save_csv + ".csv"
+        cols = ["DIFF_ABS","HAS_CHANGED","DIFF_POS","DIFF_NEG"]
+        ind = ["regleurs","dephaseurs"]
+        vals = [[sum(df_hades_regleurs_diff["DIFF_ABS"]),
+        sum(df_hades_regleurs_diff["HAS_CHANGED"]),
+        sum(df_hades_regleurs_diff["DIFF_POS"]),
+        sum(df_hades_regleurs_diff["DIFF_NEG"])],
+        [sum(df_hades_dephaseurs_diff["DIFF_ABS"]),
+        sum(df_hades_dephaseurs_diff["HAS_CHANGED"]),
+        sum(df_hades_dephaseurs_diff["DIFF_POS"]),
+        sum(df_hades_dephaseurs_diff["DIFF_NEG"])]]
+        
+        df_to_save = pd.DataFrame(data=vals, index=ind, columns=cols)
+        
+        df_to_save.to_csv(save_csv,sep=";")
+    else:
+        print("TOTAL DIFFS REGLEURS")
+        print(sum(df_hades_regleurs_diff["DIFF_ABS"]))
+        print("TOTAL CHANGES REGLEURS")
+        print(sum(df_hades_regleurs_diff["HAS_CHANGED"]))
+        print("TOTAL POSITIVE DIFFS REGLEURS")    
+        print(sum(df_hades_regleurs_diff["DIFF_POS"]))
+        print("TOTAL NEGATIVE DIFFS REGLEURS")
+        print(sum(df_hades_regleurs_diff["DIFF_NEG"]))
     
-    print("TOTAL DIFFS DEPHASEURS")
-    print(sum(df_hades_dephaseurs_diff["DIFF_ABS"]))
-    print("TOTAL CHANGES DEPHASEURS")
-    print(sum(df_hades_dephaseurs_diff["HAS_CHANGED"]))
-    print("TOTAL POSITIVE DIFFS DEPHASEURS")
-    print(sum(df_hades_dephaseurs_diff["DIFF_POS"]))
-    print("TOTAL NEGATIVE DIFFS DEPHASEURS")
-    print(sum(df_hades_dephaseurs_diff["DIFF_NEG"]))
+        print("\n\n\nTOTAL DIFFS DEPHASEURS")
+        print(sum(df_hades_dephaseurs_diff["DIFF_ABS"]))
+        print("TOTAL CHANGES DEPHASEURS")
+        print(sum(df_hades_dephaseurs_diff["HAS_CHANGED"]))
+        print("TOTAL POSITIVE DIFFS DEPHASEURS")
+        print(sum(df_hades_dephaseurs_diff["DIFF_POS"]))
+        print("TOTAL NEGATIVE DIFFS DEPHASEURS")
+        print(sum(df_hades_dephaseurs_diff["DIFF_NEG"]))
     
 
 if __name__ == "__main__":
