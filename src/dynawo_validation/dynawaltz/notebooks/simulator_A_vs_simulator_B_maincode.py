@@ -7,6 +7,8 @@ import qgrid
 from ipywidgets import widgets
 from IPython.display import display, HTML, Markdown
 
+PLOTLY_MAXPOINTS = 5000  # Plotly becomes *very* slow when charts exceed this
+
 
 # Auxiliary function for calculating delta levelK at the aut_tw_metrics points
 def getDeltaLevelK(df_ast, df_dwo, t_end):
@@ -244,14 +246,15 @@ def main(
             df = df.iloc[stable]
         mask_ = [mask.value in x for x in df.vars]
         df = df[mask_]
-        # PERF: Plotly starts showing horrible performance with more than 5,000 points
-        if df.shape[0] > 5000:
-            df = df.sample(5000)
+        if df.shape[0] > PLOTLY_MAXPOINTS:
+            df = reduce_xyscatter_points(df)
         with g.batch_update():
             g.data[0].x = df[var.value + "_ast"]
             g.data[0].y = df[var.value + "_dwo"]
-            g.data[6].x = df[var.value + "_ast"]
-            g.data[6].y = df[var.value + "_ast"]
+            xymin = min(df[var.value + "_ast"].min(), df[var.value + "_dwo"].min())
+            xymax = max(df[var.value + "_ast"].max(), df[var.value + "_dwo"].max())
+            g.data[7].x = [xymin, xymax]
+            g.data[7].y = [xymin, xymax]
             g.data[0].marker.color = df.TT_ast
             g.data[0].marker.size = 5 + 45 * (df.dPP_ast - min(df.dPP_ast)) / max(
                 1.0e-6, max(df.dPP_ast) - min(df.dPP_ast)
@@ -267,11 +270,35 @@ def main(
                 raise ValueError("IS_DWO_DWO must be 0 or 1.")
         print_subfig_globalscatter()
 
+    def reduce_xyscatter_points(df):
+        # Plotly's performance is horrible past ~5000 points in a
+        # chart. So we eliminate these non-interesting points:
+        #   * points too close to the diagonal --> by looking at the tangent
+        #   * points too close to (0,0) --> relative to the scale
+        diagdist_df = abs(df[var.value + "_dwo"] / df[var.value + "_ast"] - 1)
+        xorigdist_df = abs(df[var.value + "_ast"])
+        yorigdist_df = abs(df[var.value + "_dwo"])
+        data_scale = max(xorigdist_df.max(), yorigdist_df.max())
+        for r1, r2 in np.linspace([0.005, 0.00005], [0.1, 0.005], num=10):
+            filter = (
+                (diagdist_df > r1)
+                & (xorigdist_df > r2 * data_scale)
+                & (yorigdist_df > r2 * data_scale)
+            )
+            if filter.sum() < PLOTLY_MAXPOINTS:
+                break
+        print(f"Warning: reducing the number of shown points to: {filter.sum()}")
+        print(
+            f"(not showing points with abs(1-x/y) < {r1}"
+            f" and abs(x),abs(y) < {r2}*data_scale)"
+        )
+        return df.loc[filter]
+
     def response2(change):
         df_ast, df_dwo, df_lk, _ = get_curve_dfs(CRV_DIR, PREFIX, dev.value, IS_DWO_DWO)
-        vars_ast = df_ast.columns[1:]
-        var2.options = vars_ast
-        var2.value = vars_ast[0]
+        vars_dwo = df_dwo.columns[1:]
+        var2.options = vars_dwo
+        var2.value = vars_dwo[0]
         df_m = aut_tw_metrics[aut_tw_metrics.Contg_case == dev.value].copy()
         df_m.loc[len(df_m)] = [dev.value, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         if MATCH_CRV_AT_PRECONTG_TIME:
@@ -343,7 +370,7 @@ def main(
         subfig_globalscatter = go.Figure(
             data=[g.data[0]],
             layout=go.Layout(
-                xaxis=dict(title=g.layout.xaxis.title),
+                xaxis=dict(title=g.layout.xaxis.title, range=[-150, 150]),
                 yaxis=dict(title=g.layout.yaxis.title, scaleanchor="x", scaleratio=1),
                 height=800,
                 width=800,
@@ -390,6 +417,10 @@ def main(
             "fig_curve_and_events.pdf", engine="kaleido"
         )
 
+    ###########################################################
+    # END OF INNER FUNCTIONS; MAIN CODE STARTS HERE
+    ###########################################################
+
     display(
         HTML(
             data="""
@@ -403,42 +434,6 @@ def main(
     )
 
     do_displaybutton()
-
-    # These are needed just to stop flake8 complaining
-    try:
-        CRV_DIR
-    except NameError:
-        CRV_DIR = "/dummy/path"
-
-    try:
-        PREFIX
-    except NameError:
-        PREFIX = "dummy_prefix_"
-
-    try:
-        MATCH_CRV_AT_PRECONTG_TIME
-    except NameError:
-        MATCH_CRV_AT_PRECONTG_TIME = None
-
-    try:
-        V_THRESH
-    except NameError:
-        V_THRESH = 0.01
-
-    try:
-        K_THRESH
-    except NameError:
-        K_THRESH = 0.1
-
-    try:
-        P_THRESH
-    except NameError:
-        P_THRESH = 5
-
-    try:
-        Q_THRESH
-    except NameError:
-        Q_THRESH = 10
 
     # Read the metrics
     metrics_dir = CRV_DIR + "/../metrics"
@@ -488,10 +483,9 @@ def main(
     df_ast, df_dwo, df_lk, T_END = get_curve_dfs(
         CRV_DIR, PREFIX, contg_case0, IS_DWO_DWO
     )
-    vars_ast = df_ast.columns[1:]
-    vars_dwo = df_dwo.columns[1:]
-    var0 = vars_ast[0]
-    var2 = widgets.Dropdown(options=vars_ast, value=var0, description="Variable: ")
+    vars_dwo = df_dwo.columns[1:]  # Astre's var names are assumed to be the same
+    var0 = vars_dwo[0]
+    var2 = widgets.Dropdown(options=vars_dwo, value=var0, description="Variable: ")
     df_m = aut_tw_metrics[aut_tw_metrics.Contg_case == contg_case0].copy()
     df_m.loc[len(df_m)] = [contg_case0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     if MATCH_CRV_AT_PRECONTG_TIME:
@@ -526,6 +520,8 @@ def main(
     container = widgets.HBox([check, mask, var, dev, var2])
 
     # Initialize Plot Traces
+    if df.shape[0] > PLOTLY_MAXPOINTS:
+        df = reduce_xyscatter_points(df)
     if IS_DWO_DWO == 0:
         trace = go.Scatter(
             name="A/B var scatter",
@@ -559,16 +555,19 @@ def main(
     else:
         raise ValueError("IS_DWO_DWO must be 0 or 1.")
 
+    xymin = min(df[var.value + "_ast"].min(), df[var.value + "_dwo"].min())
+    xymax = max(df[var.value + "_ast"].max(), df[var.value + "_dwo"].max())
     tracel = go.Scatter(
         name="Diagonal",
-        x=df["dSS_ast"],
-        y=df["dSS_ast"],
+        x=[xymin, xymax],
+        y=[xymin, xymax],
         mode="lines",
         marker_color="red",
         line_width=0.2,
         xaxis="x1",
         yaxis="y1",
     )
+
     if IS_DWO_DWO == 0:
         trace1 = go.Scatter(
             name="Astre",
