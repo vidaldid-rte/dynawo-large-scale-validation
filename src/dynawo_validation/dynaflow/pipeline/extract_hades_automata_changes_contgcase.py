@@ -134,7 +134,7 @@ def main():
         if save_csv[-4:] != ".csv":
             save_csv = save_csv + ".csv"
         cols = ["DIFF_ABS", "HAS_CHANGED", "DIFF_POS", "DIFF_NEG"]
-        ind = ["regleurs", "dephaseurs"]
+        ind = ["ratioTapChanger", "phaseTapChanger"]
         vals = [
             [
                 sum(df_hades_regleurs_diff["DIFF_ABS"]),

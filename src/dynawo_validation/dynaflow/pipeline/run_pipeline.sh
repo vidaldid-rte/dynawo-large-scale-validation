@@ -280,6 +280,24 @@ REAL_RESULTS_BASEDIR=$(realpath "$RESULTS_BASEDIR")
 
 if [ "$REAL_BASECASE" != "$REAL_RESULTS_BASEDIR" ]; then
    cp -a "$BASECASE" "$RESULTS_BASEDIR"
+   #TODO: Run basecase
+fi
+
+basecase_name=$(basename "$BASECASE")
+CP_BASECASE="$RESULTS_BASEDIR"/"$basecase_name"
+
+
+DWO_JOBINFO_SCRIPT="$CONTG_SRC"/dwo_jobinfo.py
+CASE_TYPE=$(python3 "$DWO_JOBINFO_SCRIPT" "$CP_BASECASE" | grep -F "CASE_TYPE" | cut -d'=' -f2)
+if [ "$CASE_TYPE" = "dwohds" ]; then
+   DWO_OUTPUT_DIR=$(python3 "$DWO_JOBINFO_SCRIPT" "$CP_BASECASE" | grep -F "outputs_directory" | cut -d'=' -f2)
+   python3 "$CONTG_SRC"/extract_dynawo_automata_changes_basecase.py "$CP_BASECASE"/"$DWO_OUTPUT_DIR"/finalState/outputIIDM.xml "$CP_BASECASE"
+   python3 "$CONTG_SRC"/extract_hades_automata_changes_basecase.py "$CP_BASECASE"/Hades/out.xml "$CP_BASECASE"
+else
+   DWO_OUTPUT_DIR=$(python3 "$DWO_JOBINFO_SCRIPT" "$CP_BASECASE" | grep -F "outputs_directoryA" | cut -d'=' -f2)
+   python3 "$CONTG_SRC"/extract_dynawo_automata_changes_basecase.py "$CP_BASECASE"/"$DWO_OUTPUT_DIR"/finalState/outputIIDM.xml "$CP_BASECASE"/A/
+   DWO_OUTPUT_DIR=$(python3 "$DWO_JOBINFO_SCRIPT" "$CP_BASECASE" | grep -F "outputs_directoryB" | cut -d'=' -f2)
+   python3 "$CONTG_SRC"/extract_dynawo_automata_changes_basecase.py "$CP_BASECASE"/"$DWO_OUTPUT_DIR"/finalState/outputIIDM.xml "$CP_BASECASE"/B/
 fi
 
 # Process all devices from the list
@@ -352,6 +370,7 @@ for DEVICE in "${!create_contg[@]}"; do
        colormsg "*** COMPUTING TOP 10 DIFFS:"
        python3 "$DWO_VALIDATION_SRC"/pipeline/top_10_diffs_dflow.py "$RESULTS_DIR"/pf_sol/ > "$RESULTS_DIR"/../top_10_diffs_"$DEVICE".txt
        echo
+    
     
        colormsg "*** CREATING NOTEBOOK:" 
        # Create notebook

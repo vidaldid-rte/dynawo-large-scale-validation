@@ -23,7 +23,7 @@ sys.path.insert(
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument("xml_BASECASE", help="enter xml base case of Hades")
+parser.add_argument("xml_BASECASE", help="enter iidm of DWO")
 parser.add_argument("path_to_save", help="enter path_to_save csv files")
 
 
@@ -111,7 +111,7 @@ def main():
         else:
             raise ValueError(f"Tap ID repeated")
 
-    # MATCHING
+    # SAVING
     save_path = args.path_to_save
     if save_path[-1] != "/":
         save_path = save_path + "/"

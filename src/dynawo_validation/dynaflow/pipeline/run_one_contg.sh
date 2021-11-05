@@ -300,6 +300,7 @@ fi
 DWO_JOBINFO_SCRIPT=$(dirname "$0")/dwo_jobinfo.py
 CASE_TYPE=$(python3 "$DWO_JOBINFO_SCRIPT" "$CONTG_CASE" | grep -F "CASE_TYPE" | cut -d'=' -f2)
 hadestring=${A:0:5}
+scripts_basedir=$(dirname "$0")
 if [ "$CASE_TYPE" = "astdwo" ]; then
     if [ "$hadestring" == "astre" ]; then
         run_astre "$A"
@@ -320,9 +321,13 @@ elif [ "$CASE_TYPE" = "dwohds" ]; then
         DWO_JOBFILE=$(python3 "$DWO_JOBINFO_SCRIPT" "$CONTG_CASE" | grep -F "job_file" | cut -d'=' -f2)
         DWO_JOBFILE=$(basename "$DWO_JOBFILE")
         DWO_OUTPUT_DIR=$(python3 "$DWO_JOBINFO_SCRIPT" "$CONTG_CASE" | grep -F "outputs_directory" | cut -d'=' -f2)
+        basecase_name=$(basename "$BASECASE")
         run_dynawo "" "$B" 
         basename "$A" > "$outDir"/../.LAUNCHER_A_WAS_"$A" 2>&1 "$outDir"/../.LAUNCHER_A_WAS_"$A" || true
         basename "$B" version > "$outDir"/../.LAUNCHER_B_WAS_"$B" 2>&1 "$outDir"/../.LAUNCHER_B_WAS_"$B" || true
+        python3 "$scripts_basedir"/extract_dynawo_automata_changes_contgcase.py -s "$outDir"/aut/"$prefix"-Dynawo-aut-diff.csv "$outDir"/xml/"$prefix"-Dynawo.IIDM.xml.xz "$outDir"/../"$basecase_name"/
+        python3 "$scripts_basedir"/extract_hades_automata_changes_contgcase.py -s "$outDir"/aut/"$prefix"-Hades-aut-diff.csv "$outDir"/xml/"$prefix"-Hades.Out.xml.xz "$outDir"/../"$basecase_name"/
+        
     else
         DWO_JOBFILE=$(python3 "$DWO_JOBINFO_SCRIPT" "$CONTG_CASE" | grep -F "job_file" | cut -d'=' -f2)
         DWO_JOBFILE=$(basename "$DWO_JOBFILE")
@@ -343,6 +348,9 @@ else
     run_dynawo "B" "$B"
     basename "$A" version > "$outDir"/../.LAUNCHER_A_WAS_"$A" 2>&1 "$outDir"/../.LAUNCHER_A_WAS_"$A" || true 
     basename "$B" version > "$outDir"/../.LAUNCHER_B_WAS_"$B" 2>&1 "$outDir"/../.LAUNCHER_B_WAS_"$B" || true
+    basecase_name=$(basename "$BASECASE")
+    python3 "$scripts_basedir"/extract_dynawo_automata_changes_contgcase.py -s "$outDir"/aut/"$prefix"-DynawoA-aut-diff.csv "$outDir"/xml/"$prefix"-Dynawo.IIDMA.xml.xz "$outDir"/../"$basecase_name"/A/
+    python3 "$scripts_basedir"/extract_dynawo_automata_changes_contgcase.py -s "$outDir"/aut/"$prefix"-DynawoB-aut-diff.csv "$outDir"/xml/"$prefix"-Dynawo.IIDMB.xml.xz "$outDir"/../"$basecase_name"/B/
 fi
 
 

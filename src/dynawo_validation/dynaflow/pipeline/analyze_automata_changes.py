@@ -52,6 +52,8 @@ def main():
 
         electric_groups = []
         # TODO: First filter with electric distance
+        # TODO: Adapt it when we introduce separated dyd and par files contg
+        # Parametrize 100 with JOB.xml --> JOB --> dyd --> par
 
         """
         time_gruops = []
