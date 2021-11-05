@@ -178,7 +178,7 @@ def main():
     df_dynawo_branch_diff_1 = copy.deepcopy(df_dynawo_branch_contgcase_bus1)
 
     df_dynawo_branch_diff_2 = copy.deepcopy(df_dynawo_branch_contgcase_bus2)
-    
+
     df_dynawo_topo_diff = copy.deepcopy(df_dynawo_branch_contgcase_bus1)
 
     df_dynawo_ratioTapChanger_diff["DIFF"] = (
@@ -288,27 +288,26 @@ def main():
 
     df_dynawo_branch_diff_2["DIFF_NEG"] = df_dynawo_branch_diff_2["DIFF"]
     df_dynawo_branch_diff_2.loc[df_dynawo_branch_diff_2["DIFF"] >= 0, "DIFF_NEG"] = 0
-    
+
     df_dynawo_topo_diff["DIFF1"] = df_dynawo_branch_diff_1["DIFF"]
     df_dynawo_topo_diff["DIFF2"] = df_dynawo_branch_diff_2["DIFF"]
-    
-    df_dynawo_topo_diff["DIFF"] = np.select([(df_dynawo_topo_diff["DIFF1"] != 0) | (df_dynawo_topo_diff["DIFF2"] != 0)],[1],default=0)
+
+    df_dynawo_topo_diff["DIFF"] = np.select(
+        [(df_dynawo_topo_diff["DIFF1"] != 0) | (df_dynawo_topo_diff["DIFF2"] != 0)],
+        [1],
+        default=0,
+    )
 
     df_dynawo_topo_diff["DIFF_ABS"] = df_dynawo_topo_diff["DIFF"].abs()
 
-    df_dynawo_topo_diff.loc[
-        df_dynawo_topo_diff["DIFF_ABS"] != 0, "HAS_CHANGED"
-    ] = 1
-    df_dynawo_topo_diff.loc[
-        df_dynawo_topo_diff["DIFF_ABS"] == 0, "HAS_CHANGED"
-    ] = 0
+    df_dynawo_topo_diff.loc[df_dynawo_topo_diff["DIFF_ABS"] != 0, "HAS_CHANGED"] = 1
+    df_dynawo_topo_diff.loc[df_dynawo_topo_diff["DIFF_ABS"] == 0, "HAS_CHANGED"] = 0
 
     df_dynawo_topo_diff["DIFF_POS"] = df_dynawo_topo_diff["DIFF"]
     df_dynawo_topo_diff.loc[df_dynawo_topo_diff["DIFF"] <= 0, "DIFF_POS"] = 0
 
     df_dynawo_topo_diff["DIFF_NEG"] = df_dynawo_topo_diff["DIFF"]
     df_dynawo_topo_diff.loc[df_dynawo_topo_diff["DIFF"] >= 0, "DIFF_NEG"] = 0
-
 
     if args.save != "None":
         save_csv = args.save
