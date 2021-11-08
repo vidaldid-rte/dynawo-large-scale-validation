@@ -1,6 +1,7 @@
 %% -*-LaTeX-*-
 %%
 %% This manuscript has been written using the IEEEtran macros
+%% To be submitted to: Open Source Modelling and Simulation of Energy Systems (OSMSES 2022)
 %%
 %% (c) 2021 Grupo AIA, RTE  
 %%
@@ -198,7 +199,7 @@ scope of the tools in each of these two cases.
 \subsection{DynaWaltz}
 
 \Dynawo is flexible enough to accommodate several time scales: from
-sub-second near-EMT (electro-magnetic trainsients)~\cite{Masoon21}, to
+sub-second near-EMT (electro-magnetic transients)~\cite{Masoon21}, to
 long-term stability, to steady-state calculation~\cite{Cossart21}
 studies. DynaWaltz is the \Dynawo tool used for long-term stability
 studies, where the time scales are measured in minutes and the typical
@@ -207,7 +208,8 @@ time steps can be of the order of a few seconds. Used in this mode,
 contains most models impacting the system slow dynamics: tap-changers,
 loads, static var compensators, etc.; as well as secondary voltage
 regulation and special protection schemes. It is mostly used to study
-voltage collapses.
+voltage collapses. Other possible uses in the future may include
+cascading failure analysis~\cite{Bialek16}.
 
 Long-term stability studies are a core process of transmission operation whose
 role is ensuring power system stability: they consist in analyzing whether the
@@ -243,7 +245,7 @@ heuristics (accumulated over years of practice) drive the choice of control
 changes. However, these heuristics are not bullet-proof (for instance, one may
 encounter ``hunting'' oscillations, even with standard tap changers); and more
 importantly, they do not take into account the time constants and actual
-dynamics of each control. Therefore, even the most pricipled approaches from the
+dynamics of each control. Therefore, even the most principled approaches from the
 static power flow camp, such as those based on optimization\cite{Ju20},
 complementarity constraints~\cite{Murray15}, or HELM~\cite{Trias18} cannot
 guarantee arriving at the correct solution, since they are blind to the the
@@ -266,7 +268,7 @@ approach to validation is based on comparison against a
 well-established power flow, Hades 2, which is the currently used tool
 at RTE for steady state calculation. But in addition, the tool is also
 prepared for comparing different DynaFlow versions, and more
-generallly for assessing the effects of varying the case models, model
+generally for assessing the effects of varying the case models, model
 parameters, and solver parameters.
 
 
@@ -298,7 +300,7 @@ parameters, and solver parameters.
 Here follows a high-level description of the structure of the tools,
 along with the typical workflow that the user is expected to carry out
 when using them.  For the details on installation instructions and its
-requirements, please refer to the software documentation on the github
+requirements, please refer to the software documentation on the GitHub
 repository, which is to be located under the main Dyna$\omega$o
 project pages~\cite{DwoGitRepos}.
 
@@ -312,7 +314,7 @@ generation of contingency cases derived from a given base
 case. However, the design is quite modular; it is easy to modify the
 corresponding scripts so that the set of cases would be something
 other than contingencies, such as, for instance, variations of a given
-set of model parameters, or the solver timestep, etc.
+set of model parameters, or the solver time-step, etc.
 
 Viewed at a the highest level of abstraction, the tools are structured
 to follow this basic workflow:
@@ -354,7 +356,7 @@ in detail. From a functional point of view, the steps are:
     the notebook exports to CSV files (e.g. using Excel).
 \end{enumerate}
 
-Steps 1 and 2 are concerned about prepating the main input to this
+Steps 1 and 2 are concerned about preparing the main input to this
 whole process, i.e.~the base case, in a suitable format for its
 automated process. This should contain two cases for performing an A/B
 comparison analysis. The tools are prepared to compare \Dynawo
@@ -385,12 +387,12 @@ wants to run the pipeline manually step by step.
 
 \begin{figure}
   \centering
-  \includegraphics[width=0.48\textwidth]{figs/pipeline1}
-  \caption{\textcolor{red}{[TODO: IMPROVE FIG]} The processing
-    pipeline for validating DynaWaltz against Astre, based on
-    contingency cases. The pipeline for DynaFlow vs.~Hades 2 follows
-    the same architecture. In both cases, one can also compare Dynawo
-    vs.~Dynawo cases (or different versions of Dynawo).}
+  \includegraphics[width=0.48\textwidth]{figs/pipeline}
+  \caption{The processing pipeline for validating DynaWaltz against
+    Astre, based on contingency cases. The pipeline for DynaFlow
+    vs.~Hades 2 follows the same architecture. In both cases, one can
+    also compare Dynawo vs.~Dynawo cases (or different versions of
+    Dynawo).}
   \label{fig:pipeline1}
 \end{figure}
 
@@ -419,18 +421,18 @@ few hard-coded assumptions:
 \item All the files comprising the case should be stored under one
   single directory (the name of this parent directory is free).
 \item In the case of \Dynawo vs.\ Astre comparisons, the Astre case
-  should be in a subfolder named ``Astre'', and the DynaWaltz case
+  should be in a sub-folder named ``Astre'', and the DynaWaltz case
   should sit at the first level of the directory. Actually, only the
   \Dynawo ``job'' file is required to be there--the rest of \Dynawo's
   input files are inferred from the job file and could sit inside
-  subfolders, as they typically are.  However, the job file name
-  should contain the word \code{JOB} and have xml extension in order
+  sub-folders, as they typically are.  However, the job file name
+  should contain the word \code{JOB} and have XML extension in order
   to be identified.
 \item In the case of \Dynawo vs.\ \Dynawo, the job files should sit at
   the first level of the directory, their names should contain the
-  word \code{JOB\_A}, \code{JOB\_B}, and have xml extension. The rest
+  word \code{JOB\_A}, \code{JOB\_B}, and have XML extension. The rest
   of \Dynawo's input files are inferred from the job file, but it is
-  recommended that they are separated into subfolders \code{A} and
+  recommended that they are separated into sub-folders \code{A} and
   \code{B}. A utility script is provided in order to restructure base
   cases using these conventions.
 \end{itemize}
@@ -444,7 +446,7 @@ contingency cases will then contain this common set of curves--plus a few more
 related to the specific contingency.
 
 On the other hand, there are a few optional arrangements that can result in very
-significative storage and CPU time savings, particularly when tens of thousands
+significant storage and CPU time savings, particularly when tens of thousands
 of contingencies are created and run.  Some are trivial, such as reducing the
 log level, eliminating unnecessary output files from the job file, or
 re-indenting all XML files in order to produce smaller diffs (contingencies are
@@ -475,13 +477,13 @@ Python modules, as depicted in Fig.~\ref{fig:pipeline1}:
   differences in the way that equivalent loads are merged, or in bus-branch
   vs.\ node-breaker representation choices.
 \item \code{run\_all\_contg.sh}: run \Dynawo and Astre on all generated
-  contingency cases, with the option of spawning jobs in parallell if several
+  contingency cases, with the option of spawning jobs in parallel if several
   CPU cores are available (it uses GNU parallel).  A lower-level script
   (\code{run\_one\_contg.sh} takes care of collecting and compressing all
   results and log files, erasing the contingency cases. It also calls a module
   (\code{extract\_automata\_changes.py}) to extract data about about certain
   events; in our case, transformer taps, shunt bank changes, and secondary
-  voltage control actuations.
+  voltage control actuation.
 \item \code{calc\_*\_diffmetrics.py}: compute various metrics for
   comparing results from both simulators. This is done separately for
   curve data and for automata events. Section~\ref{sec:metrics} below
@@ -502,7 +504,7 @@ scheduling a non-interactive batch job with cron, for instance.
 
 \subsection{Details for DynaFlow}
 
-The system for DynaFlow was constructed later and therefore benefitted from the
+The system for DynaFlow was constructed later and therefore benefited from the
 experience gained with the experimentation and trials done for the validation of
 DynaWaltz. It is organized along the same philosophy and structure, so for
 brevity, only a few significant differences will be highlighted. 
@@ -514,9 +516,9 @@ data efficiently, computes several metrics of interest, and finally produces a
 summary of differences and a Jupyter notebook for deep analysis of the results.
 What is different is that in this case the solution of interest is the final
 steady state power flow, and therefore all data and metrics involved are
-completely different. Since Hades is a static powerflow engine, the time-domain
+completely different. Since Hades is a static power flow engine, the time-domain
 evolution of continuous variables and discrete events (protection relays, taps,
-shunts, etc.) cannot be compared; but if curves are configured for Dynawaltz,
+shunts, etc.) cannot be compared; but if curves are configured for DynaWaltz,
 their output is kept, as they are useful for understanding the root cause of
 large differences.  This is, after all, one of the main \emph{raisons d'être}
 for DynaFlow, namely its ability to calculate a more correct steady state thanks
@@ -528,7 +530,7 @@ DynaWaltz pipeline shown above:
 \begin{itemize}
 \item \code{create\_*\_contg.py}: generate single-element contingency cases.
 \item \code{run\_all\_contg.sh}: run \Dynawo and Hades on all generated
-  contingency cases, in parallell if several CPU cores are available.  It calls
+  contingency cases, in parallel if several CPU cores are available.  It calls
   (\code{run\_one\_contg.sh} (to collect and compresses results and logs) and
   \code{extract\_powerflow\_values.py} (to extract the power flow in a common
   format), and \code{extract\_automata\_changes.py} (to extract tap, shunt, and
@@ -553,7 +555,7 @@ Orchestrating this whole process, we have a high-level driver script,
 \label{sec:metrics}
 
 The quantitative comparison of results coming out of different dynamic
-simulators is often a challenge, but it becomes highyly nontrivial
+simulators is often a challenge, but it becomes highly nontrivial
 when dealing with large scale, real transmission networks. It is
 assumed here that one is past the stage of having validated the
 simulators at the level of very simple networks with one or two buses,
@@ -591,7 +593,7 @@ Conceptually, we adopted the following itinerary:
   \item Then design the \emph{metrics} for measuring the distance
     between the two simulator results in the space of said reduced
     parameters.
-  \item Design effective vizualizations. This is essential not only
+  \item Design effective visualizations. This is essential not only
     for the final tool, but as a critical aid in guiding the design of
     metrics.
   \item Define validation \emph{thresholds} for each class of such
@@ -704,6 +706,7 @@ all these parameters graphically.
 
 
 \subsubsection{Designing the metrics}
+\label{sssec:metrics}
 With the above selected variables and the defined reduced parameters,
 there's 25 different categories (5 variable types x 5 reduced
 parameters) for curves. In each category, there's usually more than
@@ -752,10 +755,6 @@ category).
 
 \subsubsection{Compound scoring and validation thresholds}
 
-% TODO: expand a bit more the discussion about: (a) compound scores
-% built from ``relative error'' metrics; (b) threshold metrics for
-% validation, built from ``absolute error'' metrics.]}
-
 Compounding the 25 + 8 different categories into an aggregate metric
 needs to be done carefully, in order to deal with the ``apples vs. oranges''
 problem. Using relative error for each category sidesteps this problem (but
@@ -787,18 +786,18 @@ percentage varies.
 \subsection{DynaFlow metrics}
 
 Compared to dynamic simulations, the problem of establishing metrics
-for comparing power flow solutions is, at first sight, relatively
-easier. If one focuses only on the steady state, the comparison can
-take place on the main variables: voltage magnitude at buses, real \&
-active power flows through branches, and real \& active power
-injections at buses (aggregate values, to sidestep modeling
+for comparing power flow solutions is, at first sight, comparatively
+easier. If one only focuses on the electrical steady state, the
+comparison can take place on the main variables: voltage magnitude at
+buses, real \& active power flows through branches, and real \& active
+power injections at buses (aggregate values, to sidestep modeling
 differences due to merged loads, for instance). We then use the
 L1-norm on the differences, either in absolute value or as a relative
-error--looking at both is often necessry to uncover the most relevant
+error--looking at both is often necessary to uncover the most relevant
 differences. As before, we do this separately for each magnitude type
 and then define some compound scoring in order to mix all types into a
-single figure, if one needs a single ranking of the ``top X worst
-cases''.
+single figure, so that a single ranking of the ``top X worst
+cases'' may be obtained.
 
 More interesting for DynaFlow, though, is to detect discrete events
 and activations of automatic controls in the simulation (relays, taps,
@@ -806,19 +805,23 @@ shunts, etc.).  When these take place, the differences between Hades
 and DynaFlow solutions may be too large and uninformative, since the
 case conditions may have diverged too much.  Looking at the timeline
 of events is then needed in order to make sense of the results.
-Metrics on the differences between powerflow solutions are not helpful
+Metrics on the differences between power flow solutions are not helpful
 in this case---it is simply better to detect the presence and number
 of such events.  In particular, it is useful to try detecting ``root
 cause'' events, that is, any significant event that in turn produces
 several other events in a cascade.  We are currently researching on
-this issue, since such cause--efecct relationships are hard to
-adscribe from the raw timeline of events without a proper electrical
-analysis. But even with false positives, this detection is useful.
+this issue, since such cause--effect relationships are hard to ascribe
+from the raw timeline of events without a proper electrical
+analysis. We therefore devised a heuristic based on the distance
+between events in time and space (i.e., distance measured by minimal
+impedance paths across the grid), with which one can group these
+events.  Even with ``false positives'', this kind of detection is
+proving useful when investigating cases with large differences.
 
 On the other hand, if one is comparing DynaFlow vs.\ DynaFlow results
-then all time-domain information (events and curves) is kept because
-the exact same metrics and comparisons discussed above for the case of
-DynaWaltz can be applied here.
+then all time-domain information (events and curves) is kept, because
+then all metrics and comparisons discussed above for the case of
+DynaWaltz can be applied here as well.
 
 
 
@@ -827,46 +830,165 @@ DynaWaltz can be applied here.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Use cases and some sample results}
 
-\begin{center}
-  \itshape  Outline:
-  \begin{itemize}
-    \item \TODO: select the most interesting cases
-    \item DynaWaltz: cases where we found how DynaWaltz and Astre
-      differed in the reactive/active injection of some generators,
-      systematically for a number of them (not just one outlier)
-    \item DynaWaltz: Show the scatter plot of ``bubbles''
-    \item DynaWaltz: Show the graph for the timeline of differences in automata events
-    \item DynaFlow: cases showing many differences, mentioning cascaded
-      disconnections, modelling of SVarC that are different (U+Lambda*Q in
-      DynaFlow, not in Hades), modelling of loads that can explain some
-      differences (restorative loads with voltage limitations), special
-      protection schemes in DynaFlow and not in Hades 2 (SMACC, ACMC, ADA, etc.)
-    \item DynaFlow: also mention the problem of ensuring that the steady-state is
-      actually attained at the end of the simulationb (i.e., flag unstable cases).
-  \end{itemize}
-\end{center}
+Originally the tool was designed for validating DynaWaltz on large
+networks by means of comparison with an established simulator (Astre)
+over a large set of contingency cases. Other use-cases were later
+added: comparing DynaWaltz vs.\ DynaWaltz cases, either for validating
+new versions or for experimenting with new models; and the screening
+of contingencies, either for reducing the test set in automated
+validation studies, or as an aim in itself.  All of these use-cases
+were extended and carried over to the power flow solver, DynaFlow.
 
+The pipeline results are shown in both graphical and tabular form in a
+Jupyter notebook designed for interaction.  Upon running this
+notebook, the eyes are drawn to the plot in
+Fig.~\ref{fig:bubbleplot1}.  This is one of the most useful graphs
+in the notebook; it is an X-Y scatter plot of the reduced magnitude of
+choice (dSS, dPP, TT, period, damping), for the signal class of
+choice: contingency bus voltages, pilot bus voltages, generator P/Q,
+or SVC control gain K-levels. The point color encodes the signal's
+transient length, while the size encodes its peak-to-peak amplitude.
+When the simulator results are the same, all dots accumulate on the
+diagonal. Any differences are clearly visible as deviations from the
+diagonal, and the point positions together with their color and size
+quickly inform the user about the severity of each contingency case.
 
+\begin{figure}
+  \centering
+  \includegraphics[width=\columnwidth]{figs/Ubus_dSS_GENS_20210211-0930_moreT600}
+  \caption{Scatter plot of dSS (change in steady state) of the bus
+    voltage at the contingency point, for single-generator contingency
+    cases (exhaustive N-1 contingency run: 4,577 cases). The point
+    color encodes the signal's transient length; the size encodes its
+    peak-to-peak amplitude.}
+  \label{fig:bubbleplot1}
+\end{figure}
+
+The power of this plot lies in that it synthesizes the globality of
+results.  It is useful to detect outliers but, more importantly, it is
+also very effective at revealing \emph{systematic} differences, that
+is, patterns in the deviations, which typically signal some sort of
+modeling differences. Figure~\ref{fig:bubbleplot1} shows an example of
+this: a significant number of buses accumulate on a small slope line
+away from the diagonal, possibly indicating that the generators near
+the contingency have some sort of modeling differences in their
+voltage control. Hypotheses such as this can quickly be put to the
+test by exploring the plot. Hovering over each point reveals the
+device's information (ID, voltage level, etc.), and clicking on it
+automatically selects the particular contingency case and device
+signal to plot on the rest of the graphs. This allows one to quickly
+to drill down to specific curve graphs and analyze behaviors.
+
+Visual inspection of the curve graphs is always useful as a
+double-check on a number of things. For instance, during development
+we once found many unexpected outliers, but a quick look at their
+curves quickly showed that the steady-state had not yet been achieved
+at the end of the run. If this happens, metrics for the differences
+are bound to be very large and completely meaningless.  This prompted
+us to improve our mechanisms for detecting and flagging unstable
+cases, so that they can be removed from the comparison.
+
+The tabular information is also there in the notebook, in case one
+wants to have access to the actual values and metrics. It is presented
+in data grid widgets that allow for sorting and filtering.  These
+values are also exported to CSV files, for further analysis in other
+tools such as Excel.  Data tables are particularly useful for ranking
+contingencies by means of the compound scoring metrics discussed in
+the previous section.
+
+As a brief example of how to analyze results with the notebook, let us
+take a look at the examples in Figs.~\ref{fig:bubbleplot2} and
+~\ref{fig:curveplot}. In this case the scatter plot represents the
+reactive power injection (Q) of all generators participating in the
+coordinated secondary voltage control (SVC) systems. There seems to be
+no significant patterns of systematic differences, such as lines or
+clusters off the diagonal, but there are several outliers sprinkled
+here and there.  As we become interested in any of these, we click on
+it and the graphs in Fig.~\ref{fig:curveplot} update to show the
+specific information for the chosen generator, under the specific
+contingency case. The time-domain signal shows indeed a net difference
+of about 60 Mvar in output, once the new steady state is reached. The
+graph stacked on top shows the metrics for the global differences in
+discrete events vs.~simulation time (see subsection~\ref{sssec:metrics}
+above).  In this case we observe that shunt and tap events do not
+differ much after the contingency, meaning that the differences in Q
+developing after t$\sim$1,100s must be due to purely local effects. This
+prompts us to investigate the model of this generator further, and to
+try finding whether there are commonalities shared by other outliers of
+this kind, etc.
+
+\begin{figure}
+  \centering
+  \includegraphics[width=\columnwidth]{figs/Qgen_dSS_GENS_20210211-0930_moreT600}
+  \caption{Same as Fig.~\ref{fig:bubbleplot1}, but for dSS in the Q
+    injected by the generators participating in the coordinated
+    secondary voltage control systems.}
+  \label{fig:bubbleplot2}
+\end{figure}
+
+\begin{figure}
+  \centering
+  \includegraphics[width=\columnwidth]{figs/Qgen_curve_GENS_20210211-0930_moreT600}
+  \caption{Bottom plot: injected reactive power (Q) of a generator
+    participating in SVC (contingency takes place at t=600s). Top
+    plot: global metrics for the differences in events vs.\ time.}
+  \label{fig:curveplot}
+\end{figure}
 
 
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Installation and usage}
-\begin{center}
-  \itshape Outline:
-  \begin{itemize}
-    \item Just a very short description. Refer to the Github repo for
-      all the gory details.
-    \item Mention this: facilitated installation via standard Python packaging
-      infrastructure: pip, PyPI. We did not use an application installer because
-      these tools are closer to a library than to a stand-alone monolithic
-      application. We want to promote further development and easy
-      customization.
-    \item On top of a standard bare-bones Python 3 environment, the
-          required third-party packages will add up to around 500 MB
-  \end{itemize}
-\end{center}
+\section{Technical notes}
+
+This tool is intentionally architected as a collection of loosely
+coupled scripts, mixing Python and Bash shell scripting. The rationale
+behind this choice is that we wanted to retain the flexibility to
+perform large changes, as this was to be a tool for research as much
+as a tool for automatic validation tests. Nevertheless, the tool is
+packaged as a proper Python package, for easy management of all the
+dependencies. Installation is simply a matter of pip-installing the
+package, taking up around 900MB of disk space on a clean virtual env.
+Note that we did not use an \emph{application} installer, since this
+is not a closed, monolithic application; instead, we want to promote
+further development and easy customization though modularity.
+
+As for the graphical part, we decided to use Jupyter
+notebooks~\cite{jupyter_nb} instead of dashboard-style application
+frameworks, for similar reasons. We wanted to retain the ability to
+quickly code up new graphs or new functionality, and working with
+notebooks has very quick turnaround times while also allowing some
+interactive, dashboard-style widgets.  Still, we were careful to
+separate as much code as possible into Python modules, instead of
+polluting the notebook. This is important because one of the big
+disadvantages of notebooks, from the point of view of software
+engineering practices, is that they make it very cumbersome (even
+impossible) to work with version control, code linters, profilers, and
+unit testing.
+
+In terms of proper coding practices, we use flake8~\cite{flake8} and
+shellcheck~\cite{shellcheck} as our main linters, occasionally using
+  Pylint~\cite{pylint} and PyCharm's~\cite{pycharm} checks as
+  well. For Python code formatting, we used Black~\cite{black}.
+
+Notable dependencies in our code, due to their usefulness, are
+Pandas~\cite{pandas}, NumPy~\cite{numpy}, and
+NetworkX~\cite{networkX}.  Launching many simulator instances in
+parallel is enabled thanks to GNU parallel~\cite{GNUparallel}, a very
+robust and flexible utility. For graphics, we opted for Plotly due to
+its maturity, wide selection of chart types, and their interactivity
+through IPython widgets.  The only downside encountered is that Plotly
+charts start showing bad performance when the number of points in the
+chart go over approximately 5,000.  This is the case in
+Figs.~\ref{fig:bubbleplot1} and \ref{fig:bubbleplot2}: since we
+routinely deal with contingency runs exceeding 12,000 cases, each
+having more than 30 variables in each class, we had to devise ways to
+intelligently reduce those $\sim$360,000 points to something more
+manageable: a small algorithm to dynamically remove non-interesting
+points, i.e.~those close to the diagonal and to the origin.
+
+The tool is expected to be released soon as Open Source, under the
+umbrella of all the other \Dynawo projects~\cite{DwoGitRepos}.
 
 
 
@@ -874,45 +996,37 @@ DynaWaltz can be applied here.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Conclusion}
 
-\begin{center}
-  \itshape Outline:
-  \begin{itemize}
-    \item validation of dyn simulators is hard; you need large-network
-          functional testing (i.e. not only individual element models in isolation)
-    \item but also need a means to explore the effects of different model
-          choices, model parameters, solver parameters, etc. on the behavior
-          of the whole network.
-    \item also for testing new versions of the software (i.e. as a
-          complement to Unit Testing)
-    \item This enables establishing an ongoing testing procedure to keep
-          evolving the software, the models, and their parameterization.
-    \item these tools presented here leverage modern rapid development
-          tools from the Python ecosystem (Pandas, Jupyter Notebooks) to
-          accomplish this. Can automatically configure extensive sets of test
-          case and manage large amounts of output
-    \item to be released as Open Source under the Dyna$\omega$o project
-          repo. Easily customizable and extensible.
-  \end{itemize}
-\end{center}
+We have presented a tool for the testing and validation of dynamic
+simulators DynaWaltz and DynaFlow on large, real-world transmission
+networks.  Our approach is based on the extensive simulation of
+contingency cases, comparing the results to another
+already-established simulator acting as a reference. The tool may also
+be used for testing new versions of the software (i.e., as a
+complement to Unit Testing); or for exploring the effects of different
+modeling choices, model parameters, solver parameters, etc., on the
+behavior of the whole network.  Besides supporting manual analysis of
+results, the tool can be used for deploying automated testing
+procedures to help evolving the software, the models, and their
+parameterization.
+
+To meet the challenges involved in taking quantitative measurements of
+the differences between simulations, in ways that make sense from the
+electrical point of view, we researched on how to select the most
+relevant output values, along with the corresponding metrics to assess
+the distance between two results. In the case of DynaWaltz, this
+involved the distillation of data into a reduced set of parameters
+that characterize the most relevant features of the time-domain
+signals.  Another challenge was dealing with such large amounts of
+data efficiently, and designing effective visualizations for the
+results. For this, we leveraged several modern libraries and rapid
+development tools from the Python ecosystem.
 
 
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section*{Acknowledgment}
-
-\TODO We thank...  (RTE, Linux Foundation Energy?)
-
-Lorem ipsum~\cite{Fabozzi09} dolor sit amet~\cite{Fabozzi11}, consectetur
-adipiscing elit. Pellentesque neque arcu, pellentesque vel metus sed, semper
-efficitur diam. Nulla tortor tortor, efficitur non accumsan vel, dignissim vitae
-risus. Fusce sit amet nibh eget ante consequat pretium. Donec vel nulla vitae
-sapien aliquet semper eget ut enim. In ultrices blandit metus, vel ultrices
-sapien pretium id. Maecenas tincidunt egestas nibh, at sodales metus blandit
-a. Integer auctor consequat mauris, non luctus erat tincidunt vitae. Integer
-accumsan dapibus metus, ut posuere felis cursus vitae. Quisque vulputate dui
-quis turpis auctor, at rutrum nibh fermentum. Quisque eu elit eu mi molestie
-pulvinar id vitae sapien.
+%% \section*{Acknowledgment}
+%% Any thanks/ack to funding bodies? (Linux Foundation Energy?)
 
 
 
