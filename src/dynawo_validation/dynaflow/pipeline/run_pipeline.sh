@@ -370,8 +370,11 @@ for DEVICE in "${!create_contg[@]}"; do
        colormsg "*** COMPUTING TOP 10 DIFFS:"
        python3 "$DWO_VALIDATION_SRC"/pipeline/top_10_diffs_dflow.py "$RESULTS_DIR"/pf_sol/ > "$RESULTS_DIR"/../top_10_diffs_"$DEVICE".txt
        echo
-    
-    
+       
+       colormsg "*** COLLECTING AUT DIFFS:"
+       python3 "$DWO_VALIDATION_SRC"/pipeline/collect_aut_diffs.py "$RESULTS_DIR"/aut/ "$RESULTS_DIR"/../ "$BASECASE"
+       echo
+       
        colormsg "*** CREATING NOTEBOOK:" 
        # Create notebook
        python3 "$DWO_VALIDATION_SRC"/notebooks/generate_notebooks.py "$(cd "$(dirname "$RESULTS_DIR")"; pwd)/" "$BASECASE" "$DEVICE"

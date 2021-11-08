@@ -1,0 +1,157 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+#
+# (c) Grupo AIA
+#
+#
+# collect_aut_diffs.py:
+#
+# This script extracts the differences between case A and case B and saves them in csv.xz format
+
+import glob
+import pandas as pd
+import sys
+from pathlib import Path
+import argparse
+import numpy as np
+import os
+from dynawo_validation.dynaflow.pipeline.dwo_jobinfo import is_dwohds
+import re
+
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    "aut_dir",
+    help="aut_dir directory",
+)
+parser.add_argument(
+    "results_dir",
+    help="results_dir directory",
+)
+parser.add_argument(
+    "basecase",
+    help="basecase directory",
+)
+
+
+args = parser.parse_args()
+
+
+def find_launchers(pathtofiles):
+    launcherA = None
+    launcherB = None
+    for file in os.listdir(pathtofiles):
+        basefile = os.path.basename(file)
+        if ".LAUNCHER_A_WAS_" == basefile[:16] and launcherA == None:
+            launcherA = basefile[16:]
+        elif ".LAUNCHER_A_WAS_" == basefile[:16]:
+            raise ValueError(f"Two or more .LAUNCHER_WAS_A in results dir")
+        elif ".LAUNCHER_B_WAS_" == basefile[:16] and launcherB == None:
+            launcherB = basefile[16:]
+        elif ".LAUNCHER_B_WAS_" == basefile[:16]:
+            raise ValueError(f"Two or more .LAUNCHER_WAS_A in results dir")
+    return launcherA, launcherB
+
+
+def main():
+    aut_dir = args.aut_dir
+    results_dir = args.results_dir
+    basecase = args.basecase
+
+    if aut_dir[-1] != "/":
+        aut_dir = aut_dir + "/"
+    if results_dir[-1] != "/":
+        results_dir = results_dir + "/"
+    if basecase[-1] != "/":
+        basecase = basecase + "/"
+
+    launcherA, launcherB = find_launchers(results_dir)
+
+    data_files_list_sim_A = []
+    data_files_list_sim_B = []
+    data_files = os.listdir(aut_dir)
+
+    if is_dwohds(basecase):
+        if launcherA[:5] == "hades":
+            for i in data_files:
+                if i not in data_files_list_sim_A and re.match(
+                    ".*-Hades-aut-diff.csv", i
+                ):
+                    data_files_list_sim_A.append(i)
+            for i in data_files:
+                if i not in data_files_list_sim_B and re.match(
+                    ".*-Dynawo-aut-diff.csv", i
+                ):
+                    data_files_list_sim_B.append(i)
+        else:
+            for i in data_files:
+                if i not in data_files_list_sim_A and re.match(
+                    ".*-Dynawo-aut-diff.csv", i
+                ):
+                    data_files_list_sim_A.append(i)
+            for i in data_files:
+                if i not in data_files_list_sim_B and re.match(
+                    ".*-Hades-aut-diff.csv", i
+                ):
+                    data_files_list_sim_B.append(i)
+    else:
+        for i in data_files:
+            if i not in data_files_list_sim_A and re.match(
+                ".*-DynawoA-aut-diff.csv", i
+            ):
+                data_files_list_sim_A.append(i)
+        for i in data_files:
+            if i not in data_files_list_sim_B and re.match(
+                ".*-DynawoB-aut-diff.csv", i
+            ):
+                data_files_list_sim_B.append(i)
+
+    df_temp = read_aut_changes(aut_dir + data_files_list_sim_A[0])
+    temp_ind = list(df_temp.index)
+    for x in range(len(temp_ind)):
+        temp_ind[x] = data_files_list_sim_A[0][:-21] + "-" + temp_ind[x]
+    df_temp["ID"] = temp_ind
+    df_temp.set_index("ID", inplace=True)
+    dataframeA = df_temp
+    os.remove(aut_dir + data_files_list_sim_A[0])
+
+    for j in data_files_list_sim_A[1:]:
+        df_temp = read_aut_changes(aut_dir + j)
+        temp_ind = list(df_temp.index)
+        for x in range(len(temp_ind)):
+            temp_ind[x] = j[:-21] + "-" + temp_ind[x]
+        df_temp["ID"] = temp_ind
+        df_temp.set_index("ID", inplace=True)
+        dataframeA = dataframeA.append(df_temp)
+        os.remove(aut_dir + j)
+
+    df_temp = read_aut_changes(aut_dir + data_files_list_sim_B[0])
+    temp_ind = list(df_temp.index)
+    for x in range(len(temp_ind)):
+        temp_ind[x] = data_files_list_sim_B[0][:-21] + "-" + temp_ind[x]
+    df_temp["ID"] = temp_ind
+    df_temp.set_index("ID", inplace=True)
+    dataframeB = df_temp
+    os.remove(aut_dir + data_files_list_sim_B[0])
+
+    for j in data_files_list_sim_B[1:]:
+        df_temp = read_aut_changes(aut_dir + j)
+        temp_ind = list(df_temp.index)
+        for x in range(len(temp_ind)):
+            temp_ind[x] = j[:-21] + "-" + temp_ind[x]
+        df_temp["ID"] = temp_ind
+        df_temp.set_index("ID", inplace=True)
+        dataframeB = dataframeB.append(df_temp)
+        os.remove(aut_dir + j)
+
+    dataframeA.to_csv(aut_dir + "SIMULATOR_A_AUT_CHANGES.csv", sep=";")
+
+    dataframeB.to_csv(aut_dir + "SIMULATOR_B_AUT_CHANGES.csv", sep=";")
+
+
+def read_aut_changes(aut_dir):
+    data = pd.read_csv(aut_dir, sep=";", index_col=0, compression="infer")
+    return data
+
+
+if __name__ == "__main__":
+    sys.exit(main())

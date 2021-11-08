@@ -17,6 +17,10 @@ def read_csv_metrics(pf_dir):
     data = pd.read_csv(pf_dir + "/pf_metrics/metrics.csv.xz", index_col=0)
     return data
 
+def read_csv_aut_diffs(aut_dir):
+    dataA = pd.read_csv(aut_dir + "/SIMULATOR_A_AUT_CHANGES.csv", sep=";", index_col=0)
+    dataB = pd.read_csv(aut_dir + "/SIMULATOR_B_AUT_CHANGES.csv", sep=";", index_col=0)
+    return dataA, dataB
 
 # Create the first graph
 def get_initial_graph(xiidm_file, value, t, c):
@@ -396,6 +400,8 @@ def paint_graph(C, data, nodetype, nodemetrictype, edgetype, edgemetrictype):
 
 # Define the structure of the output
 def show_displays(
+    aut_diffs_A,
+    aut_diffs_B,
     def_volt_level,
     sdf,
     container1,
@@ -419,6 +425,8 @@ def show_displays(
     """
         )
     )
+    display(aut_diffs_A)
+    display(aut_diffs_B)
     display(def_volt_level)
     display(sdf)
     display(container1)
@@ -530,6 +538,8 @@ def run_all(
     do_displaybutton()
 
     df = read_csv_metrics(PF_SOL_DIR)
+    
+    aut_diffs_A, aut_diffs_B = read_csv_aut_diffs(RESULTS_DIR+"/"+ PREFIX +"/aut/")
 
     # Get list of contingency cases
     contg_cases = list(df["cont"].unique())
@@ -609,6 +619,9 @@ def run_all(
     )
 
     # Create the required widgets for visualization
+    aut_diffs_A_grid = qgrid.QgridWidget(df=aut_diffs_A)  
+    aut_diffs_B_grid = qgrid.QgridWidget(df=aut_diffs_B) 
+    
     sdf = qgrid.QgridWidget(df=df)
 
     g = go.FigureWidget(data=[current_general_trace], layout=layout1)
@@ -696,6 +709,8 @@ def run_all(
 
     # Display all the objects and get html subgraph id
     html_graph = show_displays(
+        aut_diffs_A_grid,
+        aut_diffs_B_grid,
         def_volt_level,
         sdf,
         container1,
