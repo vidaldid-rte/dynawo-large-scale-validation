@@ -3,7 +3,7 @@ import plotly.graph_objects as go
 from dynawo_validation.dynaflow.notebooks import create_graph
 from IPython.display import display, HTML
 import qgrid
-from ipywidgets import widgets
+from ipywidgets import widgets, AppLayout
 import networkx as nx
 from pyvis.network import Network
 import warnings
@@ -425,8 +425,9 @@ def show_displays(
     """
         )
     )
-    display(aut_diffs_A)
-    display(aut_diffs_B)
+    
+    aut_diffs = AppLayout(left_sidebar=aut_diffs_A, right_sidebar=aut_diffs_B, align_items='center')
+    display(aut_diffs)
     display(def_volt_level)
     display(sdf)
     display(container1)
