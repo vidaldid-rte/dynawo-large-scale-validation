@@ -1,5 +1,21 @@
 
 
+@Comment Special entry to configure IEEEtran.bst
+@Comment We force the use of "et al." here (but remember to call \bstctlcite{BSTcontrol})
+@IEEEtranBSTCTL{BSTcontrol,
+  CTLuse_article_number     = "yes",
+  CTLuse_paper              = "yes",
+  CTLuse_forced_etal        = "yes",
+  CTLmax_names_forced_etal  = "2",
+  CTLnames_show_etal        = "1",
+  CTLuse_alt_spacing        = "yes",
+  CTLalt_stretch_factor     = "4",
+  CTLdash_repeated_names    = "yes",
+  CTLname_format_string     = "{f.~}{vv~}{ll}{, jj}",
+  CTLname_latex_cmd         = "",
+  CTLname_url_prefix        = "[Online]. Available:"
+}
+
 
 @online{Dynawo,
 title = {Dynawo\,---\,A hybrid {C}++/{M}odelica open source suite of
@@ -147,7 +163,7 @@ doi={10.17775/CSEEJPES.2019.02950}
 }
 
 
-@comment (Long name: "International Journal of Electrical Power \& Energy Systems")
+@Comment (Long name: "International Journal of Electrical Power \& Energy Systems")
 @article{Trias18,
    title = {A {P}ad{\'e}-{W}eierstrass technique for the rigorous enforcement of
                   control limits in power flow studies},
@@ -167,7 +183,7 @@ author={Bialek, Janusz and Ciapessoni, Emanuele and Cirio, Diego and
                   Henneaux, Pierre and Hines, Paul and Jardim, Jorge and Miller,
                   Stephen and Panteli, Mathaios and Papic, Milorad and Pitto,
                   Andrea and Quiros-Tortos, Jairo and Wu, Dee},
-journal={IEEE Transactions on Power Systems},
+journal=IEEE_J_PWRS,
 title={Benchmarking and Validation of Cascading Failure Analysis Tools},
 year={2016},
 volume={31},
