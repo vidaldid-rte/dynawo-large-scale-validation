@@ -111,10 +111,10 @@ def main():
     df_hades_regleurs_diff.loc[df_hades_regleurs_diff["DIFF"] >= 0, "DIFF_NEG"] = 0
 
     df_hades_dephaseurs_diff["DIFF"] = (
-        df_hades_regleurs_basecase["AUT_VAL"] - df_hades_regleurs_contg["AUT_VAL"]
+        df_hades_dephaseurs_diff["AUT_VAL"] - df_hades_dephaseurs_contg["AUT_VAL"]
     )
 
-    df_hades_dephaseurs_diff["DIFF_ABS"] = df_hades_regleurs_diff["DIFF"].abs()
+    df_hades_dephaseurs_diff["DIFF_ABS"] = df_hades_dephaseurs_diff["DIFF"].abs()
 
     df_hades_dephaseurs_diff.loc[
         df_hades_dephaseurs_diff["DIFF_ABS"] != 0, "HAS_CHANGED"
@@ -123,10 +123,10 @@ def main():
         df_hades_dephaseurs_diff["DIFF_ABS"] == 0, "HAS_CHANGED"
     ] = 0
 
-    df_hades_dephaseurs_diff["DIFF_POS"] = df_hades_regleurs_diff["DIFF"]
+    df_hades_dephaseurs_diff["DIFF_POS"] = df_hades_dephaseurs_diff["DIFF"]
     df_hades_dephaseurs_diff.loc[df_hades_dephaseurs_diff["DIFF"] <= 0, "DIFF_POS"] = 0
 
-    df_hades_dephaseurs_diff["DIFF_NEG"] = df_hades_regleurs_diff["DIFF"]
+    df_hades_dephaseurs_diff["DIFF_NEG"] = df_hades_dephaseurs_diff["DIFF"]
     df_hades_dephaseurs_diff.loc[df_hades_dephaseurs_diff["DIFF"] >= 0, "DIFF_NEG"] = 0
 
     if args.save != "None":

@@ -11,16 +11,21 @@ from matplotlib import pylab, cm, patches, pyplot
 import pylab as pl
 import numpy as np
 from lxml import etree
+import lzma
+import os
+import copy
 
 # Read the metric file
 def read_csv_metrics(pf_dir):
     data = pd.read_csv(pf_dir + "/pf_metrics/metrics.csv.xz", index_col=0)
     return data
 
+
 def read_csv_aut_diffs(aut_dir):
     dataA = pd.read_csv(aut_dir + "/SIMULATOR_A_AUT_CHANGES.csv", sep=";", index_col=0)
     dataB = pd.read_csv(aut_dir + "/SIMULATOR_B_AUT_CHANGES.csv", sep=";", index_col=0)
     return dataA, dataB
+
 
 # Create the first graph
 def get_initial_graph(xiidm_file, value, t, c):
@@ -159,6 +164,838 @@ def create_individual_trace(data, x, y, DATA_LIMIT):
     return trace
 
 
+def find_launchers(pathtofiles):
+    launcherA = None
+    launcherB = None
+    for file in os.listdir(pathtofiles):
+        basefile = os.path.basename(file)
+        if ".LAUNCHER_A_WAS_" == basefile[:16] and launcherA == None:
+            launcherA = basefile[16:]
+        elif ".LAUNCHER_A_WAS_" == basefile[:16]:
+            raise ValueError(f"Two or more .LAUNCHER_WAS_A in results dir")
+        elif ".LAUNCHER_B_WAS_" == basefile[:16] and launcherB == None:
+            launcherB = basefile[16:]
+        elif ".LAUNCHER_B_WAS_" == basefile[:16]:
+            raise ValueError(f"Two or more .LAUNCHER_WAS_A in results dir")
+    return launcherA, launcherB
+
+
+def create_aut_df(results_dir, A_B, contgcase, prefix, basecase, dwo_dwo, var_value):
+    launcherA, launcherB = find_launchers(results_dir)
+    run_dwo = True
+    if A_B == 1:
+        if launcherA[:5] == "hades":
+            xml_CONTGCASE = (
+                results_dir
+                + "/"
+                + prefix
+                + "/xml/"
+                + prefix
+                + "_"
+                + contgcase
+                + "-Hades.Out.xml.xz"
+            )
+            save_path = results_dir + basecase + "/"
+            run_dwo = False
+        else:
+            if dwo_dwo == 0:
+                xml_CONTGCASE = (
+                    results_dir
+                    + "/"
+                    + prefix
+                    + "/xml/"
+                    + prefix
+                    + "_"
+                    + contgcase
+                    + "-Dynawo.IIDM.xml.xz"
+                )
+                save_path = results_dir + basecase + "/"
+            else:
+                xml_CONTGCASE = (
+                    results_dir
+                    + "/"
+                    + prefix
+                    + "/xml/"
+                    + prefix
+                    + "_"
+                    + contgcase
+                    + "-Dynawo.IIDMA.xml.xz"
+                )
+                save_path = results_dir + basecase + "/A/"
+
+    if A_B == 2:
+        if launcherB[:5] == "hades":
+            xml_CONTGCASE = (
+                results_dir
+                + "/"
+                + prefix
+                + "/xml/"
+                + prefix
+                + "_"
+                + contgcase
+                + "-Hades.Out.xml.xz"
+            )
+            save_path = results_dir + basecase + "/"
+            run_dwo = False
+        else:
+            if dwo_dwo == 0:
+                xml_CONTGCASE = (
+                    results_dir
+                    + "/"
+                    + prefix
+                    + "/xml/"
+                    + prefix
+                    + "_"
+                    + contgcase
+                    + "-Dynawo.IIDM.xml.xz"
+                )
+                save_path = results_dir + basecase + "/"
+            else:
+                xml_CONTGCASE = (
+                    results_dir
+                    + "/"
+                    + prefix
+                    + "/xml/"
+                    + prefix
+                    + "_"
+                    + contgcase
+                    + "-Dynawo.IIDMB.xml.xz"
+                )
+                save_path = results_dir + basecase + "/B/"
+
+    if run_dwo == False:
+        hds_contgcase_tree = etree.parse(
+            lzma.open(xml_CONTGCASE), etree.XMLParser(remove_blank_text=True)
+        )
+        # MATCHING
+        if save_path[-1] != "/":
+            save_path = save_path + "/"
+        root = hds_contgcase_tree.getroot()
+        reseau = root.find("./reseau", root.nsmap)
+        # CONTG
+        if var_value == "ratioTapChanger":
+            donneesRegleurs = reseau.find("./donneesRegleurs", root.nsmap)
+            hades_regleurs_contg = dict()
+            for regleur in donneesRegleurs.iterfind("./regleur", root.nsmap):
+                for variable in regleur.iterfind("./variables", root.nsmap):
+                    regleur_id = int(variable.getparent().get("num"))
+                    if regleur_id not in hades_regleurs_contg:
+                        hades_regleurs_contg[regleur_id] = int(variable.get("plot"))
+                    else:
+                        raise ValueError(f"Tap ID repeated")
+
+            df_hades_regleurs_basecase = pd.read_csv(
+                save_path + "df_hades_regleurs_basecase.csv", sep=";", index_col=0
+            )
+
+            data_keys = hades_regleurs_contg.keys()
+            data_list = hades_regleurs_contg.values()
+            df_hades_regleurs_contg = pd.DataFrame(
+                data=data_list, index=data_keys, columns=["AUT_VAL"]
+            )
+
+            df_hades_regleurs_diff = copy.deepcopy(df_hades_regleurs_basecase)
+
+            df_hades_regleurs_diff = df_hades_regleurs_diff.rename(
+                columns={"AUT_VAL": "AUT_VAL_BASE"}
+            )
+            df_hades_regleurs_diff["AUT_VAL_CONTG"] = df_hades_regleurs_contg["AUT_VAL"]
+
+            df_hades_regleurs_diff["DIFF"] = (
+                df_hades_regleurs_basecase["AUT_VAL"]
+                - df_hades_regleurs_contg["AUT_VAL"]
+            )
+
+            df_hades_regleurs_diff["DIFF_ABS"] = df_hades_regleurs_diff["DIFF"].abs()
+
+            df_hades_regleurs_diff.loc[
+                df_hades_regleurs_diff["DIFF_ABS"] != 0, "HAS_CHANGED"
+            ] = 1
+            df_hades_regleurs_diff.loc[
+                df_hades_regleurs_diff["DIFF_ABS"] == 0, "HAS_CHANGED"
+            ] = 0
+
+            df_hades_regleurs_diff["DIFF_POS"] = df_hades_regleurs_diff["DIFF"]
+            df_hades_regleurs_diff.loc[
+                df_hades_regleurs_diff["DIFF"] <= 0, "DIFF_POS"
+            ] = 0
+
+            df_hades_regleurs_diff["DIFF_NEG"] = df_hades_regleurs_diff["DIFF"]
+            df_hades_regleurs_diff.loc[
+                df_hades_regleurs_diff["DIFF"] >= 0, "DIFF_NEG"
+            ] = 0
+
+            return df_hades_regleurs_diff
+
+        if var_value == "phaseTapChanger":
+            donneesDephaseurs = reseau.find("./donneesDephaseurs", root.nsmap)
+            hades_dephaseurs_contg = dict()
+            for dephaseur in donneesDephaseurs.iterfind("./dephaseur", root.nsmap):
+                for variable in dephaseur.iterfind("./variables", root.nsmap):
+                    dephaseur_id = int(variable.getparent().get("num"))
+                    if dephaseur_id not in hades_dephaseurs_contg:
+                        hades_dephaseurs_contg[dephaseur_id] = int(variable.get("plot"))
+                    else:
+                        raise ValueError(f"Tap ID repeated")
+
+            df_hades_dephaseurs_basecase = pd.read_csv(
+                save_path + "df_hades_dephaseurs_basecase.csv", sep=";", index_col=0
+            )
+
+            data_keys = hades_dephaseurs_contg.keys()
+            data_list = hades_dephaseurs_contg.values()
+            df_hades_dephaseurs_contg = pd.DataFrame(
+                data=data_list, index=data_keys, columns=["AUT_VAL"]
+            )
+
+            df_hades_dephaseurs_diff = copy.deepcopy(df_hades_dephaseurs_basecase)
+
+            df_hades_dephaseurs_diff = df_hades_dephaseurs_diff.rename(
+                columns={"AUT_VAL": "AUT_VAL_BASE"}
+            )
+            df_hades_dephaseurs_diff["AUT_VAL_CONTG"] = df_hades_dephaseurs_contg[
+                "AUT_VAL"
+            ]
+
+            df_hades_dephaseurs_diff["DIFF"] = (
+                df_hades_dephaseurs_basecase["AUT_VAL"]
+                - df_hades_dephaseurs_contg["AUT_VAL"]
+            )
+
+            df_hades_dephaseurs_diff["DIFF_ABS"] = df_hades_dephaseurs_diff[
+                "DIFF"
+            ].abs()
+
+            df_hades_dephaseurs_diff.loc[
+                df_hades_dephaseurs_diff["DIFF_ABS"] != 0, "HAS_CHANGED"
+            ] = 1
+            df_hades_dephaseurs_diff.loc[
+                df_hades_dephaseurs_diff["DIFF_ABS"] == 0, "HAS_CHANGED"
+            ] = 0
+
+            df_hades_dephaseurs_diff["DIFF_POS"] = df_hades_dephaseurs_diff["DIFF"]
+            df_hades_dephaseurs_diff.loc[
+                df_hades_dephaseurs_diff["DIFF"] <= 0, "DIFF_POS"
+            ] = 0
+
+            df_hades_dephaseurs_diff["DIFF_NEG"] = df_hades_dephaseurs_diff["DIFF"]
+            df_hades_dephaseurs_diff.loc[
+                df_hades_dephaseurs_diff["DIFF"] >= 0, "DIFF_NEG"
+            ] = 0
+
+            return df_hades_dephaseurs_diff
+
+    else:
+        dwo_contgcase_tree = etree.parse(
+            lzma.open(xml_CONTGCASE), etree.XMLParser(remove_blank_text=True)
+        )
+
+        # CONTG
+
+        root = dwo_contgcase_tree.getroot()
+        ns = etree.QName(root).namespace
+        if save_path[-1] != "/":
+            save_path = save_path + "/"
+
+        if var_value == "ratioTapChanger":
+            dynawo_ratioTapChanger_contgcase = dict()
+            for ratioTapChanger in root.iter("{%s}ratioTapChanger" % ns):
+                ratioTapChanger_id = ratioTapChanger.getparent().get("id")
+                if ratioTapChanger_id not in dynawo_ratioTapChanger_contgcase:
+                    dynawo_ratioTapChanger_contgcase[ratioTapChanger_id] = int(
+                        ratioTapChanger.get("tapPosition")
+                    )
+                else:
+                    raise ValueError(f"Tap ID repeated")
+
+            df_dynawo_ratioTapChanger_basecase = pd.read_csv(
+                save_path + "df_dynawo_ratioTapChanger_basecase.csv",
+                sep=";",
+                index_col=0,
+            )
+
+            data_keys = dynawo_ratioTapChanger_contgcase.keys()
+            data_list = dynawo_ratioTapChanger_contgcase.values()
+            df_dynawo_ratioTapChanger_contgcase = pd.DataFrame(
+                data=data_list, index=data_keys, columns=["TAP_VAL"]
+            )
+
+            df_dynawo_ratioTapChanger_diff = copy.deepcopy(
+                df_dynawo_ratioTapChanger_basecase
+            )
+
+            df_dynawo_ratioTapChanger_diff = df_dynawo_ratioTapChanger_diff.rename(
+                columns={"TAP_VAL": "TAP_VAL_BASE"}
+            )
+            df_dynawo_ratioTapChanger_diff[
+                "TAP_VAL_CONTG"
+            ] = df_dynawo_ratioTapChanger_contgcase["TAP_VAL"]
+
+            df_dynawo_ratioTapChanger_diff["DIFF"] = (
+                df_dynawo_ratioTapChanger_basecase["TAP_VAL"]
+                - df_dynawo_ratioTapChanger_contgcase["TAP_VAL"]
+            )
+
+            df_dynawo_ratioTapChanger_diff["DIFF_ABS"] = df_dynawo_ratioTapChanger_diff[
+                "DIFF"
+            ].abs()
+
+            df_dynawo_ratioTapChanger_diff.loc[
+                df_dynawo_ratioTapChanger_diff["DIFF_ABS"] != 0, "HAS_CHANGED"
+            ] = 1
+            df_dynawo_ratioTapChanger_diff.loc[
+                df_dynawo_ratioTapChanger_diff["DIFF_ABS"] == 0, "HAS_CHANGED"
+            ] = 0
+
+            df_dynawo_ratioTapChanger_diff["DIFF_POS"] = df_dynawo_ratioTapChanger_diff[
+                "DIFF"
+            ]
+            df_dynawo_ratioTapChanger_diff.loc[
+                df_dynawo_ratioTapChanger_diff["DIFF"] <= 0, "DIFF_POS"
+            ] = 0
+
+            df_dynawo_ratioTapChanger_diff["DIFF_NEG"] = df_dynawo_ratioTapChanger_diff[
+                "DIFF"
+            ]
+            df_dynawo_ratioTapChanger_diff.loc[
+                df_dynawo_ratioTapChanger_diff["DIFF"] >= 0, "DIFF_NEG"
+            ] = 0
+
+            return df_dynawo_ratioTapChanger_diff
+
+        if var_value == "phaseTapChanger":
+            dynawo_phaseTapChanger_contgcase = dict()
+            for phaseTapChanger in root.iter("{%s}phaseTapChanger" % ns):
+                phaseTapChanger_id = phaseTapChanger.getparent().get("id")
+                if phaseTapChanger_id not in dynawo_phaseTapChanger_contgcase:
+                    dynawo_phaseTapChanger_contgcase[phaseTapChanger_id] = int(
+                        phaseTapChanger.get("tapPosition")
+                    )
+                else:
+                    raise ValueError(f"Tap ID repeated")
+
+            df_dynawo_phaseTapChanger_basecase = pd.read_csv(
+                save_path + "df_dynawo_phaseTapChanger_basecase.csv",
+                sep=";",
+                index_col=0,
+            )
+
+            data_keys = dynawo_phaseTapChanger_contgcase.keys()
+            data_list = dynawo_phaseTapChanger_contgcase.values()
+            df_dynawo_phaseTapChanger_contgcase = pd.DataFrame(
+                data=data_list, index=data_keys, columns=["PSTAP_VAL"]
+            )
+
+            df_dynawo_phaseTapChanger_diff = copy.deepcopy(
+                df_dynawo_phaseTapChanger_basecase
+            )
+            df_dynawo_phaseTapChanger_diff = df_dynawo_phaseTapChanger_diff.rename(
+                columns={"PSTAP_VAL": "PSTAP_VAL_BASE"}
+            )
+            df_dynawo_phaseTapChanger_diff[
+                "PSTAP_VAL_CONTG"
+            ] = df_dynawo_phaseTapChanger_contgcase["PSTAP_VAL"]
+
+            df_dynawo_phaseTapChanger_diff["DIFF"] = (
+                df_dynawo_phaseTapChanger_basecase["PSTAP_VAL"]
+                - df_dynawo_phaseTapChanger_contgcase["PSTAP_VAL"]
+            )
+
+            df_dynawo_phaseTapChanger_diff["DIFF_ABS"] = df_dynawo_phaseTapChanger_diff[
+                "DIFF"
+            ].abs()
+
+            df_dynawo_phaseTapChanger_diff.loc[
+                df_dynawo_phaseTapChanger_diff["DIFF_ABS"] != 0, "HAS_CHANGED"
+            ] = 1
+            df_dynawo_phaseTapChanger_diff.loc[
+                df_dynawo_phaseTapChanger_diff["DIFF_ABS"] == 0, "HAS_CHANGED"
+            ] = 0
+
+            df_dynawo_phaseTapChanger_diff["DIFF_POS"] = df_dynawo_phaseTapChanger_diff[
+                "DIFF"
+            ]
+            df_dynawo_phaseTapChanger_diff.loc[
+                df_dynawo_phaseTapChanger_diff["DIFF"] <= 0, "DIFF_POS"
+            ] = 0
+
+            df_dynawo_phaseTapChanger_diff["DIFF_NEG"] = df_dynawo_phaseTapChanger_diff[
+                "DIFF"
+            ]
+            df_dynawo_phaseTapChanger_diff.loc[
+                df_dynawo_phaseTapChanger_diff["DIFF"] >= 0, "DIFF_NEG"
+            ] = 0
+
+            return df_dynawo_phaseTapChanger_diff
+
+        if var_value == "shunt":
+            dynawo_shunt_contgcase = dict()
+            for shunt in root.iter("{%s}shunt" % ns):
+                if shunt.get("bus") is not None:
+                    shunt_id = shunt.get("id")
+                    if shunt_id not in dynawo_shunt_contgcase:
+                        dynawo_shunt_contgcase[shunt_id] = 1
+                    else:
+                        raise ValueError(f"Tap ID repeated")
+                else:
+                    shunt_id = shunt.get("id")
+                    if shunt_id not in dynawo_shunt_contgcase:
+                        dynawo_shunt_contgcase[shunt_id] = 0
+                    else:
+                        raise ValueError(f"Tap ID repeated")
+
+            df_dynawo_shunt_basecase = pd.read_csv(
+                save_path + "df_dynawo_shunt_basecase.csv", sep=";", index_col=0
+            )
+
+            data_keys = dynawo_shunt_contgcase.keys()
+            data_list = dynawo_shunt_contgcase.values()
+            df_dynawo_shunt_contgcase = pd.DataFrame(
+                data=data_list, index=data_keys, columns=["SHUNT_CHG_VAL"]
+            )
+
+            df_dynawo_shunt_diff = copy.deepcopy(df_dynawo_shunt_basecase)
+
+            df_dynawo_shunt_diff = df_dynawo_shunt_diff.rename(
+                columns={"SHUNT_CHG_VAL": "SHUNT_CHG_VAL_BASE"}
+            )
+            df_dynawo_shunt_diff["SHUNT_CHG_VAL_CONTG"] = df_dynawo_shunt_contgcase[
+                "SHUNT_CHG_VAL"
+            ]
+
+            df_dynawo_shunt_diff["DIFF"] = (
+                df_dynawo_shunt_basecase["SHUNT_CHG_VAL"]
+                - df_dynawo_shunt_contgcase["SHUNT_CHG_VAL"]
+            )
+
+            df_dynawo_shunt_diff["DIFF_ABS"] = df_dynawo_shunt_diff["DIFF"].abs()
+
+            df_dynawo_shunt_diff.loc[
+                df_dynawo_shunt_diff["DIFF_ABS"] != 0, "HAS_CHANGED"
+            ] = 1
+            df_dynawo_shunt_diff.loc[
+                df_dynawo_shunt_diff["DIFF_ABS"] == 0, "HAS_CHANGED"
+            ] = 0
+
+            df_dynawo_shunt_diff["DIFF_POS"] = df_dynawo_shunt_diff["DIFF"]
+            df_dynawo_shunt_diff.loc[df_dynawo_shunt_diff["DIFF"] <= 0, "DIFF_POS"] = 0
+
+            df_dynawo_shunt_diff["DIFF_NEG"] = df_dynawo_shunt_diff["DIFF"]
+            df_dynawo_shunt_diff.loc[df_dynawo_shunt_diff["DIFF"] >= 0, "DIFF_NEG"] = 0
+
+            return df_dynawo_shunt_diff
+
+        if var_value == "branch_bus1":
+            dynawo_branch_contgcase_bus1 = dict()
+            dynawo_branch_contgcase_bus2 = dict()
+            for line in root.iter("{%s}line" % ns):
+                temp = [0, 0]
+                line_id = line.get("id")
+                if line.get("bus1") is not None:
+                    temp[0] = 1
+                if line.get("bus2") is not None:
+                    temp[1] = 1
+                if line_id not in dynawo_branch_contgcase_bus1:
+                    dynawo_branch_contgcase_bus1[line_id] = temp[0]
+                else:
+                    raise ValueError(f"Tap ID repeated")
+                if line_id not in dynawo_branch_contgcase_bus2:
+                    dynawo_branch_contgcase_bus2[line_id] = temp[1]
+                else:
+                    raise ValueError(f"Tap ID repeated")
+
+            for twoWindingsTransformer in root.iter("{%s}twoWindingsTransformer" % ns):
+                temp = [0, 0]
+                twoWindingsTransformer_id = twoWindingsTransformer.get("id")
+                if twoWindingsTransformer.get("bus1") is not None:
+                    temp[0] = 1
+                if twoWindingsTransformer.get("bus2") is not None:
+                    temp[1] = 1
+                if twoWindingsTransformer_id not in dynawo_branch_contgcase_bus1:
+                    dynawo_branch_contgcase_bus1[twoWindingsTransformer_id] = temp[0]
+                else:
+                    raise ValueError(f"Tap ID repeated")
+                if twoWindingsTransformer_id not in dynawo_branch_contgcase_bus2:
+                    dynawo_branch_contgcase_bus2[twoWindingsTransformer_id] = temp[1]
+                else:
+                    raise ValueError(f"Tap ID repeated")
+
+            df_dynawo_branch_basecase_bus1 = pd.read_csv(
+                save_path + "df_dynawo_branch_basecase_bus1.csv", sep=";", index_col=0
+            )
+
+            df_dynawo_branch_basecase_bus2 = pd.read_csv(
+                save_path + "df_dynawo_branch_basecase_bus2.csv", sep=";", index_col=0
+            )
+
+            data_keys = dynawo_branch_contgcase_bus1.keys()
+            data_list = dynawo_branch_contgcase_bus1.values()
+            df_dynawo_branch_contgcase_bus1 = pd.DataFrame(
+                data=data_list, index=data_keys, columns=["TOPO_CHG_VAL_1"]
+            )
+
+            data_keys = dynawo_branch_contgcase_bus2.keys()
+            data_list = dynawo_branch_contgcase_bus2.values()
+            df_dynawo_branch_contgcase_bus2 = pd.DataFrame(
+                data=data_list, index=data_keys, columns=["TOPO_CHG_VAL_2"]
+            )
+
+            df_dynawo_branch_diff_1 = copy.deepcopy(df_dynawo_branch_basecase_bus1)
+
+            df_dynawo_branch_diff_1 = df_dynawo_branch_diff_1.rename(
+                columns={"TOPO_CHG_VAL_1": "TOPO_CHG_VAL_1_BASE"}
+            )
+            df_dynawo_branch_diff_1[
+                "TOPO_CHG_VAL_1_CONTG"
+            ] = df_dynawo_branch_contgcase_bus1["TOPO_CHG_VAL_1"]
+
+            df_dynawo_branch_diff_2 = copy.deepcopy(df_dynawo_branch_basecase_bus2)
+
+            df_dynawo_branch_diff_2 = df_dynawo_branch_diff_2.rename(
+                columns={"TOPO_CHG_VAL_2": "TOPO_CHG_VAL_2_BASE"}
+            )
+            df_dynawo_branch_diff_2[
+                "TOPO_CHG_VAL_2_CONTG"
+            ] = df_dynawo_branch_contgcase_bus2["TOPO_CHG_VAL_2"]
+
+            df_dynawo_branch_diff_1["DIFF"] = (
+                df_dynawo_branch_basecase_bus1["TOPO_CHG_VAL_1"]
+                - df_dynawo_branch_contgcase_bus1["TOPO_CHG_VAL_1"]
+            )
+
+            df_dynawo_branch_diff_1["DIFF_ABS"] = df_dynawo_branch_diff_1["DIFF"].abs()
+
+            df_dynawo_branch_diff_1.loc[
+                df_dynawo_branch_diff_1["DIFF_ABS"] != 0, "HAS_CHANGED"
+            ] = 1
+            df_dynawo_branch_diff_1.loc[
+                df_dynawo_branch_diff_1["DIFF_ABS"] == 0, "HAS_CHANGED"
+            ] = 0
+
+            df_dynawo_branch_diff_1["DIFF_POS"] = df_dynawo_branch_diff_1["DIFF"]
+            df_dynawo_branch_diff_1.loc[
+                df_dynawo_branch_diff_1["DIFF"] <= 0, "DIFF_POS"
+            ] = 0
+
+            df_dynawo_branch_diff_1["DIFF_NEG"] = df_dynawo_branch_diff_1["DIFF"]
+            df_dynawo_branch_diff_1.loc[
+                df_dynawo_branch_diff_1["DIFF"] >= 0, "DIFF_NEG"
+            ] = 0
+
+            df_dynawo_branch_diff_2["DIFF"] = (
+                df_dynawo_branch_basecase_bus2["TOPO_CHG_VAL_2"]
+                - df_dynawo_branch_contgcase_bus2["TOPO_CHG_VAL_2"]
+            )
+
+            df_dynawo_branch_diff_2["DIFF_ABS"] = df_dynawo_branch_diff_2["DIFF"].abs()
+
+            df_dynawo_branch_diff_2.loc[
+                df_dynawo_branch_diff_2["DIFF_ABS"] != 0, "HAS_CHANGED"
+            ] = 1
+            df_dynawo_branch_diff_2.loc[
+                df_dynawo_branch_diff_2["DIFF_ABS"] == 0, "HAS_CHANGED"
+            ] = 0
+
+            df_dynawo_branch_diff_2["DIFF_POS"] = df_dynawo_branch_diff_2["DIFF"]
+            df_dynawo_branch_diff_2.loc[
+                df_dynawo_branch_diff_2["DIFF"] <= 0, "DIFF_POS"
+            ] = 0
+
+            df_dynawo_branch_diff_2["DIFF_NEG"] = df_dynawo_branch_diff_2["DIFF"]
+            df_dynawo_branch_diff_2.loc[
+                df_dynawo_branch_diff_2["DIFF"] >= 0, "DIFF_NEG"
+            ] = 0
+
+            return df_dynawo_branch_diff_1
+
+        if var_value == "branch_bus2":
+            dynawo_branch_contgcase_bus1 = dict()
+            dynawo_branch_contgcase_bus2 = dict()
+            for line in root.iter("{%s}line" % ns):
+                temp = [0, 0]
+                line_id = line.get("id")
+                if line.get("bus1") is not None:
+                    temp[0] = 1
+                if line.get("bus2") is not None:
+                    temp[1] = 1
+                if line_id not in dynawo_branch_contgcase_bus1:
+                    dynawo_branch_contgcase_bus1[line_id] = temp[0]
+                else:
+                    raise ValueError(f"Tap ID repeated")
+                if line_id not in dynawo_branch_contgcase_bus2:
+                    dynawo_branch_contgcase_bus2[line_id] = temp[1]
+                else:
+                    raise ValueError(f"Tap ID repeated")
+
+            for twoWindingsTransformer in root.iter("{%s}twoWindingsTransformer" % ns):
+                temp = [0, 0]
+                twoWindingsTransformer_id = twoWindingsTransformer.get("id")
+                if twoWindingsTransformer.get("bus1") is not None:
+                    temp[0] = 1
+                if twoWindingsTransformer.get("bus2") is not None:
+                    temp[1] = 1
+                if twoWindingsTransformer_id not in dynawo_branch_contgcase_bus1:
+                    dynawo_branch_contgcase_bus1[twoWindingsTransformer_id] = temp[0]
+                else:
+                    raise ValueError(f"Tap ID repeated")
+                if twoWindingsTransformer_id not in dynawo_branch_contgcase_bus2:
+                    dynawo_branch_contgcase_bus2[twoWindingsTransformer_id] = temp[1]
+                else:
+                    raise ValueError(f"Tap ID repeated")
+
+            df_dynawo_branch_basecase_bus1 = pd.read_csv(
+                save_path + "df_dynawo_branch_basecase_bus1.csv", sep=";", index_col=0
+            )
+
+            df_dynawo_branch_basecase_bus2 = pd.read_csv(
+                save_path + "df_dynawo_branch_basecase_bus2.csv", sep=";", index_col=0
+            )
+
+            data_keys = dynawo_branch_contgcase_bus1.keys()
+            data_list = dynawo_branch_contgcase_bus1.values()
+            df_dynawo_branch_contgcase_bus1 = pd.DataFrame(
+                data=data_list, index=data_keys, columns=["TOPO_CHG_VAL_1"]
+            )
+
+            data_keys = dynawo_branch_contgcase_bus2.keys()
+            data_list = dynawo_branch_contgcase_bus2.values()
+            df_dynawo_branch_contgcase_bus2 = pd.DataFrame(
+                data=data_list, index=data_keys, columns=["TOPO_CHG_VAL_2"]
+            )
+
+            df_dynawo_branch_diff_1 = copy.deepcopy(df_dynawo_branch_basecase_bus1)
+
+            df_dynawo_branch_diff_1 = df_dynawo_branch_diff_1.rename(
+                columns={"TOPO_CHG_VAL_1": "TOPO_CHG_VAL_1_BASE"}
+            )
+            df_dynawo_branch_diff_1[
+                "TOPO_CHG_VAL_1_CONTG"
+            ] = df_dynawo_branch_contgcase_bus1["TOPO_CHG_VAL_1"]
+
+            df_dynawo_branch_diff_2 = copy.deepcopy(df_dynawo_branch_basecase_bus2)
+
+            df_dynawo_branch_diff_2 = df_dynawo_branch_diff_2.rename(
+                columns={"TOPO_CHG_VAL_2": "TOPO_CHG_VAL_2_BASE"}
+            )
+            df_dynawo_branch_diff_2[
+                "TOPO_CHG_VAL_2_CONTG"
+            ] = df_dynawo_branch_contgcase_bus2["TOPO_CHG_VAL_2"]
+
+            df_dynawo_branch_diff_1["DIFF"] = (
+                df_dynawo_branch_basecase_bus1["TOPO_CHG_VAL_1"]
+                - df_dynawo_branch_contgcase_bus1["TOPO_CHG_VAL_1"]
+            )
+
+            df_dynawo_branch_diff_1["DIFF_ABS"] = df_dynawo_branch_diff_1["DIFF"].abs()
+
+            df_dynawo_branch_diff_1.loc[
+                df_dynawo_branch_diff_1["DIFF_ABS"] != 0, "HAS_CHANGED"
+            ] = 1
+            df_dynawo_branch_diff_1.loc[
+                df_dynawo_branch_diff_1["DIFF_ABS"] == 0, "HAS_CHANGED"
+            ] = 0
+
+            df_dynawo_branch_diff_1["DIFF_POS"] = df_dynawo_branch_diff_1["DIFF"]
+            df_dynawo_branch_diff_1.loc[
+                df_dynawo_branch_diff_1["DIFF"] <= 0, "DIFF_POS"
+            ] = 0
+
+            df_dynawo_branch_diff_1["DIFF_NEG"] = df_dynawo_branch_diff_1["DIFF"]
+            df_dynawo_branch_diff_1.loc[
+                df_dynawo_branch_diff_1["DIFF"] >= 0, "DIFF_NEG"
+            ] = 0
+
+            df_dynawo_branch_diff_2["DIFF"] = (
+                df_dynawo_branch_basecase_bus2["TOPO_CHG_VAL_2"]
+                - df_dynawo_branch_contgcase_bus2["TOPO_CHG_VAL_2"]
+            )
+
+            df_dynawo_branch_diff_2["DIFF_ABS"] = df_dynawo_branch_diff_2["DIFF"].abs()
+
+            df_dynawo_branch_diff_2.loc[
+                df_dynawo_branch_diff_2["DIFF_ABS"] != 0, "HAS_CHANGED"
+            ] = 1
+            df_dynawo_branch_diff_2.loc[
+                df_dynawo_branch_diff_2["DIFF_ABS"] == 0, "HAS_CHANGED"
+            ] = 0
+
+            df_dynawo_branch_diff_2["DIFF_POS"] = df_dynawo_branch_diff_2["DIFF"]
+            df_dynawo_branch_diff_2.loc[
+                df_dynawo_branch_diff_2["DIFF"] <= 0, "DIFF_POS"
+            ] = 0
+
+            df_dynawo_branch_diff_2["DIFF_NEG"] = df_dynawo_branch_diff_2["DIFF"]
+            df_dynawo_branch_diff_2.loc[
+                df_dynawo_branch_diff_2["DIFF"] >= 0, "DIFF_NEG"
+            ] = 0
+
+            return df_dynawo_branch_diff_2
+
+        if var_value == "branch_topo":
+            dynawo_branch_contgcase_bus1 = dict()
+            dynawo_branch_contgcase_bus2 = dict()
+            for line in root.iter("{%s}line" % ns):
+                temp = [0, 0]
+                line_id = line.get("id")
+                if line.get("bus1") is not None:
+                    temp[0] = 1
+                if line.get("bus2") is not None:
+                    temp[1] = 1
+                if line_id not in dynawo_branch_contgcase_bus1:
+                    dynawo_branch_contgcase_bus1[line_id] = temp[0]
+                else:
+                    raise ValueError(f"Tap ID repeated")
+                if line_id not in dynawo_branch_contgcase_bus2:
+                    dynawo_branch_contgcase_bus2[line_id] = temp[1]
+                else:
+                    raise ValueError(f"Tap ID repeated")
+
+            for twoWindingsTransformer in root.iter("{%s}twoWindingsTransformer" % ns):
+                temp = [0, 0]
+                twoWindingsTransformer_id = twoWindingsTransformer.get("id")
+                if twoWindingsTransformer.get("bus1") is not None:
+                    temp[0] = 1
+                if twoWindingsTransformer.get("bus2") is not None:
+                    temp[1] = 1
+                if twoWindingsTransformer_id not in dynawo_branch_contgcase_bus1:
+                    dynawo_branch_contgcase_bus1[twoWindingsTransformer_id] = temp[0]
+                else:
+                    raise ValueError(f"Tap ID repeated")
+                if twoWindingsTransformer_id not in dynawo_branch_contgcase_bus2:
+                    dynawo_branch_contgcase_bus2[twoWindingsTransformer_id] = temp[1]
+                else:
+                    raise ValueError(f"Tap ID repeated")
+
+            df_dynawo_branch_basecase_bus1 = pd.read_csv(
+                save_path + "df_dynawo_branch_basecase_bus1.csv", sep=";", index_col=0
+            )
+
+            df_dynawo_branch_basecase_bus2 = pd.read_csv(
+                save_path + "df_dynawo_branch_basecase_bus2.csv", sep=";", index_col=0
+            )
+
+            data_keys = dynawo_branch_contgcase_bus1.keys()
+            data_list = dynawo_branch_contgcase_bus1.values()
+            df_dynawo_branch_contgcase_bus1 = pd.DataFrame(
+                data=data_list, index=data_keys, columns=["TOPO_CHG_VAL_1"]
+            )
+
+            data_keys = dynawo_branch_contgcase_bus2.keys()
+            data_list = dynawo_branch_contgcase_bus2.values()
+            df_dynawo_branch_contgcase_bus2 = pd.DataFrame(
+                data=data_list, index=data_keys, columns=["TOPO_CHG_VAL_2"]
+            )
+
+            df_dynawo_branch_diff_1 = copy.deepcopy(df_dynawo_branch_basecase_bus1)
+
+            df_dynawo_branch_diff_1 = df_dynawo_branch_diff_1.rename(
+                columns={"TOPO_CHG_VAL_1": "TOPO_CHG_VAL_1_BASE"}
+            )
+            df_dynawo_branch_diff_1[
+                "TOPO_CHG_VAL_1_CONTG"
+            ] = df_dynawo_branch_contgcase_bus1["TOPO_CHG_VAL_1"]
+
+            df_dynawo_branch_diff_2 = copy.deepcopy(df_dynawo_branch_basecase_bus2)
+
+            df_dynawo_branch_diff_2 = df_dynawo_branch_diff_2.rename(
+                columns={"TOPO_CHG_VAL_2": "TOPO_CHG_VAL_2_BASE"}
+            )
+            df_dynawo_branch_diff_2[
+                "TOPO_CHG_VAL_2_CONTG"
+            ] = df_dynawo_branch_contgcase_bus2["TOPO_CHG_VAL_2"]
+
+            df_dynawo_topo_diff = copy.deepcopy(df_dynawo_branch_basecase_bus1)
+            df_dynawo_topo_diff = df_dynawo_topo_diff.rename(
+                columns={"TOPO_CHG_VAL_1": "TOPO_CHG_VAL_BASE"}
+            )
+
+            df_dynawo_topo_diff["TOPO_CHG_VAL_BASE"] = (
+                df_dynawo_branch_diff_1["TOPO_CHG_VAL_1_BASE"]
+                + df_dynawo_branch_diff_2["TOPO_CHG_VAL_2_BASE"]
+            )
+            df_dynawo_topo_diff["TOPO_CHG_VAL_CONTG"] = (
+                df_dynawo_branch_diff_1["TOPO_CHG_VAL_1_CONTG"]
+                + df_dynawo_branch_diff_2["TOPO_CHG_VAL_2_CONTG"]
+            )
+
+            df_dynawo_branch_diff_1["DIFF"] = (
+                df_dynawo_branch_basecase_bus1["TOPO_CHG_VAL_1"]
+                - df_dynawo_branch_contgcase_bus1["TOPO_CHG_VAL_1"]
+            )
+
+            df_dynawo_branch_diff_1["DIFF_ABS"] = df_dynawo_branch_diff_1["DIFF"].abs()
+
+            df_dynawo_branch_diff_1.loc[
+                df_dynawo_branch_diff_1["DIFF_ABS"] != 0, "HAS_CHANGED"
+            ] = 1
+            df_dynawo_branch_diff_1.loc[
+                df_dynawo_branch_diff_1["DIFF_ABS"] == 0, "HAS_CHANGED"
+            ] = 0
+
+            df_dynawo_branch_diff_1["DIFF_POS"] = df_dynawo_branch_diff_1["DIFF"]
+            df_dynawo_branch_diff_1.loc[
+                df_dynawo_branch_diff_1["DIFF"] <= 0, "DIFF_POS"
+            ] = 0
+
+            df_dynawo_branch_diff_1["DIFF_NEG"] = df_dynawo_branch_diff_1["DIFF"]
+            df_dynawo_branch_diff_1.loc[
+                df_dynawo_branch_diff_1["DIFF"] >= 0, "DIFF_NEG"
+            ] = 0
+
+            df_dynawo_branch_diff_2["DIFF"] = (
+                df_dynawo_branch_basecase_bus2["TOPO_CHG_VAL_2"]
+                - df_dynawo_branch_contgcase_bus2["TOPO_CHG_VAL_2"]
+            )
+
+            df_dynawo_branch_diff_2["DIFF_ABS"] = df_dynawo_branch_diff_2["DIFF"].abs()
+
+            df_dynawo_branch_diff_2.loc[
+                df_dynawo_branch_diff_2["DIFF_ABS"] != 0, "HAS_CHANGED"
+            ] = 1
+            df_dynawo_branch_diff_2.loc[
+                df_dynawo_branch_diff_2["DIFF_ABS"] == 0, "HAS_CHANGED"
+            ] = 0
+
+            df_dynawo_branch_diff_2["DIFF_POS"] = df_dynawo_branch_diff_2["DIFF"]
+            df_dynawo_branch_diff_2.loc[
+                df_dynawo_branch_diff_2["DIFF"] <= 0, "DIFF_POS"
+            ] = 0
+
+            df_dynawo_branch_diff_2["DIFF_NEG"] = df_dynawo_branch_diff_2["DIFF"]
+            df_dynawo_branch_diff_2.loc[
+                df_dynawo_branch_diff_2["DIFF"] >= 0, "DIFF_NEG"
+            ] = 0
+
+            df_dynawo_topo_diff["DIFF1"] = df_dynawo_branch_diff_1["DIFF"]
+            df_dynawo_topo_diff["DIFF2"] = df_dynawo_branch_diff_2["DIFF"]
+
+            df_dynawo_topo_diff["DIFF"] = np.select(
+                [
+                    (df_dynawo_topo_diff["DIFF1"] != 0)
+                    | (df_dynawo_topo_diff["DIFF2"] != 0)
+                ],
+                [1],
+                default=0,
+            )
+
+            df_dynawo_topo_diff["DIFF_ABS"] = df_dynawo_topo_diff["DIFF"].abs()
+
+            df_dynawo_topo_diff.loc[
+                df_dynawo_topo_diff["DIFF_ABS"] != 0, "HAS_CHANGED"
+            ] = 1
+            df_dynawo_topo_diff.loc[
+                df_dynawo_topo_diff["DIFF_ABS"] == 0, "HAS_CHANGED"
+            ] = 0
+
+            df_dynawo_topo_diff["DIFF_POS"] = df_dynawo_topo_diff["DIFF"]
+            df_dynawo_topo_diff.loc[df_dynawo_topo_diff["DIFF"] <= 0, "DIFF_POS"] = 0
+
+            df_dynawo_topo_diff["DIFF_NEG"] = df_dynawo_topo_diff["DIFF"]
+            df_dynawo_topo_diff.loc[df_dynawo_topo_diff["DIFF"] >= 0, "DIFF_NEG"] = 0
+
+            return df_dynawo_topo_diff
+
+
 # Generate all dropdowns of the output
 def create_dropdowns(
     df,
@@ -171,6 +1008,8 @@ def create_dropdowns(
     nodemetrictypes,
     edgetypes,
     edgemetrictypes,
+    aut_diffs_A,
+    aut_diffs_B,
 ):
     def_volt_level = widgets.Dropdown(
         options=["DEFAULT"] + list(df["volt_level"].unique()),
@@ -233,6 +1072,27 @@ def create_dropdowns(
         value=edgemetrictypes[0],
         description="Edge metric var: ",
     )
+    aut_diff_case = widgets.Dropdown(
+        options=sorted(contg_cases), value=contg_case0, description="Contg. case: "
+    )
+
+    a_var = list(aut_diffs_A.index)
+    for i in range(len(a_var)):
+        a_var[i] = a_var[i].split("-")[-1]
+    a_var = list(set(a_var))
+
+    b_var = list(aut_diffs_B.index)
+    for i in range(len(b_var)):
+        b_var[i] = b_var[i].split("-")[-1]
+    b_var = list(set(b_var))
+
+    aut_diff_var_A = widgets.Dropdown(
+        options=sorted(a_var), value=a_var[0], description="Aut. var A: "
+    )
+
+    aut_diff_var_B = widgets.Dropdown(
+        options=sorted(b_var), value=b_var[0], description="Aut. var B: "
+    )
 
     return (
         def_volt_level,
@@ -248,6 +1108,9 @@ def create_dropdowns(
         nodemetrictype,
         edgetype,
         edgemetrictype,
+        aut_diff_case,
+        aut_diff_var_A,
+        aut_diff_var_B,
     )
 
 
@@ -265,6 +1128,9 @@ def create_containers(
     nodemetrictype,
     edgetype,
     edgemetrictype,
+    aut_diff_case,
+    aut_diff_var_A,
+    aut_diff_var_B,
 ):
     container1 = widgets.HBox([varx, vary])
 
@@ -274,7 +1140,9 @@ def create_containers(
         [graph, nodetype, nodemetrictype, edgetype, edgemetrictype]
     )
 
-    return container1, container2, container3
+    container_aut = widgets.HBox([aut_diff_case, aut_diff_var_A, aut_diff_var_B])
+
+    return container1, container2, container3, container_aut
 
 
 # Create all the layouts of the output
@@ -402,6 +1270,9 @@ def paint_graph(C, data, nodetype, nodemetrictype, edgetype, edgemetrictype):
 def show_displays(
     aut_diffs_A,
     aut_diffs_B,
+    container_aut,
+    aut_diff_dfA_contgcase_grid,
+    aut_diff_dfB_contgcase_grid,
     def_volt_level,
     sdf,
     container1,
@@ -425,9 +1296,18 @@ def show_displays(
     """
         )
     )
-    
-    aut_diffs = AppLayout(left_sidebar=aut_diffs_A, right_sidebar=aut_diffs_B, align_items='center')
+
+    aut_diffs = AppLayout(
+        left_sidebar=aut_diffs_A, right_sidebar=aut_diffs_B, align_items="center"
+    )
     display(aut_diffs)
+    aut_diffs_contgcase = AppLayout(
+        left_sidebar=aut_diff_dfA_contgcase_grid,
+        right_sidebar=aut_diff_dfB_contgcase_grid,
+        align_items="center",
+    )
+    display(container_aut)
+    display(aut_diffs_contgcase)
     display(def_volt_level)
     display(sdf)
     display(container1)
@@ -517,6 +1397,58 @@ def run_all(
     def response2(change):
         individual_case(dev.value)
 
+    def response_autA(change):
+        with c.batch_update():
+            aut_diff_dfA_contgcase = create_aut_df(
+                RESULTS_DIR,
+                1,
+                aut_diff_case.value,
+                PREFIX,
+                BASECASE,
+                DWO_DWO,
+                aut_diff_var_A.value,
+            )
+
+            aut_diff_dfA_contgcase_grid.df = aut_diff_dfA_contgcase
+
+    def response_autB(change):
+        with c.batch_update():
+            aut_diff_dfB_contgcase = create_aut_df(
+                RESULTS_DIR,
+                2,
+                aut_diff_case.value,
+                PREFIX,
+                BASECASE,
+                DWO_DWO,
+                aut_diff_var_B.value,
+            )
+
+            aut_diff_dfB_contgcase_grid.df = aut_diff_dfB_contgcase
+
+    def response_aut(change):
+        with c.batch_update():
+            aut_diff_dfA_contgcase = create_aut_df(
+                RESULTS_DIR,
+                1,
+                aut_diff_case.value,
+                PREFIX,
+                BASECASE,
+                DWO_DWO,
+                aut_diff_var_A.value,
+            )
+            aut_diff_dfB_contgcase = create_aut_df(
+                RESULTS_DIR,
+                2,
+                aut_diff_case.value,
+                PREFIX,
+                BASECASE,
+                DWO_DWO,
+                aut_diff_var_B.value,
+            )
+
+            aut_diff_dfA_contgcase_grid.df = aut_diff_dfA_contgcase
+            aut_diff_dfB_contgcase_grid.df = aut_diff_dfB_contgcase
+
     def response3(change):
         with c.batch_update():
             C = create_graph.get_subgraph(G, graph.value, SUBGRAPH_TYPE, SUBGRAPH_VALUE)
@@ -539,8 +1471,8 @@ def run_all(
     do_displaybutton()
 
     df = read_csv_metrics(PF_SOL_DIR)
-    
-    aut_diffs_A, aut_diffs_B = read_csv_aut_diffs(RESULTS_DIR+"/"+ PREFIX +"/aut/")
+
+    aut_diffs_A, aut_diffs_B = read_csv_aut_diffs(RESULTS_DIR + "/" + PREFIX + "/aut/")
 
     # Get list of contingency cases
     contg_cases = list(df["cont"].unique())
@@ -579,6 +1511,9 @@ def run_all(
         nodemetrictype,
         edgetype,
         edgemetrictype,
+        aut_diff_case,
+        aut_diff_var_A,
+        aut_diff_var_B,
     ) = create_dropdowns(
         df,
         contg_cases,
@@ -590,10 +1525,12 @@ def run_all(
         nodemetrictypes,
         edgetypes,
         edgemetrictypes,
+        aut_diffs_A,
+        aut_diffs_B,
     )
 
     # Get all the containers
-    container1, container2, container3 = create_containers(
+    container1, container2, container3, container_aut = create_containers(
         varx,
         vary,
         dev,
@@ -606,6 +1543,9 @@ def run_all(
         nodemetrictype,
         edgetype,
         edgemetrictype,
+        aut_diff_case,
+        aut_diff_var_A,
+        aut_diff_var_B,
     )
 
     # Get all the layouts
@@ -619,10 +1559,32 @@ def run_all(
         data_first_case, dropdown1.value, dropdown2.value, DATA_LIMIT
     )
 
+    aut_diff_dfA_contgcase = create_aut_df(
+        RESULTS_DIR,
+        1,
+        aut_diff_case.value,
+        PREFIX,
+        BASECASE,
+        DWO_DWO,
+        aut_diff_var_A.value,
+    )
+    aut_diff_dfB_contgcase = create_aut_df(
+        RESULTS_DIR,
+        2,
+        aut_diff_case.value,
+        PREFIX,
+        BASECASE,
+        DWO_DWO,
+        aut_diff_var_B.value,
+    )
+
+    aut_diff_dfA_contgcase_grid = qgrid.QgridWidget(df=aut_diff_dfA_contgcase)
+    aut_diff_dfB_contgcase_grid = qgrid.QgridWidget(df=aut_diff_dfB_contgcase)
+
     # Create the required widgets for visualization
-    aut_diffs_A_grid = qgrid.QgridWidget(df=aut_diffs_A)  
-    aut_diffs_B_grid = qgrid.QgridWidget(df=aut_diffs_B) 
-    
+    aut_diffs_A_grid = qgrid.QgridWidget(df=aut_diffs_A)
+    aut_diffs_B_grid = qgrid.QgridWidget(df=aut_diffs_B)
+
     sdf = qgrid.QgridWidget(df=df)
 
     g = go.FigureWidget(data=[current_general_trace], layout=layout1)
@@ -712,6 +1674,9 @@ def run_all(
     html_graph = show_displays(
         aut_diffs_A_grid,
         aut_diffs_B_grid,
+        container_aut,
+        aut_diff_dfA_contgcase_grid,
+        aut_diff_dfB_contgcase_grid,
         def_volt_level,
         sdf,
         container1,
@@ -746,3 +1711,7 @@ def run_all(
     nodemetrictype.observe(response3, names="value")
     edgetype.observe(response3, names="value")
     edgemetrictype.observe(response3, names="value")
+
+    aut_diff_var_A.observe(response_autA, names="value")
+    aut_diff_var_B.observe(response_autB, names="value")
+    aut_diff_case.observe(response_aut, names="value")
