@@ -24,7 +24,6 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Our short-hand macros
-\newcommand{\Dynawo}{Dyna\textomega o\xspace} % unfortunately, it doesn't show in bold
 \newcommand{\TODO}{\texttt{TODO:}\xspace}
 
 %% Our colors for backgrounds and code listings
@@ -69,7 +68,7 @@
 
 % Remember: no symbols, special chars, footnotes, or math in Title or Abstract
 \title{Development of an Open Source Tool to Compare Simulators on
-  Large-Scale Cases --- Application to Dynawo}
+  Large-Scale Cases --- Application to Dyna$\omega$o}
 % Previous options for a title:
 %%% \title{Black-box validation and A/B testing of large-scale cases
 %%%        with DynaFlow and DynaWaltz simulators}
@@ -79,19 +78,16 @@
     José Luis Marín\IEEEauthorrefmark{1},
     Vicenç Gaitan\IEEEauthorrefmark{1},
     Guiu Oms\IEEEauthorrefmark{1},
-    Adrien Guironnet\IEEEauthorrefmark{2},
-    Quentin Cossart\IEEEauthorrefmark{2},
-    and Marco Chiaramello\IEEEauthorrefmark{2}}
+    Marco Chiaramello\IEEEauthorrefmark{2},
+    Quentin Cossart\IEEEauthorrefmark{2}
+    and Adrien Guironnet\IEEEauthorrefmark{2}}
   \IEEEauthorblockA{
-    \IEEEauthorrefmark{1}Aplicaciones en Informática Avanzada SL\\
-    Avda. de la Torre Blanca, 57 (Ed.\ EsadeCreapolis)\\
-    08172 -- Sant Cugat del Vallès, Spain\\
-    Email: \{marinjl, gaitanv, omsg\}@aia.es
+    \IEEEauthorrefmark{1}Aplicaciones en Informática Avanzada SL, Avda. de la Torre Blanca, 57, 08172 Sant Cugat del Vallès, Spain\\
+    \{marinjl, gaitanv, omsg\}@aia.es
   }
   \IEEEauthorblockA{
-    \IEEEauthorrefmark{2}RTE R\&D department\\
-    7C place du Dôme, 92073 Paris La Défense Cedex\\
-    Email: \{adrien.guironnet, marco.chiaramello, quentin.cossart\}@rte-france.com
+    \IEEEauthorrefmark{2}R\&D department, RTE Réseau de Transport d’Electricité, Paris, France\\
+    \{adrien.guironnet, marco.chiaramello, quentin.cossart\}@rte-france.com
   }
 }
 
@@ -99,35 +95,35 @@
 
 % Remember: no symbols, special chars, footnotes, or math in Title or Abstract
 \begin{abstract}
-  Dynawo is an open source hybrid Modelica/C++ suite of simulation tools for
-  power systems, geared towards the dynamic simulation of large transmission
+  Dyna$\omega$o is an open source hybrid Modelica/C++ suite of simulation tools for
+  power systems, geared towards the time-domain simulation of large transmission
   networks at different time scales, from the steady-state calculation to
-  transient stability analysis. In this paper we present a set of open source
-  tools designed for: (a) validation of Dynawo based on black-box testing
+  transient stability analysis. In this paper a set of open source
+  tools is presented, designed for: (a) validation of Dyna$\omega$o based on black-box testing
   against existing established simulators, or against previous validated
-  versions of Dynawo; (b) exploration and analysis of the effects of modelling
+  versions of Dyna$\omega$o; (b) exploration and analysis of the effects of modelling
   changes and model parameters on the network response, by means of A/B
   testing. In both cases the approach is based on the automatic generation of an
   extensive set of cases derived from a given base case, typically by means of
   N-1 contingencies. Most importantly from the point of view of power systems
-  research, a concrete set of metrics is presented here to deal with the
+  research, a concrete set of metrics is presented to deal with the
   practical problems of comparing different simulations of large, real-world
-  networks. The tools, based on Python and Jupyter notebooks, are designed with
+  systems. The tools, based on Python and Jupyter notebooks, are designed with
   flexibility in mind, in order to adapt the code to future testing scenarios
   and to extend the metrics used for comparing results.
 \end{abstract}
 
 \begin{IEEEkeywords}
-  equation based modelling, dynamic simulation, power flow, blackbox validation
+  equation based modelling, time-domain simulation, power flow, blackbox validation
 \end{IEEEkeywords}
 
 
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Introduction}
+\section{Introduction and context}
 
-\Dynawo\cite{Guironnet18} is a suite of tools for the dynamic simulation, at
+Dyna$\omega$o \cite{Guironnet18} is a suite of tools for the time-domain simulation, at
 different time resolution levels, of modern power networks.  It has been mainly
 developed by RTE, and then released as open source~\cite{Dynawo}. Its design is
 based on two major guiding principles: the use of a high-level modelling
@@ -137,44 +133,42 @@ novel hybrid approach that combines the power of declarative, computationally
 acausal modelling (also referred to as equation-based modelling) with certain
 high-performance C/C++ modifications that take advantage of the specific
 optimization opportunities available in large power networks (such as, for
-instance, the extensive work on high-performance DAE solvers for these highly
-sparse systems).  \Dynawo aims to be a next-generation open source simulator
+instance, the extensive work on high-performance Differential Algebraic Equations (DAE) solvers for these highly
+sparse systems).  Dyna$\omega$o aims to be a next-generation open source suite of simulation tools
 that overcomes the limitations of legacy closed-source programs, while being
 performant enough to be used in production settings at large transmission
 operators. The key goals are transparency and modelling flexibility, which
 results in interoperability and robustness. It is hoped that this will enable an
 effective collaboration and cooperation in the power system community, something
 that has proven notoriously difficult using legacy commercial tools.  For a
-recent update on \Dynawo developments, see the presentation \cite{Guironnet21}
+recent update on Dyna$\omega$o developments, see the presentation \cite{Guironnet21}
 or consult the official website~\cite{Dynawo}.
 
 
 
-\subsection{Objectives of the comparison tools developed}
+\subsection{Objectives of the developed comparison tools }
 
-Validation of dynamic simulators is hard, and it obviously starts at the level
-of individual device models. But, since these devices are increasingly more
-complex (with lots of new power electronics and sometimes governed by
-algorithmic controls), one needs \emph{whole-system functional testing} in order
-to assess the behavior on complete network cases. As in any hierarchical
+Validation of time-domain simulators is difficult, and it starts at the level
+of individual device models. Since these devices are increasingly more
+complex (with new power electronics) and sometimes governed by
+algorithmic controls, one needs \emph{whole-system functional testing} in order
+to assess the behaviour on complete network cases. As in any hierarchical
 system-of-systems, it is not always evident how the lower-level details (device
-model choices, parameters, etc.)  affect the behavior of the whole network. This
+model choices, parameters, etc.)  affect the behaviour of the whole network. This
 sort of testing is necessarily black-box in style, as there is no systematic
-way to link the knowledge of the lower-level modelling to the behavior of the
-higher-level, other than running simulations---in a certain limited sense, what
-we have here is an emergent behavior.  Therefore black box
+way to link the knowledge of the lower-level modelling to the behaviour of the
+higher-level, other than running simulations.  Therefore black box
 simulations are not only useful for validating the software against previous
 legacy simulators, or against new versions of the software, but also for
 exploring and assessing the effects of different model choices, model
-parameters, solver parameters, etc., on the behavior of the whole network,
+parameters, solver parameters, etc., on the behaviour of the whole network,
 \emph{in a systematic way}.
 
 The tools presented here aim to fulfill this double role. They leverage modern
-components from the Python ecosystem (Pandas and Jupyter notebooks, among
-several others) to accomplish this. They can automatically create and configure
+components from the Python ecosystem (Pandas and Jupyter notebooks for instance) to accomplish this. They can automatically create and configure
 extensive sets of test cases derived from a given base case, and efficiently
-manage large amounts of output. Initially developed for the validation of
-\Dynawo at the functional level, they are now also used for the generation and
+manage large amounts of outputs. Initially developed for the validation of
+Dyna$\omega$o at the functional level, they are now also used for the generation and
 exploration of extensive sets of test cases.
 
 But besides efficient data-handling, the two key ingredients are the design of
@@ -183,36 +177,35 @@ and the selection of \emph{effective visualization} techniques for the analysis.
 These are non-trivial problems that required experimenting with different
 choices.
 
-In this paper we describe the tools architecture, metrics, and visualization;
-and then report on our early experience using them on large network cases
-(actual cases from RTE's operational environment). Let us first describe the two
-\Dynawo settings for which they have been constructed: DynaWaltz (long-term
-stability studies) and DynaFlow (power flow via dynamic simulation).
+In this paper the tools architecture, metrics, and visualization are described and a report on the early experience using them on large network cases
+(actual cases from RTE's operational environment) is given. The two
+Dyna$\omega$o simulators for which they have been constructed, DynaWaltz (long-term
+stability studies) and DynaFlow (power flow via time-domain simulation), are first presented.
 
 
 
 \subsection{DynaWaltz}
 
-\Dynawo is flexible enough to accommodate several time scales: from sub-second
-near-EMT (electro-magnetic transients)~\cite{Masoon21}, to long-term stability,
-to steady-state calculation~\cite{Cossart21} studies. DynaWaltz is \Dynawo when
+Dyna$\omega$o is flexible enough to accommodate several time scales: from sub-second
+near-EMT (Electro-Magnetic Transients)~\cite{Masoon21}, to long-term stability,
+to steady-state calculation~\cite{Cossart21} studies. DynaWaltz is Dyna$\omega$o when
 used for long-term stability studies, where the time scales are measured in
 minutes and the typical time steps can be of the order of a few seconds. Used in
-this mode, \Dynawo simulates the grid in the so-called quasi steady state, by
+this mode, Dyna$\omega$o simulates the grid in the so-called quasi steady state, by
 adopting the models that have most impact on the system slow dynamics:
 tap-changers, loads, static var compensators, etc.; as well as secondary voltage
 regulation and special protection schemes. It is mostly used to study voltage
 collapses. Other possible uses in the future may include cascading failure
 analysis~\cite{Bialek16}.
 
-The validation tools described here were developed to assess and validate
+The validation tools described here have been developed to assess and validate
 DynaWaltz quantitatively and in a systematic manner, using RTE's national grid
-models and cases in the context of long-term stability studies. Initially, our
-approach was based con comparing against another well-established simulator,
+models and cases in the context of long-term stability studies. Initially, the retained
+approach was based on comparing against another well-established simulator,
 \emph{Astre}, which is the current production tool. More specifically, the
-validation was focused on the behavior of the coordinated Secondary Voltage
-Control (SVC) systems. Shortly after, the tools were extended to accommodate the
-comparison between different \Dynawo versions, or between variations of case
+validation focused on the behaviour of the coordinated Secondary Voltage
+Control (SVC) systems. Shortly after, the tools have been extended to accommodate the
+comparison between different Dyna$\omega$o versions, or between variations of case
 models, model parameters, and solver parameters. As DynaWaltz is scheduled to be
 deployed in production at RTE (in progressive stages starting in late 2021),
 these validation tools become an important enabler of ongoing evolution and
@@ -223,7 +216,7 @@ change.
 \subsection{DynaFlow}
 
 DynaFlow~\cite{Cossart21} is a novel approach to the calculation of steady
-states that leverages \Dynawo's flexibility for modelling the dynamics at
+states that leverages Dyna$\omega$o's flexibility for modelling the dynamics at
 different time scales. It overcomes an inherent problem that all static power
 flows have when dealing with controls.  Discrete event actions, dead-bands, and
 regulation limits (control type-switching) all conspire to produce several
@@ -247,11 +240,11 @@ controls. It also contemplates protection schemes, including modern Special
 Protection Schemes (SPS), thus opening the door to the realistic simulation of
 cascading effects in contingency studies.
 
-Following the work done for DynaWaltz validation, we built a similar set of
-tools for the validation of DynaFlow, as well as for the exploration of
+Following the work done for DynaWaltz validation, a similar set of
+tools has been built for the validation of DynaFlow, as well as for the exploration of
 extensive sets of (contingency) cases.  Again, the approach to validation is
 based on comparison against a well-established power flow, \emph{Hades}, which
-is the currently in production at RTE. In addition, the tool is also prepared
+is currently in production at RTE. In addition, the tool is also prepared
 for comparing different DynaFlow versions, and more generally for assessing the
 effects of varying the case models, model parameters, and solver parameters.
 
@@ -262,8 +255,8 @@ effects of varying the case models, model parameters, and solver parameters.
 \section{Structure and workflow}
 
 The validation approach is based on comparing results against a well-known
-reference simulator. In our case, this was the Astre simulator for the
-validation of DynaWaltz, and Hades for the validation of DynaFlow. The cases
+reference simulator, in this case Astre for the
+validation of DynaWaltz and Hades for the validation of DynaFlow. The cases
 used for comparison are essentially all possible single-element disconnections
 (shunts, lines, etc.). Therefore, the tools are currently oriented towards the
 generation of contingency cases derived from a given base case. However, the
@@ -271,8 +264,7 @@ design is quite modular; it is easy to modify the corresponding scripts so that
 the test set would be something other than contingencies; such as, for instance,
 variations of a given set of model parameters, or the solver time-step, etc.
 
-In order to describe the tool components, let us see a typical workflow in
-detail:
+The typical workflow is:
 \begin{enumerate}
   \item Obtain a study case containing the two set of files that represent the
         same case (i.e.~the DynaWaltz and Astre files, or the DynaFlow and Hades
@@ -285,11 +277,11 @@ detail:
         lines, transformers), create the specified number of single-contingency
         cases.
   \item Run Astre and DynaWaltz (or Hades and DynaFlow) on the contingency
-        cases, collecting results and logs into organized (and compressed)
+        cases, collect results and logs into organized (and compressed)
         storage;
   \item Extract result data in a format common to Astre and DynaWaltz (or Hades
-        and DynaFlow;
-  \item Compute \emph{metrics} on the results obtained (this requires having
+        and DynaFlow);
+  \item Compute \emph{metrics} on the obtain results (this requires having
         selected adequate variables and careful design of the metrics to apply);
   \item Use the provided Jupyter notebook to browse and analyze the results.
         Obtain lists of contingency cases that can be ranked according to various
@@ -300,12 +292,12 @@ detail:
 
 Steps 1 and 2 are semi-manual, aided by a few helper scripts.  One should
 firstly make sure that the A \& B files do correspond to the same case. This is
-relatively easy when both cases are \Dynawo, but challenging when the simulators
+relatively easy when both cases are Dyna$\omega$o, but challenging when the simulators
 are different.  One needs not only the underlying network model to be the same,
 but additionally the identifiers of at least the most basic elements (buses,
 loads, generators, etc.) to be the same, or provide a dictionary to match them.
-In our experience at RTE, having a single-source asset database feeding the
-creation of both files was not enough to find a 100\% match for all
+By experience, having a single-source asset database feeding the
+creation of both files is not enough to find a 100\% match for all
 elements---there would always be a small number of non-matching devices, such
 as, for instance, in the case of merged loads, or different bus-branch
 vs. node-breaker representations. Therefore the tools take this into account,
@@ -313,8 +305,7 @@ only disconnecting elements and comparing variables that can unequivocally be
 matched between the two.
 
 Beginning with Step 3, the rest of this workflow has been automated through a
-series of Python programs and Bash shell scripts. Tied together, we will refer
-to this system as the \emph{process pipeline} for validation. This is depicted
+series of Python programs and Bash shell scripts. In this paper, this system is referred to as the \emph{process pipeline} for validation. This is depicted
 schematically in Fig.~\ref{fig:pipeline1}. Each script in this pipeline can
 also be run individually, either for debugging purposes or just because one
 wants to run the pipeline manually step by step.
@@ -344,11 +335,10 @@ set of comparison cases, while the rest of the pipeline would remain the same.
 \label{sec:metrics}
 
 In this context it is assumed that the simulators and their model libraries have
-already been validated at the level of very simple networks with one or two
-buses, where device models can be unitarily tested, isolated from complex
-collective interactions.  The challenge now is to perform a quantitative
+already been validated at the level of simple networks, where device models can be unitarily tested, isolated from complex
+collective interactions.  The challenge is then to perform a quantitative
 comparison of results on large scale, real transmission networks. In other
-words, a verification and validation of the integrated system.
+words, a verification and validation of the integrated system is needed.
 
 The difficulties lie on several issues: (a) The sheer number of variables, which
 requires one to properly \emph{reduce the data} in order to attempt any
@@ -356,27 +346,26 @@ comparison; (b) The fact that the network dynamics is often \emph{sensitive} to
 small changes, so that slight differences produced at one point may quickly
 amplify down the time line. This is clearly the case in the presence of
 thresholding effects, i.e. when a magnitude is close to triggering some actuator
-(protection relays, shunts, taps), which is a sure recipe for obtaining
-different results from two simulators.
+(protection relays, shunts, taps).
 
-Still, the work reported here has shown us that it is feasible to devise
+The work reported here has shown that it is feasible to devise
 data-reduction techniques and metrics to obtain quantitative results, which
 combined with rapid exploration and analysis (greatly aided by good
 visualization choices) allows one to validate simulators via an extensive set of
-test cases (in our case, exhaustive $N$-1 contingency runs).
+test cases (in this case, exhaustive $N$-1 contingency runs).
 
-Conceptually, we adopted the following itinerary:
+Conceptually, the following itinerary has been adopted:
 \begin{enumerate}
   \item Begin by selecting the \emph{signals} to be
         used for the comparison. Which output variables and events should
-        be considered, and which should be discarded? --- Because it's simply
+        be considered, and which should be discarded? It is indeed
         not manageable nor practical to compare all of them.
   \item Generate a suitable \emph{reduced set of parameters} that characterize
-        each type of signal. --- Because one is not interested in perfect waveform
+        each type of signal. One is indeed not interested in perfect waveform
         accuracy (in the case of curves), or in perfect event timings (in the case
         of automata events).
   \item Design the \emph{metrics} for measuring the distance between the two
-        simulator results in the space of said reduced parameters.
+        simulators results in the space of said reduced parameters.
   \item Design effective \emph{visualizations}. This is essential not only
         for the analysis, but as feedback that can guide the design of
         metrics.
@@ -384,31 +373,29 @@ Conceptually, we adopted the following itinerary:
         metrics, which are necessary for establishing hard pass/fail
         criteria (useful when automating tests).
   \item Define one or more \emph{compound scoring} schemes for ranking
-        cases. Since the reduced parameters belong to very disparate classes (say,
-        for instance, change in steady-state bus voltages vs.\ changes in Mvar
+        cases. Since the reduced parameters belong to very disparate classes (for instance, change in steady-state bus voltages vs.\ changes in Mvar
         peak-to-peak amplitudes), one needs to decide how to combine the metrics
         into a single figure of merit, for the purposes of ranking and sifting
-        through the cases to select the ones that need our attention.
+        through the cases to select the ones that need a particular attention.
 \end{enumerate}
-This process was not linear; it entailed feedback loops and repeat cycles until
-the research converged on the most adequate or most effective design decisions,
-guided by the obtained results.  Each of these steps is now discussed in detail.
+This process is not linear; it entails feedback loops and repeated cycles until
+the research converges on the most adequate or most effective design decisions,
+guided by the obtained results.  Each of these steps is discussed in detail in the following.
 
 
 
 \subsection{DynaWaltz metrics}
 
 \subsubsection{Selection of signals}
-Here we use the word \emph{signals} to refer to both time-dependent continuous
+Here the word \emph{signals} is used to refer to both time-dependent continuous
 variables such as voltages and (P,Q) values, as well as discrete events such as
-actions fired by control automata.  Many times we refer to signals of the
-first kind as \emph{``curves''}, since this is the terminology used for the
-output in both Astre and Dynawo. For signals of the second kind, we will
-call them \emph{``automata events''}, or simply automata.
+actions fired by control automata. In this paper, signals of the
+first kind are called \emph{``curves''}, since this is the terminology used for the
+output in both Astre and Dyna$\omega$o. For signals of the second kind, they are
+called \emph{``automata events''}, or simply automata.
 
 Since DynaWaltz is targeted towards long-term voltage stability studies, our
-validation criteria have been focused on the behaviour of the coordinated
-Secondary Voltage Control (SVC) systems. This means that, among the huge number
+validation criteria have been focused on the behaviour of the coordinated SVC systems. This means that, among the huge number
 of possible signals available from the simulation, the comparison looks only at
 these five types:
 \begin{itemize}
@@ -425,17 +412,16 @@ coming from anywhere in the network:
   \item Load-transformer taps (up/down)
   \item Shunt capacitor \& reactor banks  (connections/disconnections)
 \end{itemize}
-The base test cases we used correspond to the whole of France, down to the 45kV
+The base test cases correspond to the whole of France, down to the 45kV
 level.
 
 
 \subsubsection{Reduced set of parameters}
 The aim is to distill a reduced set of parameters that characterize the whole
-signal sufficiently well for our purposes. It is then on these reduced
-magnitudes that we will define the metrics.  Since these are transient signals,
+signal sufficiently well. It is then on these reduced
+magnitudes that the metrics are defined.  Since these are transient signals,
 it would be pointless to try to match the detailed waveforms; instead, we
-focused on the most electrically relevant features.  After contemplating and
-testing a few options, we came up with the 8 parameters shown
+focused on the most electrically relevant features.  Eight parameters have been retained, as shown
 in~\ref{tab:reducedparams}. The last three are meant for automata events (tap
 and shunts). Note how they mimic their respective counterparts in continuous
 curves: dSS, dPP, and TT, respectively. Figs.~\ref{fig:tcharacteristics1} and
@@ -465,7 +451,7 @@ curves: dSS, dPP, and TT, respectively. Figs.~\ref{fig:tcharacteristics1} and
 \begin{figure}
   \centering
   \includegraphics[width=\columnwidth]{figs/transient_characteristics_1}
-  \caption{Our selection of reduced parameters for characterizing a
+  \caption{Selection of reduced parameters for characterizing a
     continuous time-dependent transient signal, for the purposes of
     estimating differences.}
   \label{fig:tcharacteristics1}
@@ -474,7 +460,7 @@ curves: dSS, dPP, and TT, respectively. Figs.~\ref{fig:tcharacteristics1} and
 \begin{figure}
   \centering
   \includegraphics[width=\columnwidth]{figs/transient_characteristics_2}
-  \caption{Our selection of reduced parameters for characterizing a
+  \caption{Selection of reduced parameters for characterizing a
     sequence of binary (up/down, on/off) events.}
   \label{fig:tcharacteristics2}
 \end{figure}
@@ -486,18 +472,17 @@ For continuous signals, and given the above selected variables and reduced
 parameters, there are then 25 different categories (5 variable types x 5
 parameters). Within each category, there's usually more than one data point. For
 instance, if there are 30 SVC controls in the case file, there will be 30 pilot
-bus-voltage dPP values. We have to choose a metric in order to reduce the
-distances to a single number in each variable category. Our preferred choice is
-using \code{max(abs(diffs))}, which is the max-norm (also called the
-$L_\infty$-norm).  A different choice could be \code{mean(abs(diffs))}, which is
-the $L_1$-norm divided by the number of variables, but this choice smooths out
-important differences when they are localized---which is normally the case when
+bus-voltage dPP values. A metric has to be chosen in order to reduce the
+distances to a single number in each variable category. \code{max(abs(diffs))}, which is the max-norm (also called the
+$L_\infty$-norm) has been chosen.  A different choice could be \code{mean(abs(diffs))}, which is
+the $L_1$-norm divided by the number of variables, but this choice smoothes out
+important differences when they are local---which is normally the case when
 running a very large network.
 
 For automata events, there are 8 categories (3 variable types x 3 reduced
 parameters, minus one because p2pchange does not make sense for shunt
-events). For these we have chosen the $L_1$-norm, normalized by the total number
-of devices (variable tap transformers or switchable shunts). Note this is
+events). For these the $L_1$-norm has been chosen, normalized by the total number
+of devices (variable tap transformers or switchable shunts). Note that this is
 \emph{not} \code{mean(abs(diffs))}, as the denominator is the number of
 \emph{all} devices that could potentially produce events, not just the ones that
 have actually produced events. This way the metric can tell apart cases where
@@ -515,39 +500,37 @@ decide whether to assign a global pass/not-pass based on some supra-metric on
 the individual pass/not-pass values.
 
 As for the choice of the actual thresholds, one needs to experiment and use
-expert judgement. We have found the following thresholds (for absolute errors)
-to be reasonable:
+expert judgement. The following thresholds (for absolute errors) have been retained:
 \begin{itemize}
   \item V: 0.01 in pu
   \item K: 0.1 (dimensionless)
   \item P: 5 MW
   \item Q: 5 MW
 \end{itemize}
-These thresholds were applied to characteristics dSS and dPP, which in our
+These thresholds have been applied to characteristics dSS and dPP, which in our
 experiments have shown to be the most reliable for these purposes. TT did not
 seem to have good sensibility for detecting interesting differences, and the
 Prony parameters often showed unreliable values.
 
-Using these, DynaWaltz was found to pass for more than 80\% of the cases, out of
+Using these, DynaWaltz is found to pass for more than 80\% of the cases, out of
 around 20,000 contingency cases using different base cases.  Note that, except
-for cases in which we caught bugs, we could not say that the ``failed'' cases
+for cases in which bugs were caught , it is not possible to say that the ``failed'' cases
 were wrong.  At one point it becomes impossible to say whether any one simulator
-solution is the right one.
+solution is the right one and a more in-depth analysis of both results is necessary.
 
 
 
 \subsection{DynaFlow metrics}
 
-Compared to dynamic simulations, the problem of establishing metrics for
+Compared to time-domain simulations, the problem of establishing metrics for
 comparing power flow solutions is, at first sight, comparatively easier. If one
 only focuses on the electrical steady state, the comparison can take place on
-the main variables: voltage magnitude at buses, real \& active power flows
-through branches, and real \& active power injections at buses (aggregate
-values, to sidestep modeling differences due to merged loads, for instance). We
+the main variables: voltage magnitude at buses, reactive \& active power flows
+through branches, and reactive \& active power injections at buses (aggregate
+values, to sidestep modelling differences due to merged loads, for instance). We
 then use the $L_1$-norm on the differences, either in absolute value or as a
 relative error--looking at both is often necessary to uncover the most relevant
-differences. As before, we do this separately for each magnitude type and then
-define some compound scoring in order to mix all types into a single figure, so
+differences. As before, this is done separately for each magnitude type and then compound scoring are defined in order to mix all types into a single figure, so
 that a single ranking of the ``top X worst cases'' may be obtained.
 
 More interesting for DynaFlow, though, is to detect discrete events and
@@ -559,10 +542,9 @@ make sense of the results.  Metrics on the differences between power flow
 solutions are not helpful in this case---it is simply better to detect the
 presence and number of such events.  In particular, it is useful to try
 detecting ``root cause'' events, that is, any significant event that in turn
-produces several other events in a cascade.  We are currently researching on
-this issue, since such cause--effect relationships are hard to ascribe from the
-raw timeline of events without a proper electrical analysis. We therefore
-devised a heuristic based on the distance between events in time and space
+produces several other events in a cascade. This issue is currently being researched on, since such cause--effect relationships are hard to ascribe from the
+raw timeline of events without a proper electrical analysis. A heuristic has therefore been
+devised based on the distance between events in time and space
 (i.e., distance measured by minimal impedance paths across the grid), with which
 one can group these events.  Even with ``false positives'', this kind of
 detection is proving useful when investigating cases with large differences.
@@ -604,23 +586,23 @@ and size quickly inform the user about the severity of each contingency case.
 The power of this plot lies in that it synthesizes the globality of results.  It
 is useful to detect outliers but, more importantly, it is also very effective at
 revealing \emph{systematic} differences, that is, patterns in the deviations,
-which typically signal some sort of modeling
+which typically signal some sort of modelling
 differences. Fig.~\ref{fig:bubbleplot1} shows an example of this: a significant
 number of buses accumulate on a small slope line away from the diagonal,
 possibly indicating that the generators near the contingency have some sort of
-modeling differences in their voltage control. Hypotheses such as this can
+modelling differences in their voltage control. Hypotheses such as this can
 quickly be put to the test by exploring the plot. Hovering over each point
 reveals the device's information (ID, voltage level, etc.), and clicking on it
 automatically selects the particular contingency case and device signal to plot
-on the rest of the graphs. This allows one to quickly to drill down to specific
-curve graphs and analyze behaviors.
+on the rest of the graphs. This allows one to quickly drill down to specific
+curve graphs and analyze behaviours.
 
 Visual inspection of the curve graphs is always useful as a double-check on a
-number of things. For instance, during development we once found many unexpected
-outliers, but a quick look at their curves quickly showed that the steady-state
+number of things. For instance, during development many unexpected
+outliers were once found, but a quick look at their curves quickly showed that the steady-state
 had not yet been achieved at the end of the run. If this happens, metrics for
 the differences are bound to be very large and completely meaningless.  This
-prompted us to improve our mechanisms for detecting and flagging unstable cases,
+prompted us to improve the mechanisms for detecting and flagging unstable cases,
 so that they can be removed from the comparison.
 
 The tabular information is also there in the notebook, in case one wants to have
@@ -633,7 +615,7 @@ metrics discussed in the previous section.
 As a brief example of how to analyze results with the notebook, let us take a
 look at the examples in Figs.~\ref{fig:bubbleplot2} and ~\ref{fig:curveplot}. In
 this case the scatter plot represents the reactive power injection (Q) of all
-generators participating in the coordinated secondary voltage control (SVC)
+generators participating in the coordinated SVC
 systems. There seems to be no significant patterns of systematic differences,
 such as lines or clusters off the diagonal, but there are several outliers
 sprinkled here and there.  As we become interested in any of these, we click on
@@ -642,7 +624,7 @@ information for the chosen generator, under the specific contingency case. The
 time-domain signal shows indeed a net difference of about 60 Mvar in output,
 once the new steady state is reached. The graph stacked on top shows the metrics
 for the global differences in discrete events vs.~simulation time (see
-subsection~\ref{sssec:metrics} above).  In this case we observe that shunt and
+subsection~\ref{sssec:metrics} above).  In this case it can be seen that shunt and
 tap events do not differ much after the contingency, meaning that the
 differences in Q developing after t $\sim$ 1,100s must be due to purely local
 effects. This prompts us to investigate the model of this generator further, and
@@ -654,7 +636,7 @@ kind, etc.
   \includegraphics[width=\columnwidth]{figs/Qgen_dSS_GENS_20210211-0930_moreT600}
   \caption{Same as Fig.~\ref{fig:bubbleplot1}, but for dSS in the Q
     injected by the generators participating in the coordinated
-    secondary voltage control systems.}
+    SVC systems.}
   \label{fig:bubbleplot2}
 \end{figure}
 
@@ -673,23 +655,22 @@ kind, etc.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Conclusion}
 
-We have presented a tool for the testing and validation of dynamic simulators
-DynaWaltz and DynaFlow on large, real-world transmission networks.  Our approach
+A tool has been presented for the testing and validation of time-domain simulators
+DynaWaltz and DynaFlow on large, real-world transmission networks.  The proposed approach
 is based on the extensive simulation of contingency cases, comparing the results
 to another already-established simulator. The tool may also be used for testing
 new versions of the software (i.e., as a complement to Unit Testing); or for
-exploring the effects of different modeling choices, model parameters, solver
+exploring the effects of different modelling choices, model parameters, solver
 parameters, etc.  It can be used for deploying automated testing procedures to
 help evolve the software, the models, and their parameterization.
 
 To meet the challenges involved in taking quantitative measurements of the
-differences between simulations, we researched the most relevant outputs, along
-with the corresponding metrics. Another challenge was dealing with such large
+differences between simulations, the most relevant outputs have been researched, along
+with the corresponding metrics. Another challenge is dealing with such large
 amounts of data efficiently, and designing effective visualizations for the
-results. For this, we leveraged several modern libraries and rapid development
-tools from the Python ecosystem.  The tool is expected to be released soon as
-Open Source, under the umbrella of all the other \Dynawo
-projects~\cite{DwoGitRepos}.
+results. For this, several modern libraries and rapid development
+tools from the Python ecosystem were leveraged.  The tool is expected to be released soon as
+Open Source, under the umbrella of all the other Dyna$\omega$o projects~\cite{DwoGitRepos}.
 
 
 
