@@ -370,10 +370,16 @@ def main(
         subfig_globalscatter = go.Figure(
             data=[g.data[0]],
             layout=go.Layout(
-                xaxis=dict(title=g.layout.xaxis.title, range=[-150, 150]),
-                yaxis=dict(title=g.layout.yaxis.title, scaleanchor="x", scaleratio=1),
+                xaxis=dict(title=g.layout.xaxis.title),
+                yaxis=dict(
+                    title=g.layout.yaxis.title,
+                    scaleanchor="x",
+                    scaleratio=1,
+                ),
                 height=800,
-                width=800,
+                width=820,
+                margin=dict(l=5, r=5, t=5, b=5, autoexpand=True),
+                font=dict(family="Arial", size=24),
             ),
         )
         subfig_globalscatter.write_image("fig_globalscatter.pdf", engine="kaleido")
@@ -382,9 +388,13 @@ def main(
         subfig_curve = go.Figure(
             data=[g.data[1], g.data[2]],
             layout=go.Layout(
-                xaxis2=dict(title=g.layout.xaxis2.title),
+                xaxis2=dict(title="t / s"),
                 yaxis2=dict(title=g.layout.yaxis2.title),
                 showlegend=False,
+                height=600,
+                width=820,
+                margin=dict(l=5, r=5, t=5, b=5, autoexpand=True),
+                font=dict(family="Arial", size=22),
             ),
         )
         subfig_curve.write_image("fig_curve.pdf", engine="kaleido")
@@ -393,9 +403,13 @@ def main(
         subfig_eventdiffs = go.Figure(
             data=[g.data[3], g.data[4], g.data[5]],
             layout=go.Layout(
-                xaxis3=dict(title=g.layout.xaxis3.title),
+                xaxis3=dict(title="t / s"),
                 yaxis3=dict(title=g.layout.yaxis3.title),
                 showlegend=False,
+                height=400,
+                width=820,
+                margin=dict(l=5, r=5, t=5, b=5, autoexpand=True),
+                font=dict(family="Arial", size=22),
             ),
         )
         subfig_eventdiffs.write_image("fig_eventdiffs.pdf", engine="kaleido")
@@ -403,14 +417,16 @@ def main(
     def print_subfig_curve_and_events():
         subfig_curve_and_events = go.Figure(
             data=[g.data[1], g.data[2], g.data[3], g.data[4], g.data[5]],
-            # NOTE: Plotly bug: the xaxis may labels may show wrong (doubled)
-            # You can fix it here by specifying a hardcoded range in xaxis2, xaxis3
             layout=go.Layout(
-                xaxis2=dict(title=g.layout.xaxis2.title),
+                xaxis2=dict(title="t / s"),
                 yaxis2=dict(title=g.layout.yaxis2.title, domain=[0, 0.7]),
-                xaxis3=dict(title=g.layout.xaxis3.title),
+                xaxis3=dict(scaleanchor="x2"),
                 yaxis3=dict(title=g.layout.yaxis3.title, domain=[0.8, 1]),
                 showlegend=True,
+                height=550,
+                width=820,
+                margin=dict(l=5, r=5, t=5, b=5, autoexpand=True),
+                font=dict(family="Arial", size=24),
             ),
         )
         subfig_curve_and_events.write_image(
@@ -522,38 +538,20 @@ def main(
     # Initialize Plot Traces
     if df.shape[0] > PLOTLY_MAXPOINTS:
         df = reduce_xyscatter_points(df)
-    if IS_DWO_DWO == 0:
-        trace = go.Scatter(
-            name="A/B var scatter",
-            x=df["dSS_ast"],
-            y=df["dSS_dwo"],
-            mode="markers",
-            marker_color=df["TT_ast"],
-            marker_size=5
-            + 45
-            * (df.dPP_ast - min(df.dPP_ast))
-            / max(1.0e-6, max(df.dPP_ast) - min(df.dPP_ast)),
-            text=df["dev"] + "<br>" + df["vars"],
-            xaxis="x1",
-            yaxis="y1",
-        )
-    elif IS_DWO_DWO == 1:
-        trace = go.Scatter(
-            name="A/B var scatter",
-            x=df["dSS_ast"],
-            y=df["dSS_dwo"],
-            mode="markers",
-            marker_color=df["TT_ast"],
-            marker_size=5
-            + 45
-            * (df.dPP_ast - min(df.dPP_ast))
-            / max(1.0e-6, max(df.dPP_ast) - min(df.dPP_ast)),
-            text=df["dev"] + "<br>" + df["vars"],
-            xaxis="x1",
-            yaxis="y1",
-        )
-    else:
-        raise ValueError("IS_DWO_DWO must be 0 or 1.")
+    trace = go.Scatter(
+        name="A/B var scatter",
+        x=df[var.value + "_ast"],
+        y=df[var.value + "_dwo"],
+        mode="markers",
+        marker_color=df.TT_ast,
+        marker_size=5
+        + 45
+        * (df.dPP_ast - min(df.dPP_ast))
+        / max(1.0e-6, max(df.dPP_ast) - min(df.dPP_ast)),
+        text=df["dev"] + "<br>" + df["vars"],
+        xaxis="x1",
+        yaxis="y1",
+    )
 
     xymin = min(df[var.value + "_ast"].min(), df[var.value + "_dwo"].min())
     xymax = max(df[var.value + "_ast"].max(), df[var.value + "_dwo"].max())
@@ -569,48 +567,42 @@ def main(
     )
 
     if IS_DWO_DWO == 0:
-        trace1 = go.Scatter(
-            name="Astre",
-            x=df_ast["time"],
-            y=df_ast[var0],
-            mode="lines+markers",
-            marker_color="black",
-            xaxis="x2",
-            yaxis="y2",
-        )
-        trace2 = go.Scatter(
-            name="Dynawo",
-            x=df_dwo["time"],
-            y=df_dwo[var0] + yoffset,
-            mode="lines",
-            marker_color="red",
-            xaxis="x2",
-            yaxis="y2",
-        )
+        curve_nameA = "Astre"
+        curve_modeA = "lines+markers"
+        curve_colorA = "black"
+        curve_nameB = "Dynawo"
+        curve_modeB = "lines"
+        curve_colorB = "red"
     elif IS_DWO_DWO == 1:
-        trace1 = go.Scatter(
-            name="Dynawo A",
-            x=df_ast["time"],
-            y=df_ast[var0],
-            mode="lines",
-            marker_color="blue",
-            xaxis="x2",
-            yaxis="y2",
-        )
-        trace2 = go.Scatter(
-            name="Dynawo B",
-            x=df_dwo["time"],
-            y=df_dwo[var0] + yoffset,
-            mode="lines",
-            marker_color="red",
-            xaxis="x2",
-            yaxis="y2",
-        )
+        curve_nameA = "Dynawo A"
+        curve_modeA = "lines"
+        curve_colorA = "blue"
+        curve_nameB = "Dynawo B"
+        curve_modeB = "lines"
+        curve_colorB = "red"
     else:
         raise ValueError("IS_DWO_DWO must be 0 or 1.")
+    trace1 = go.Scatter(
+        name=curve_nameA,
+        x=df_ast["time"],
+        y=df_ast[var0],
+        mode=curve_modeA,
+        marker_color=curve_colorA,
+        xaxis="x2",
+        yaxis="y2",
+    )
+    trace2 = go.Scatter(
+        name=curve_nameA,
+        x=df_dwo["time"],
+        y=df_dwo[var0] + yoffset,
+        mode=curve_modeB,
+        marker_color=curve_colorB,
+        xaxis="x2",
+        yaxis="y2",
+    )
 
     trace3 = go.Scatter(
-        name="Transf. Load Tap Changes",
+        name="Load tap changes",
         x=df_m["time"],
         y=df_m["ldtap_netchanges"],
         stackgroup="one",
@@ -618,7 +610,7 @@ def main(
         yaxis="y3",
     )
     trace4 = go.Scatter(
-        name="Transf. Tap Changes",
+        name="Xfmr tap changes",
         x=df_m["time"],
         y=df_m["tap_netchanges"],
         stackgroup="one",
@@ -626,7 +618,7 @@ def main(
         yaxis="y3",
     )
     trace5 = go.Scatter(
-        name="Shunt Changes",
+        name="Shunt changes",
         x=df_m["time"],
         y=df_m["shunt_netchanges"],
         stackgroup="one",
@@ -646,31 +638,29 @@ def main(
     HEIGHT = 600  # Adapt as needed
     WIDTH = 1600  # but make sure that width > height
     aspect_ratio = HEIGHT / WIDTH
-
     if IS_DWO_DWO == 0:
-        layout = go.Layout(
-            xaxis=dict(title="dSS Astre", domain=[0, aspect_ratio - 0.05]),
-            yaxis=dict(title="dSS Dynawo", scaleanchor="x", scaleratio=1),
-            xaxis2=dict(title="t", domain=[aspect_ratio + 0.05, 1], range=[0, T_END]),
-            yaxis2=dict(title=var0, anchor="x2", domain=[0, 0.7]),
-            xaxis3=dict(title="t", domain=[aspect_ratio + 0.05, 1], range=[0, T_END]),
-            yaxis3=dict(title="% changes", anchor="x3", domain=[0.8, 1]),
-            height=HEIGHT,
-            width=WIDTH,
-        )
+        xaxis_title = var.value + " Astre"
+        yaxis_title = var.value + " Dynawo"
     elif IS_DWO_DWO == 1:
-        layout = go.Layout(
-            xaxis=dict(title="dSS DynawoA", domain=[0, aspect_ratio - 0.05]),
-            yaxis=dict(title="dSS DynawoB", scaleanchor="x", scaleratio=1),
-            xaxis2=dict(title="t", domain=[aspect_ratio + 0.05, 1], range=[0, T_END]),
-            yaxis2=dict(title=var0, anchor="x2", domain=[0, 0.7]),
-            xaxis3=dict(title="t", domain=[aspect_ratio + 0.05, 1], range=[0, T_END]),
-            yaxis3=dict(title="% changes", anchor="x3", domain=[0.8, 1]),
-            height=HEIGHT,
-            width=WIDTH,
-        )
+        xaxis_title = var.value + " DynawoA"
+        yaxis_title = var.value + " DynawoB"
     else:
         raise ValueError("IS_DWO_DWO must be 0 or 1.")
+    layout = go.Layout(
+        xaxis=dict(title=xaxis_title, domain=[0, aspect_ratio - 0.05]),
+        yaxis=dict(title=yaxis_title, scaleanchor="x", scaleratio=1),
+        xaxis2=dict(title="t", domain=[aspect_ratio + 0.05, 1], range=[0, T_END]),
+        yaxis2=dict(title=var0, anchor="x2", domain=[0, 0.7]),
+        xaxis3=dict(
+            scaleanchor="x2",
+            scaleratio=1,
+            domain=[aspect_ratio + 0.05, 1],
+            range=[0, T_END],
+        ),
+        yaxis3=dict(title="% changes", anchor="x3", domain=[0.8, 1]),
+        height=HEIGHT,
+        width=WIDTH,
+    )
 
     # Main plot
     g = go.FigureWidget(
