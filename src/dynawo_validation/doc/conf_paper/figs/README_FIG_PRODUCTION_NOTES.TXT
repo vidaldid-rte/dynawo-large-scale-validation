@@ -18,3 +18,10 @@
     contingency case. Basecase was the same as above. The contingency case is
     CRUA57TRANCHE2, and the generator plotted here is SSALT7T 2.
 
+
+To prepare good quality figures from PowerPoint, I exported to PDF, then used
+the PDF viewer on macOS to select a tighter box around the figure, copied the
+selection, and pasted on a new document (all within the PDF viewer). Then saved
+the document choosing PDF as the format.  This preserves the PDF in vector
+format and eliminates all extra white space from the margins of the slide.
+
