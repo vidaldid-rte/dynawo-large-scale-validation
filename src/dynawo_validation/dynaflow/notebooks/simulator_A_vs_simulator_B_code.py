@@ -4,6 +4,7 @@ from dynawo_validation.dynaflow.notebooks import create_graph
 from IPython.display import display, HTML
 import qgrid
 from ipywidgets import widgets, AppLayout
+from collections import namedtuple
 import networkx as nx
 from pyvis.network import Network
 import warnings
@@ -180,6 +181,26 @@ def find_launchers(pathtofiles):
     return launcherA, launcherB
 
 
+def match_taps(df_A, df_B):
+    names_A = list(df_A.index)
+    names_B = list(df_B.index)
+    x_values = []
+    y_values = []
+    names = []
+    for i in range(len(names_A)):
+        if names_A[i] not in names_B:
+            continue
+        else:
+            for j in range(len(names_B)):
+                if names_B[j] == names_A[i]:
+                    if int(df_A.iloc[i, 4]) == 1 or int(df_B.iloc[j, 4]) == 1:
+                        x_values.append(df_A.iloc[i, 1])
+                        y_values.append(df_B.iloc[j, 1])
+                        names.append(names_A[i])
+                    break
+    return names, x_values, y_values
+
+
 def create_aut_df(results_dir, A_B, contgcase, prefix, basecase, dwo_dwo, var_value):
     launcherA, launcherB = find_launchers(results_dir)
     run_dwo = True
@@ -196,6 +217,7 @@ def create_aut_df(results_dir, A_B, contgcase, prefix, basecase, dwo_dwo, var_va
                 + "-Hades.Out.xml.xz"
             )
             save_path = results_dir + basecase + "/"
+            hades_input = results_dir + basecase + "/Hades/donneesEntreeHADES2.xml"
             run_dwo = False
         else:
             if dwo_dwo == 0:
@@ -236,6 +258,7 @@ def create_aut_df(results_dir, A_B, contgcase, prefix, basecase, dwo_dwo, var_va
                 + "-Hades.Out.xml.xz"
             )
             save_path = results_dir + basecase + "/"
+            hades_input = results_dir + basecase + "/Hades/donneesEntreeHADES2.xml"
             run_dwo = False
         else:
             if dwo_dwo == 0:
@@ -264,21 +287,38 @@ def create_aut_df(results_dir, A_B, contgcase, prefix, basecase, dwo_dwo, var_va
                 save_path = results_dir + basecase + "/B/"
 
     if run_dwo == False:
+
+        tree = etree.parse(hades_input)
+        root = tree.getroot()
+        reseau = root.find("./reseau", root.nsmap)
+        donneesQuadripoles = reseau.find("./donneesQuadripoles", root.nsmap)
+        tap2xfmr = dict()
+        pstap2xfmr = dict()
+        for branch in donneesQuadripoles.iterfind("./quadripole", root.nsmap):
+            tap_ID = branch.get("ptrregleur")
+            if tap_ID != "0" and tap_ID is not None:
+                tap2xfmr[tap_ID] = branch.get("nom")
+            pstap_ID = branch.get("ptrdepha")
+            if pstap_ID != "0" and pstap_ID is not None:
+                pstap2xfmr[pstap_ID] = branch.get("nom")
+
         hds_contgcase_tree = etree.parse(
             lzma.open(xml_CONTGCASE), etree.XMLParser(remove_blank_text=True)
         )
+
         # MATCHING
         if save_path[-1] != "/":
             save_path = save_path + "/"
         root = hds_contgcase_tree.getroot()
         reseau = root.find("./reseau", root.nsmap)
+
         # CONTG
         if var_value == "ratioTapChanger":
             donneesRegleurs = reseau.find("./donneesRegleurs", root.nsmap)
             hades_regleurs_contg = dict()
             for regleur in donneesRegleurs.iterfind("./regleur", root.nsmap):
                 for variable in regleur.iterfind("./variables", root.nsmap):
-                    regleur_id = int(variable.getparent().get("num"))
+                    regleur_id = tap2xfmr[variable.getparent().get("num")]
                     if regleur_id not in hades_regleurs_contg:
                         hades_regleurs_contg[regleur_id] = int(variable.get("plot"))
                     else:
@@ -332,7 +372,7 @@ def create_aut_df(results_dir, A_B, contgcase, prefix, basecase, dwo_dwo, var_va
             hades_dephaseurs_contg = dict()
             for dephaseur in donneesDephaseurs.iterfind("./dephaseur", root.nsmap):
                 for variable in dephaseur.iterfind("./variables", root.nsmap):
-                    dephaseur_id = int(variable.getparent().get("num"))
+                    dephaseur_id = pstap2xfmr[variable.getparent().get("num")]
                     if dephaseur_id not in hades_dephaseurs_contg:
                         hades_dephaseurs_contg[dephaseur_id] = int(variable.get("plot"))
                     else:
@@ -1273,6 +1313,8 @@ def show_displays(
     container_aut,
     aut_diff_dfA_contgcase_grid,
     aut_diff_dfB_contgcase_grid,
+    t_r,
+    t_p,
     def_volt_level,
     sdf,
     container1,
@@ -1308,6 +1350,8 @@ def show_displays(
     )
     display(container_aut)
     display(aut_diffs_contgcase)
+    display(t_r)
+    display(t_p)
     display(def_volt_level)
     display(sdf)
     display(container1)
@@ -1468,6 +1512,46 @@ def run_all(
             legend1widget.value = legend1
             legend2widget.value = legend2
 
+    def create_tap_trace(name, type):
+        temp_A = create_aut_df(
+            RESULTS_DIR,
+            1,
+            name,
+            PREFIX,
+            BASECASE,
+            DWO_DWO,
+            type,
+        )
+        temp_B = create_aut_df(
+            RESULTS_DIR,
+            2,
+            name,
+            PREFIX,
+            BASECASE,
+            DWO_DWO,
+            type,
+        )
+
+        names_aut, x_values_aut, y_values_aut = match_taps(temp_A, temp_B)
+
+        trace = go.Scatter(
+            x=x_values_aut,
+            y=y_values_aut,
+            mode="markers",
+            text=names_aut,
+            name="Case: " + name + " - " + type,
+        )
+
+        layout_temp = go.Layout(
+            title=dict(text="Case: " + name + " - " + type),
+            xaxis=dict(title="SIM_A"),
+            yaxis=dict(title="SIM_B"),
+            height=HEIGHT,
+            width=WIDTH,
+        )
+
+        return go.FigureWidget(data=[trace], layout=layout_temp)
+
     do_displaybutton()
 
     df = read_csv_metrics(PF_SOL_DIR)
@@ -1585,6 +1669,12 @@ def run_all(
     aut_diffs_A_grid = qgrid.QgridWidget(df=aut_diffs_A)
     aut_diffs_B_grid = qgrid.QgridWidget(df=aut_diffs_B)
 
+    t_r = create_tap_trace("NAOUT6REAC.1", "ratioTapChanger")
+    t_p = create_tap_trace("NAOUT6REAC.1", "phaseTapChanger")
+
+
+    # Matching df
+
     sdf = qgrid.QgridWidget(df=df)
 
     g = go.FigureWidget(data=[current_general_trace], layout=layout1)
@@ -1677,6 +1767,8 @@ def run_all(
         container_aut,
         aut_diff_dfA_contgcase_grid,
         aut_diff_dfB_contgcase_grid,
+        t_r,
+        t_p,
         def_volt_level,
         sdf,
         container1,

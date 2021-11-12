@@ -326,7 +326,7 @@ elif [ "$CASE_TYPE" = "dwohds" ]; then
         basename "$A" > "$outDir"/../.LAUNCHER_A_WAS_"$A" 2>&1 "$outDir"/../.LAUNCHER_A_WAS_"$A" || true
         basename "$B" version > "$outDir"/../.LAUNCHER_B_WAS_"$B" 2>&1 "$outDir"/../.LAUNCHER_B_WAS_"$B" || true
         python3 "$scripts_basedir"/extract_dynawo_automata_changes_contgcase.py -s "$outDir"/aut/"$prefix"-Dynawo-aut-diff.csv "$outDir"/xml/"$prefix"-Dynawo.IIDM.xml.xz "$outDir"/../"$basecase_name"/
-        python3 "$scripts_basedir"/extract_hades_automata_changes_contgcase.py -s "$outDir"/aut/"$prefix"-Hades-aut-diff.csv "$outDir"/xml/"$prefix"-Hades.Out.xml.xz "$outDir"/../"$basecase_name"/
+        python3 "$scripts_basedir"/extract_hades_automata_changes_contgcase.py -s "$outDir"/aut/"$prefix"-Hades-aut-diff.csv "$outDir"/xml/"$prefix"-Hades.Out.xml.xz "$outDir"/../"$basecase_name"/ "$outDir"/../"$basecase_name"/Hades/donneesEntreeHADES2.xml
         
     else
         DWO_JOBFILE=$(python3 "$DWO_JOBINFO_SCRIPT" "$CONTG_CASE" | grep -F "job_file" | cut -d'=' -f2)
@@ -338,7 +338,7 @@ elif [ "$CASE_TYPE" = "dwohds" ]; then
         basename "$B" > "$outDir"/../.LAUNCHER_B_WAS_"$B" 2>&1 "$outDir"/../.LAUNCHER_B_WAS_"$B" || true
         basecase_name=$(basename "$BASECASE")
         python3 "$scripts_basedir"/extract_dynawo_automata_changes_contgcase.py -s "$outDir"/aut/"$prefix"-Dynawo-aut-diff.csv "$outDir"/xml/"$prefix"-Dynawo.IIDM.xml.xz "$outDir"/../"$basecase_name"/
-        python3 "$scripts_basedir"/extract_hades_automata_changes_contgcase.py -s "$outDir"/aut/"$prefix"-Hades-aut-diff.csv "$outDir"/xml/"$prefix"-Hades.Out.xml.xz "$outDir"/../"$basecase_name"/ 
+        python3 "$scripts_basedir"/extract_hades_automata_changes_contgcase.py -s "$outDir"/aut/"$prefix"-Hades-aut-diff.csv "$outDir"/xml/"$prefix"-Hades.Out.xml.xz "$outDir"/../"$basecase_name"/ "$outDir"/../"$basecase_name"/Hades/donneesEntreeHADES2.xml
     fi    
 else
     DWO_JOBFILE=$(python3 "$DWO_JOBINFO_SCRIPT" "$CONTG_CASE" | grep -F "job_fileA" | cut -d'=' -f2)

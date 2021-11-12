@@ -25,6 +25,7 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument("xml_CONTGCASE", help="enter xml contg case of Hades")
 parser.add_argument("basecase_files_path", help="enter basecase_files_path")
+parser.add_argument("hades_basecase_xml", help="enter hades_basecase_xml")
 parser.add_argument(
     "-s", "--save", help="File to save csv instead of print", default="None"
 )
@@ -34,6 +35,20 @@ args = parser.parse_args()
 
 def main():
     xml_CONTGCASE = args.xml_CONTGCASE
+
+    tree = etree.parse(args.hades_basecase_xml)
+    root = tree.getroot()
+    reseau = root.find("./reseau", root.nsmap)
+    donneesQuadripoles = reseau.find("./donneesQuadripoles", root.nsmap)
+    tap2xfmr = dict()
+    pstap2xfmr = dict()
+    for branch in donneesQuadripoles.iterfind("./quadripole", root.nsmap):
+        tap_ID = branch.get("ptrregleur")
+        if tap_ID != "0" and tap_ID is not None:
+            tap2xfmr[tap_ID] = branch.get("nom")
+        pstap_ID = branch.get("ptrdepha")
+        if pstap_ID != "0" and pstap_ID is not None:
+            pstap2xfmr[pstap_ID] = branch.get("nom")
 
     hds_contgcase_tree = etree.parse(
         lzma.open(xml_CONTGCASE), etree.XMLParser(remove_blank_text=True)
@@ -47,7 +62,7 @@ def main():
     hades_regleurs_contg = dict()
     for regleur in donneesRegleurs.iterfind("./regleur", root.nsmap):
         for variable in regleur.iterfind("./variables", root.nsmap):
-            regleur_id = int(variable.getparent().get("num"))
+            regleur_id = tap2xfmr[variable.getparent().get("num")]
             if regleur_id not in hades_regleurs_contg:
                 hades_regleurs_contg[regleur_id] = int(variable.get("plot"))
             else:
@@ -57,7 +72,7 @@ def main():
     hades_dephaseurs_contg = dict()
     for dephaseur in donneesDephaseurs.iterfind("./dephaseur", root.nsmap):
         for variable in dephaseur.iterfind("./variables", root.nsmap):
-            dephaseur_id = int(variable.getparent().get("num"))
+            dephaseur_id = pstap2xfmr[variable.getparent().get("num")]
             if dephaseur_id not in hades_dephaseurs_contg:
                 hades_dephaseurs_contg[dephaseur_id] = int(variable.get("plot"))
             else:

@@ -292,7 +292,7 @@ CASE_TYPE=$(python3 "$DWO_JOBINFO_SCRIPT" "$CP_BASECASE" | grep -F "CASE_TYPE" |
 if [ "$CASE_TYPE" = "dwohds" ]; then
    DWO_OUTPUT_DIR=$(python3 "$DWO_JOBINFO_SCRIPT" "$CP_BASECASE" | grep -F "outputs_directory" | cut -d'=' -f2)
    python3 "$CONTG_SRC"/extract_dynawo_automata_changes_basecase.py "$CP_BASECASE"/"$DWO_OUTPUT_DIR"/finalState/outputIIDM.xml "$CP_BASECASE"
-   python3 "$CONTG_SRC"/extract_hades_automata_changes_basecase.py "$CP_BASECASE"/Hades/out.xml "$CP_BASECASE"
+   python3 "$CONTG_SRC"/extract_hades_automata_changes_basecase.py "$CP_BASECASE"/Hades/out.xml "$CP_BASECASE" "$CP_BASECASE"/Hades/donneesEntreeHADES2.xml
 else
    DWO_OUTPUT_DIR=$(python3 "$DWO_JOBINFO_SCRIPT" "$CP_BASECASE" | grep -F "outputs_directoryA" | cut -d'=' -f2)
    python3 "$CONTG_SRC"/extract_dynawo_automata_changes_basecase.py "$CP_BASECASE"/"$DWO_OUTPUT_DIR"/finalState/outputIIDM.xml "$CP_BASECASE"/A/
