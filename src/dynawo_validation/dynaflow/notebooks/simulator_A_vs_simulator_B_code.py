@@ -1,7 +1,7 @@
 import pandas as pd
 import plotly.graph_objects as go
 from dynawo_validation.dynaflow.notebooks import create_graph
-from IPython.display import display, HTML
+from IPython.display import display, HTML, Markdown
 import qgrid
 from ipywidgets import widgets, AppLayout
 from collections import namedtuple
@@ -337,32 +337,32 @@ def create_aut_df(results_dir, A_B, contgcase, prefix, basecase, dwo_dwo, var_va
             df_hades_regleurs_diff = copy.deepcopy(df_hades_regleurs_basecase)
 
             df_hades_regleurs_diff = df_hades_regleurs_diff.rename(
-                columns={"AUT_VAL": "AUT_VAL_BASE"}
+                columns={"AUT_VAL": "BC_VAL"}
             )
-            df_hades_regleurs_diff["AUT_VAL_CONTG"] = df_hades_regleurs_contg["AUT_VAL"]
+            df_hades_regleurs_diff["CG_VAL"] = df_hades_regleurs_contg["AUT_VAL"]
 
             df_hades_regleurs_diff["DIFF"] = (
-                df_hades_regleurs_basecase["AUT_VAL"]
-                - df_hades_regleurs_contg["AUT_VAL"]
+                df_hades_regleurs_contg["AUT_VAL"]
+                - df_hades_regleurs_basecase["AUT_VAL"]
             )
 
-            df_hades_regleurs_diff["DIFF_ABS"] = df_hades_regleurs_diff["DIFF"].abs()
+            df_hades_regleurs_diff["ABS_DIFF"] = df_hades_regleurs_diff["DIFF"].abs()
 
             df_hades_regleurs_diff.loc[
-                df_hades_regleurs_diff["DIFF_ABS"] != 0, "HAS_CHANGED"
+                df_hades_regleurs_diff["ABS_DIFF"] != 0, "HAS_CHANGED"
             ] = 1
             df_hades_regleurs_diff.loc[
-                df_hades_regleurs_diff["DIFF_ABS"] == 0, "HAS_CHANGED"
+                df_hades_regleurs_diff["ABS_DIFF"] == 0, "HAS_CHANGED"
             ] = 0
 
-            df_hades_regleurs_diff["DIFF_POS"] = df_hades_regleurs_diff["DIFF"]
+            df_hades_regleurs_diff["POS_DIFF"] = df_hades_regleurs_diff["DIFF"]
             df_hades_regleurs_diff.loc[
-                df_hades_regleurs_diff["DIFF"] <= 0, "DIFF_POS"
+                df_hades_regleurs_diff["DIFF"] <= 0, "POS_DIFF"
             ] = 0
 
-            df_hades_regleurs_diff["DIFF_NEG"] = df_hades_regleurs_diff["DIFF"]
+            df_hades_regleurs_diff["NEG_DIFF"] = df_hades_regleurs_diff["DIFF"]
             df_hades_regleurs_diff.loc[
-                df_hades_regleurs_diff["DIFF"] >= 0, "DIFF_NEG"
+                df_hades_regleurs_diff["DIFF"] >= 0, "NEG_DIFF"
             ] = 0
 
             return df_hades_regleurs_diff
@@ -391,36 +391,36 @@ def create_aut_df(results_dir, A_B, contgcase, prefix, basecase, dwo_dwo, var_va
             df_hades_dephaseurs_diff = copy.deepcopy(df_hades_dephaseurs_basecase)
 
             df_hades_dephaseurs_diff = df_hades_dephaseurs_diff.rename(
-                columns={"AUT_VAL": "AUT_VAL_BASE"}
+                columns={"AUT_VAL": "BC_VAL"}
             )
-            df_hades_dephaseurs_diff["AUT_VAL_CONTG"] = df_hades_dephaseurs_contg[
+            df_hades_dephaseurs_diff["CG_VAL"] = df_hades_dephaseurs_contg[
                 "AUT_VAL"
             ]
 
             df_hades_dephaseurs_diff["DIFF"] = (
-                df_hades_dephaseurs_basecase["AUT_VAL"]
-                - df_hades_dephaseurs_contg["AUT_VAL"]
+                df_hades_dephaseurs_contg["AUT_VAL"]
+                - df_hades_dephaseurs_basecase["AUT_VAL"]
             )
 
-            df_hades_dephaseurs_diff["DIFF_ABS"] = df_hades_dephaseurs_diff[
+            df_hades_dephaseurs_diff["ABS_DIFF"] = df_hades_dephaseurs_diff[
                 "DIFF"
             ].abs()
 
             df_hades_dephaseurs_diff.loc[
-                df_hades_dephaseurs_diff["DIFF_ABS"] != 0, "HAS_CHANGED"
+                df_hades_dephaseurs_diff["ABS_DIFF"] != 0, "HAS_CHANGED"
             ] = 1
             df_hades_dephaseurs_diff.loc[
-                df_hades_dephaseurs_diff["DIFF_ABS"] == 0, "HAS_CHANGED"
+                df_hades_dephaseurs_diff["ABS_DIFF"] == 0, "HAS_CHANGED"
             ] = 0
 
-            df_hades_dephaseurs_diff["DIFF_POS"] = df_hades_dephaseurs_diff["DIFF"]
+            df_hades_dephaseurs_diff["POS_DIFF"] = df_hades_dephaseurs_diff["DIFF"]
             df_hades_dephaseurs_diff.loc[
-                df_hades_dephaseurs_diff["DIFF"] <= 0, "DIFF_POS"
+                df_hades_dephaseurs_diff["DIFF"] <= 0, "POS_DIFF"
             ] = 0
 
-            df_hades_dephaseurs_diff["DIFF_NEG"] = df_hades_dephaseurs_diff["DIFF"]
+            df_hades_dephaseurs_diff["NEG_DIFF"] = df_hades_dephaseurs_diff["DIFF"]
             df_hades_dephaseurs_diff.loc[
-                df_hades_dephaseurs_diff["DIFF"] >= 0, "DIFF_NEG"
+                df_hades_dephaseurs_diff["DIFF"] >= 0, "NEG_DIFF"
             ] = 0
 
             return df_hades_dephaseurs_diff
@@ -465,40 +465,40 @@ def create_aut_df(results_dir, A_B, contgcase, prefix, basecase, dwo_dwo, var_va
             )
 
             df_dynawo_ratioTapChanger_diff = df_dynawo_ratioTapChanger_diff.rename(
-                columns={"TAP_VAL": "TAP_VAL_BASE"}
+                columns={"TAP_VAL": "BC_VAL"}
             )
             df_dynawo_ratioTapChanger_diff[
-                "TAP_VAL_CONTG"
+                "CG_VAL"
             ] = df_dynawo_ratioTapChanger_contgcase["TAP_VAL"]
 
             df_dynawo_ratioTapChanger_diff["DIFF"] = (
-                df_dynawo_ratioTapChanger_basecase["TAP_VAL"]
-                - df_dynawo_ratioTapChanger_contgcase["TAP_VAL"]
+                df_dynawo_ratioTapChanger_contgcase["TAP_VAL"]
+                - df_dynawo_ratioTapChanger_basecase["TAP_VAL"]
             )
 
-            df_dynawo_ratioTapChanger_diff["DIFF_ABS"] = df_dynawo_ratioTapChanger_diff[
+            df_dynawo_ratioTapChanger_diff["ABS_DIFF"] = df_dynawo_ratioTapChanger_diff[
                 "DIFF"
             ].abs()
 
             df_dynawo_ratioTapChanger_diff.loc[
-                df_dynawo_ratioTapChanger_diff["DIFF_ABS"] != 0, "HAS_CHANGED"
+                df_dynawo_ratioTapChanger_diff["ABS_DIFF"] != 0, "HAS_CHANGED"
             ] = 1
             df_dynawo_ratioTapChanger_diff.loc[
-                df_dynawo_ratioTapChanger_diff["DIFF_ABS"] == 0, "HAS_CHANGED"
+                df_dynawo_ratioTapChanger_diff["ABS_DIFF"] == 0, "HAS_CHANGED"
             ] = 0
 
-            df_dynawo_ratioTapChanger_diff["DIFF_POS"] = df_dynawo_ratioTapChanger_diff[
+            df_dynawo_ratioTapChanger_diff["POS_DIFF"] = df_dynawo_ratioTapChanger_diff[
                 "DIFF"
             ]
             df_dynawo_ratioTapChanger_diff.loc[
-                df_dynawo_ratioTapChanger_diff["DIFF"] <= 0, "DIFF_POS"
+                df_dynawo_ratioTapChanger_diff["DIFF"] <= 0, "POS_DIFF"
             ] = 0
 
-            df_dynawo_ratioTapChanger_diff["DIFF_NEG"] = df_dynawo_ratioTapChanger_diff[
+            df_dynawo_ratioTapChanger_diff["NEG_DIFF"] = df_dynawo_ratioTapChanger_diff[
                 "DIFF"
             ]
             df_dynawo_ratioTapChanger_diff.loc[
-                df_dynawo_ratioTapChanger_diff["DIFF"] >= 0, "DIFF_NEG"
+                df_dynawo_ratioTapChanger_diff["DIFF"] >= 0, "NEG_DIFF"
             ] = 0
 
             return df_dynawo_ratioTapChanger_diff
@@ -530,40 +530,40 @@ def create_aut_df(results_dir, A_B, contgcase, prefix, basecase, dwo_dwo, var_va
                 df_dynawo_phaseTapChanger_basecase
             )
             df_dynawo_phaseTapChanger_diff = df_dynawo_phaseTapChanger_diff.rename(
-                columns={"PSTAP_VAL": "PSTAP_VAL_BASE"}
+                columns={"PSTAP_VAL": "BC_VAL"}
             )
             df_dynawo_phaseTapChanger_diff[
-                "PSTAP_VAL_CONTG"
+                "CG_VAL"
             ] = df_dynawo_phaseTapChanger_contgcase["PSTAP_VAL"]
 
             df_dynawo_phaseTapChanger_diff["DIFF"] = (
-                df_dynawo_phaseTapChanger_basecase["PSTAP_VAL"]
-                - df_dynawo_phaseTapChanger_contgcase["PSTAP_VAL"]
+                df_dynawo_phaseTapChanger_contgcase["PSTAP_VAL"]
+                - df_dynawo_phaseTapChanger_basecase["PSTAP_VAL"]
             )
 
-            df_dynawo_phaseTapChanger_diff["DIFF_ABS"] = df_dynawo_phaseTapChanger_diff[
+            df_dynawo_phaseTapChanger_diff["ABS_DIFF"] = df_dynawo_phaseTapChanger_diff[
                 "DIFF"
             ].abs()
 
             df_dynawo_phaseTapChanger_diff.loc[
-                df_dynawo_phaseTapChanger_diff["DIFF_ABS"] != 0, "HAS_CHANGED"
+                df_dynawo_phaseTapChanger_diff["ABS_DIFF"] != 0, "HAS_CHANGED"
             ] = 1
             df_dynawo_phaseTapChanger_diff.loc[
-                df_dynawo_phaseTapChanger_diff["DIFF_ABS"] == 0, "HAS_CHANGED"
+                df_dynawo_phaseTapChanger_diff["ABS_DIFF"] == 0, "HAS_CHANGED"
             ] = 0
 
-            df_dynawo_phaseTapChanger_diff["DIFF_POS"] = df_dynawo_phaseTapChanger_diff[
+            df_dynawo_phaseTapChanger_diff["POS_DIFF"] = df_dynawo_phaseTapChanger_diff[
                 "DIFF"
             ]
             df_dynawo_phaseTapChanger_diff.loc[
-                df_dynawo_phaseTapChanger_diff["DIFF"] <= 0, "DIFF_POS"
+                df_dynawo_phaseTapChanger_diff["DIFF"] <= 0, "POS_DIFF"
             ] = 0
 
-            df_dynawo_phaseTapChanger_diff["DIFF_NEG"] = df_dynawo_phaseTapChanger_diff[
+            df_dynawo_phaseTapChanger_diff["NEG_DIFF"] = df_dynawo_phaseTapChanger_diff[
                 "DIFF"
             ]
             df_dynawo_phaseTapChanger_diff.loc[
-                df_dynawo_phaseTapChanger_diff["DIFF"] >= 0, "DIFF_NEG"
+                df_dynawo_phaseTapChanger_diff["DIFF"] >= 0, "NEG_DIFF"
             ] = 0
 
             return df_dynawo_phaseTapChanger_diff
@@ -597,31 +597,31 @@ def create_aut_df(results_dir, A_B, contgcase, prefix, basecase, dwo_dwo, var_va
             df_dynawo_shunt_diff = copy.deepcopy(df_dynawo_shunt_basecase)
 
             df_dynawo_shunt_diff = df_dynawo_shunt_diff.rename(
-                columns={"SHUNT_CHG_VAL": "SHUNT_CHG_VAL_BASE"}
+                columns={"SHUNT_CHG_VAL": "BC_VAL"}
             )
-            df_dynawo_shunt_diff["SHUNT_CHG_VAL_CONTG"] = df_dynawo_shunt_contgcase[
+            df_dynawo_shunt_diff["CG_VAL"] = df_dynawo_shunt_contgcase[
                 "SHUNT_CHG_VAL"
             ]
 
             df_dynawo_shunt_diff["DIFF"] = (
-                df_dynawo_shunt_basecase["SHUNT_CHG_VAL"]
-                - df_dynawo_shunt_contgcase["SHUNT_CHG_VAL"]
+                df_dynawo_shunt_contgcase["SHUNT_CHG_VAL"]
+                - df_dynawo_shunt_basecase["SHUNT_CHG_VAL"]
             )
 
-            df_dynawo_shunt_diff["DIFF_ABS"] = df_dynawo_shunt_diff["DIFF"].abs()
+            df_dynawo_shunt_diff["ABS_DIFF"] = df_dynawo_shunt_diff["DIFF"].abs()
 
             df_dynawo_shunt_diff.loc[
-                df_dynawo_shunt_diff["DIFF_ABS"] != 0, "HAS_CHANGED"
+                df_dynawo_shunt_diff["ABS_DIFF"] != 0, "HAS_CHANGED"
             ] = 1
             df_dynawo_shunt_diff.loc[
-                df_dynawo_shunt_diff["DIFF_ABS"] == 0, "HAS_CHANGED"
+                df_dynawo_shunt_diff["ABS_DIFF"] == 0, "HAS_CHANGED"
             ] = 0
 
-            df_dynawo_shunt_diff["DIFF_POS"] = df_dynawo_shunt_diff["DIFF"]
-            df_dynawo_shunt_diff.loc[df_dynawo_shunt_diff["DIFF"] <= 0, "DIFF_POS"] = 0
+            df_dynawo_shunt_diff["POS_DIFF"] = df_dynawo_shunt_diff["DIFF"]
+            df_dynawo_shunt_diff.loc[df_dynawo_shunt_diff["DIFF"] <= 0, "POS_DIFF"] = 0
 
-            df_dynawo_shunt_diff["DIFF_NEG"] = df_dynawo_shunt_diff["DIFF"]
-            df_dynawo_shunt_diff.loc[df_dynawo_shunt_diff["DIFF"] >= 0, "DIFF_NEG"] = 0
+            df_dynawo_shunt_diff["NEG_DIFF"] = df_dynawo_shunt_diff["DIFF"]
+            df_dynawo_shunt_diff.loc[df_dynawo_shunt_diff["DIFF"] >= 0, "NEG_DIFF"] = 0
 
             return df_dynawo_shunt_diff
 
@@ -683,67 +683,67 @@ def create_aut_df(results_dir, A_B, contgcase, prefix, basecase, dwo_dwo, var_va
             df_dynawo_branch_diff_1 = copy.deepcopy(df_dynawo_branch_basecase_bus1)
 
             df_dynawo_branch_diff_1 = df_dynawo_branch_diff_1.rename(
-                columns={"TOPO_CHG_VAL_1": "TOPO_CHG_VAL_1_BASE"}
+                columns={"TOPO_CHG_VAL_1": "BC_VAL_1"}
             )
             df_dynawo_branch_diff_1[
-                "TOPO_CHG_VAL_1_CONTG"
+                "CG_VAL_1"
             ] = df_dynawo_branch_contgcase_bus1["TOPO_CHG_VAL_1"]
 
             df_dynawo_branch_diff_2 = copy.deepcopy(df_dynawo_branch_basecase_bus2)
 
             df_dynawo_branch_diff_2 = df_dynawo_branch_diff_2.rename(
-                columns={"TOPO_CHG_VAL_2": "TOPO_CHG_VAL_2_BASE"}
+                columns={"TOPO_CHG_VAL_2": "BC_VAL_2"}
             )
             df_dynawo_branch_diff_2[
-                "TOPO_CHG_VAL_2_CONTG"
+                "CG_VAL_2"
             ] = df_dynawo_branch_contgcase_bus2["TOPO_CHG_VAL_2"]
 
             df_dynawo_branch_diff_1["DIFF"] = (
-                df_dynawo_branch_basecase_bus1["TOPO_CHG_VAL_1"]
-                - df_dynawo_branch_contgcase_bus1["TOPO_CHG_VAL_1"]
+                df_dynawo_branch_contgcase_bus1["TOPO_CHG_VAL_1"]
+                - df_dynawo_branch_basecase_bus1["TOPO_CHG_VAL_1"]
             )
 
-            df_dynawo_branch_diff_1["DIFF_ABS"] = df_dynawo_branch_diff_1["DIFF"].abs()
+            df_dynawo_branch_diff_1["ABS_DIFF"] = df_dynawo_branch_diff_1["DIFF"].abs()
 
             df_dynawo_branch_diff_1.loc[
-                df_dynawo_branch_diff_1["DIFF_ABS"] != 0, "HAS_CHANGED"
+                df_dynawo_branch_diff_1["ABS_DIFF"] != 0, "HAS_CHANGED"
             ] = 1
             df_dynawo_branch_diff_1.loc[
-                df_dynawo_branch_diff_1["DIFF_ABS"] == 0, "HAS_CHANGED"
+                df_dynawo_branch_diff_1["ABS_DIFF"] == 0, "HAS_CHANGED"
             ] = 0
 
-            df_dynawo_branch_diff_1["DIFF_POS"] = df_dynawo_branch_diff_1["DIFF"]
+            df_dynawo_branch_diff_1["POS_DIFF"] = df_dynawo_branch_diff_1["DIFF"]
             df_dynawo_branch_diff_1.loc[
-                df_dynawo_branch_diff_1["DIFF"] <= 0, "DIFF_POS"
+                df_dynawo_branch_diff_1["DIFF"] <= 0, "POS_DIFF"
             ] = 0
 
-            df_dynawo_branch_diff_1["DIFF_NEG"] = df_dynawo_branch_diff_1["DIFF"]
+            df_dynawo_branch_diff_1["NEG_DIFF"] = df_dynawo_branch_diff_1["DIFF"]
             df_dynawo_branch_diff_1.loc[
-                df_dynawo_branch_diff_1["DIFF"] >= 0, "DIFF_NEG"
+                df_dynawo_branch_diff_1["DIFF"] >= 0, "NEG_DIFF"
             ] = 0
 
             df_dynawo_branch_diff_2["DIFF"] = (
-                df_dynawo_branch_basecase_bus2["TOPO_CHG_VAL_2"]
-                - df_dynawo_branch_contgcase_bus2["TOPO_CHG_VAL_2"]
+                df_dynawo_branch_contgcase_bus2["TOPO_CHG_VAL_2"]
+                - df_dynawo_branch_basecase_bus2["TOPO_CHG_VAL_2"]
             )
 
-            df_dynawo_branch_diff_2["DIFF_ABS"] = df_dynawo_branch_diff_2["DIFF"].abs()
+            df_dynawo_branch_diff_2["ABS_DIFF"] = df_dynawo_branch_diff_2["DIFF"].abs()
 
             df_dynawo_branch_diff_2.loc[
-                df_dynawo_branch_diff_2["DIFF_ABS"] != 0, "HAS_CHANGED"
+                df_dynawo_branch_diff_2["ABS_DIFF"] != 0, "HAS_CHANGED"
             ] = 1
             df_dynawo_branch_diff_2.loc[
-                df_dynawo_branch_diff_2["DIFF_ABS"] == 0, "HAS_CHANGED"
+                df_dynawo_branch_diff_2["ABS_DIFF"] == 0, "HAS_CHANGED"
             ] = 0
 
-            df_dynawo_branch_diff_2["DIFF_POS"] = df_dynawo_branch_diff_2["DIFF"]
+            df_dynawo_branch_diff_2["POS_DIFF"] = df_dynawo_branch_diff_2["DIFF"]
             df_dynawo_branch_diff_2.loc[
-                df_dynawo_branch_diff_2["DIFF"] <= 0, "DIFF_POS"
+                df_dynawo_branch_diff_2["DIFF"] <= 0, "POS_DIFF"
             ] = 0
 
-            df_dynawo_branch_diff_2["DIFF_NEG"] = df_dynawo_branch_diff_2["DIFF"]
+            df_dynawo_branch_diff_2["NEG_DIFF"] = df_dynawo_branch_diff_2["DIFF"]
             df_dynawo_branch_diff_2.loc[
-                df_dynawo_branch_diff_2["DIFF"] >= 0, "DIFF_NEG"
+                df_dynawo_branch_diff_2["DIFF"] >= 0, "NEG_DIFF"
             ] = 0
 
             return df_dynawo_branch_diff_1
@@ -806,67 +806,67 @@ def create_aut_df(results_dir, A_B, contgcase, prefix, basecase, dwo_dwo, var_va
             df_dynawo_branch_diff_1 = copy.deepcopy(df_dynawo_branch_basecase_bus1)
 
             df_dynawo_branch_diff_1 = df_dynawo_branch_diff_1.rename(
-                columns={"TOPO_CHG_VAL_1": "TOPO_CHG_VAL_1_BASE"}
+                columns={"TOPO_CHG_VAL_1": "BC_VAL_1"}
             )
             df_dynawo_branch_diff_1[
-                "TOPO_CHG_VAL_1_CONTG"
+                "CG_VAL_1"
             ] = df_dynawo_branch_contgcase_bus1["TOPO_CHG_VAL_1"]
 
             df_dynawo_branch_diff_2 = copy.deepcopy(df_dynawo_branch_basecase_bus2)
 
             df_dynawo_branch_diff_2 = df_dynawo_branch_diff_2.rename(
-                columns={"TOPO_CHG_VAL_2": "TOPO_CHG_VAL_2_BASE"}
+                columns={"TOPO_CHG_VAL_2": "BC_VAL_2"}
             )
             df_dynawo_branch_diff_2[
-                "TOPO_CHG_VAL_2_CONTG"
+                "CG_VAL_2"
             ] = df_dynawo_branch_contgcase_bus2["TOPO_CHG_VAL_2"]
 
             df_dynawo_branch_diff_1["DIFF"] = (
-                df_dynawo_branch_basecase_bus1["TOPO_CHG_VAL_1"]
-                - df_dynawo_branch_contgcase_bus1["TOPO_CHG_VAL_1"]
+                df_dynawo_branch_contgcase_bus1["TOPO_CHG_VAL_1"]
+                - df_dynawo_branch_basecase_bus1["TOPO_CHG_VAL_1"]
             )
 
-            df_dynawo_branch_diff_1["DIFF_ABS"] = df_dynawo_branch_diff_1["DIFF"].abs()
+            df_dynawo_branch_diff_1["ABS_DIFF"] = df_dynawo_branch_diff_1["DIFF"].abs()
 
             df_dynawo_branch_diff_1.loc[
-                df_dynawo_branch_diff_1["DIFF_ABS"] != 0, "HAS_CHANGED"
+                df_dynawo_branch_diff_1["ABS_DIFF"] != 0, "HAS_CHANGED"
             ] = 1
             df_dynawo_branch_diff_1.loc[
-                df_dynawo_branch_diff_1["DIFF_ABS"] == 0, "HAS_CHANGED"
+                df_dynawo_branch_diff_1["ABS_DIFF"] == 0, "HAS_CHANGED"
             ] = 0
 
-            df_dynawo_branch_diff_1["DIFF_POS"] = df_dynawo_branch_diff_1["DIFF"]
+            df_dynawo_branch_diff_1["POS_DIFF"] = df_dynawo_branch_diff_1["DIFF"]
             df_dynawo_branch_diff_1.loc[
-                df_dynawo_branch_diff_1["DIFF"] <= 0, "DIFF_POS"
+                df_dynawo_branch_diff_1["DIFF"] <= 0, "POS_DIFF"
             ] = 0
 
-            df_dynawo_branch_diff_1["DIFF_NEG"] = df_dynawo_branch_diff_1["DIFF"]
+            df_dynawo_branch_diff_1["NEG_DIFF"] = df_dynawo_branch_diff_1["DIFF"]
             df_dynawo_branch_diff_1.loc[
-                df_dynawo_branch_diff_1["DIFF"] >= 0, "DIFF_NEG"
+                df_dynawo_branch_diff_1["DIFF"] >= 0, "NEG_DIFF"
             ] = 0
 
             df_dynawo_branch_diff_2["DIFF"] = (
-                df_dynawo_branch_basecase_bus2["TOPO_CHG_VAL_2"]
-                - df_dynawo_branch_contgcase_bus2["TOPO_CHG_VAL_2"]
+                df_dynawo_branch_contgcase_bus2["TOPO_CHG_VAL_2"]
+                - df_dynawo_branch_basecase_bus2["TOPO_CHG_VAL_2"]
             )
 
-            df_dynawo_branch_diff_2["DIFF_ABS"] = df_dynawo_branch_diff_2["DIFF"].abs()
+            df_dynawo_branch_diff_2["ABS_DIFF"] = df_dynawo_branch_diff_2["DIFF"].abs()
 
             df_dynawo_branch_diff_2.loc[
-                df_dynawo_branch_diff_2["DIFF_ABS"] != 0, "HAS_CHANGED"
+                df_dynawo_branch_diff_2["ABS_DIFF"] != 0, "HAS_CHANGED"
             ] = 1
             df_dynawo_branch_diff_2.loc[
-                df_dynawo_branch_diff_2["DIFF_ABS"] == 0, "HAS_CHANGED"
+                df_dynawo_branch_diff_2["ABS_DIFF"] == 0, "HAS_CHANGED"
             ] = 0
 
-            df_dynawo_branch_diff_2["DIFF_POS"] = df_dynawo_branch_diff_2["DIFF"]
+            df_dynawo_branch_diff_2["POS_DIFF"] = df_dynawo_branch_diff_2["DIFF"]
             df_dynawo_branch_diff_2.loc[
-                df_dynawo_branch_diff_2["DIFF"] <= 0, "DIFF_POS"
+                df_dynawo_branch_diff_2["DIFF"] <= 0, "POS_DIFF"
             ] = 0
 
-            df_dynawo_branch_diff_2["DIFF_NEG"] = df_dynawo_branch_diff_2["DIFF"]
+            df_dynawo_branch_diff_2["NEG_DIFF"] = df_dynawo_branch_diff_2["DIFF"]
             df_dynawo_branch_diff_2.loc[
-                df_dynawo_branch_diff_2["DIFF"] >= 0, "DIFF_NEG"
+                df_dynawo_branch_diff_2["DIFF"] >= 0, "NEG_DIFF"
             ] = 0
 
             return df_dynawo_branch_diff_2
@@ -929,81 +929,81 @@ def create_aut_df(results_dir, A_B, contgcase, prefix, basecase, dwo_dwo, var_va
             df_dynawo_branch_diff_1 = copy.deepcopy(df_dynawo_branch_basecase_bus1)
 
             df_dynawo_branch_diff_1 = df_dynawo_branch_diff_1.rename(
-                columns={"TOPO_CHG_VAL_1": "TOPO_CHG_VAL_1_BASE"}
+                columns={"TOPO_CHG_VAL_1": "BC_VAL_1"}
             )
             df_dynawo_branch_diff_1[
-                "TOPO_CHG_VAL_1_CONTG"
+                "CG_VAL_1"
             ] = df_dynawo_branch_contgcase_bus1["TOPO_CHG_VAL_1"]
 
             df_dynawo_branch_diff_2 = copy.deepcopy(df_dynawo_branch_basecase_bus2)
 
             df_dynawo_branch_diff_2 = df_dynawo_branch_diff_2.rename(
-                columns={"TOPO_CHG_VAL_2": "TOPO_CHG_VAL_2_BASE"}
+                columns={"TOPO_CHG_VAL_2": "BC_VAL_2"}
             )
             df_dynawo_branch_diff_2[
-                "TOPO_CHG_VAL_2_CONTG"
+                "CG_VAL_2"
             ] = df_dynawo_branch_contgcase_bus2["TOPO_CHG_VAL_2"]
 
             df_dynawo_topo_diff = copy.deepcopy(df_dynawo_branch_basecase_bus1)
             df_dynawo_topo_diff = df_dynawo_topo_diff.rename(
-                columns={"TOPO_CHG_VAL_1": "TOPO_CHG_VAL_BASE"}
+                columns={"TOPO_CHG_VAL_1": "BC_VAL_TOPO"}
             )
 
-            df_dynawo_topo_diff["TOPO_CHG_VAL_BASE"] = (
-                df_dynawo_branch_diff_1["TOPO_CHG_VAL_1_BASE"]
-                + df_dynawo_branch_diff_2["TOPO_CHG_VAL_2_BASE"]
+            df_dynawo_topo_diff["BC_VAL_TOPO"] = (
+                df_dynawo_branch_diff_1["BC_VAL_1"]
+                + df_dynawo_branch_diff_2["BC_VAL_2"]
             )
-            df_dynawo_topo_diff["TOPO_CHG_VAL_CONTG"] = (
-                df_dynawo_branch_diff_1["TOPO_CHG_VAL_1_CONTG"]
-                + df_dynawo_branch_diff_2["TOPO_CHG_VAL_2_CONTG"]
+            df_dynawo_topo_diff["CG_VAL_TOPO"] = (
+                df_dynawo_branch_diff_1["CG_VAL_1"]
+                + df_dynawo_branch_diff_2["CG_VAL_2"]
             )
 
             df_dynawo_branch_diff_1["DIFF"] = (
-                df_dynawo_branch_basecase_bus1["TOPO_CHG_VAL_1"]
-                - df_dynawo_branch_contgcase_bus1["TOPO_CHG_VAL_1"]
+                df_dynawo_branch_contgcase_bus1["TOPO_CHG_VAL_1"]
+                - df_dynawo_branch_basecase_bus1["TOPO_CHG_VAL_1"]
             )
 
-            df_dynawo_branch_diff_1["DIFF_ABS"] = df_dynawo_branch_diff_1["DIFF"].abs()
+            df_dynawo_branch_diff_1["ABS_DIFF"] = df_dynawo_branch_diff_1["DIFF"].abs()
 
             df_dynawo_branch_diff_1.loc[
-                df_dynawo_branch_diff_1["DIFF_ABS"] != 0, "HAS_CHANGED"
+                df_dynawo_branch_diff_1["ABS_DIFF"] != 0, "HAS_CHANGED"
             ] = 1
             df_dynawo_branch_diff_1.loc[
-                df_dynawo_branch_diff_1["DIFF_ABS"] == 0, "HAS_CHANGED"
+                df_dynawo_branch_diff_1["ABS_DIFF"] == 0, "HAS_CHANGED"
             ] = 0
 
-            df_dynawo_branch_diff_1["DIFF_POS"] = df_dynawo_branch_diff_1["DIFF"]
+            df_dynawo_branch_diff_1["POS_DIFF"] = df_dynawo_branch_diff_1["DIFF"]
             df_dynawo_branch_diff_1.loc[
-                df_dynawo_branch_diff_1["DIFF"] <= 0, "DIFF_POS"
+                df_dynawo_branch_diff_1["DIFF"] <= 0, "POS_DIFF"
             ] = 0
 
-            df_dynawo_branch_diff_1["DIFF_NEG"] = df_dynawo_branch_diff_1["DIFF"]
+            df_dynawo_branch_diff_1["NEG_DIFF"] = df_dynawo_branch_diff_1["DIFF"]
             df_dynawo_branch_diff_1.loc[
-                df_dynawo_branch_diff_1["DIFF"] >= 0, "DIFF_NEG"
+                df_dynawo_branch_diff_1["DIFF"] >= 0, "NEG_DIFF"
             ] = 0
 
             df_dynawo_branch_diff_2["DIFF"] = (
-                df_dynawo_branch_basecase_bus2["TOPO_CHG_VAL_2"]
-                - df_dynawo_branch_contgcase_bus2["TOPO_CHG_VAL_2"]
+                df_dynawo_branch_contgcase_bus2["TOPO_CHG_VAL_2"]
+                - df_dynawo_branch_basecase_bus2["TOPO_CHG_VAL_2"]
             )
 
-            df_dynawo_branch_diff_2["DIFF_ABS"] = df_dynawo_branch_diff_2["DIFF"].abs()
+            df_dynawo_branch_diff_2["ABS_DIFF"] = df_dynawo_branch_diff_2["DIFF"].abs()
 
             df_dynawo_branch_diff_2.loc[
-                df_dynawo_branch_diff_2["DIFF_ABS"] != 0, "HAS_CHANGED"
+                df_dynawo_branch_diff_2["ABS_DIFF"] != 0, "HAS_CHANGED"
             ] = 1
             df_dynawo_branch_diff_2.loc[
-                df_dynawo_branch_diff_2["DIFF_ABS"] == 0, "HAS_CHANGED"
+                df_dynawo_branch_diff_2["ABS_DIFF"] == 0, "HAS_CHANGED"
             ] = 0
 
-            df_dynawo_branch_diff_2["DIFF_POS"] = df_dynawo_branch_diff_2["DIFF"]
+            df_dynawo_branch_diff_2["POS_DIFF"] = df_dynawo_branch_diff_2["DIFF"]
             df_dynawo_branch_diff_2.loc[
-                df_dynawo_branch_diff_2["DIFF"] <= 0, "DIFF_POS"
+                df_dynawo_branch_diff_2["DIFF"] <= 0, "POS_DIFF"
             ] = 0
 
-            df_dynawo_branch_diff_2["DIFF_NEG"] = df_dynawo_branch_diff_2["DIFF"]
+            df_dynawo_branch_diff_2["NEG_DIFF"] = df_dynawo_branch_diff_2["DIFF"]
             df_dynawo_branch_diff_2.loc[
-                df_dynawo_branch_diff_2["DIFF"] >= 0, "DIFF_NEG"
+                df_dynawo_branch_diff_2["DIFF"] >= 0, "NEG_DIFF"
             ] = 0
 
             df_dynawo_topo_diff["DIFF1"] = df_dynawo_branch_diff_1["DIFF"]
@@ -1018,20 +1018,20 @@ def create_aut_df(results_dir, A_B, contgcase, prefix, basecase, dwo_dwo, var_va
                 default=0,
             )
 
-            df_dynawo_topo_diff["DIFF_ABS"] = df_dynawo_topo_diff["DIFF"].abs()
+            df_dynawo_topo_diff["ABS_DIFF"] = df_dynawo_topo_diff["DIFF"].abs()
 
             df_dynawo_topo_diff.loc[
-                df_dynawo_topo_diff["DIFF_ABS"] != 0, "HAS_CHANGED"
+                df_dynawo_topo_diff["ABS_DIFF"] != 0, "HAS_CHANGED"
             ] = 1
             df_dynawo_topo_diff.loc[
-                df_dynawo_topo_diff["DIFF_ABS"] == 0, "HAS_CHANGED"
+                df_dynawo_topo_diff["ABS_DIFF"] == 0, "HAS_CHANGED"
             ] = 0
 
-            df_dynawo_topo_diff["DIFF_POS"] = df_dynawo_topo_diff["DIFF"]
-            df_dynawo_topo_diff.loc[df_dynawo_topo_diff["DIFF"] <= 0, "DIFF_POS"] = 0
+            df_dynawo_topo_diff["POS_DIFF"] = df_dynawo_topo_diff["DIFF"]
+            df_dynawo_topo_diff.loc[df_dynawo_topo_diff["DIFF"] <= 0, "POS_DIFF"] = 0
 
-            df_dynawo_topo_diff["DIFF_NEG"] = df_dynawo_topo_diff["DIFF"]
-            df_dynawo_topo_diff.loc[df_dynawo_topo_diff["DIFF"] >= 0, "DIFF_NEG"] = 0
+            df_dynawo_topo_diff["NEG_DIFF"] = df_dynawo_topo_diff["DIFF"]
+            df_dynawo_topo_diff.loc[df_dynawo_topo_diff["DIFF"] >= 0, "NEG_DIFF"] = 0
 
             return df_dynawo_topo_diff
 
@@ -1171,6 +1171,10 @@ def create_containers(
     aut_diff_case,
     aut_diff_var_A,
     aut_diff_var_B,
+    check1a,
+    check1b,
+    check2a,
+    check2b,
 ):
     container1 = widgets.HBox([varx, vary])
 
@@ -1180,9 +1184,38 @@ def create_containers(
         [graph, nodetype, nodemetrictype, edgetype, edgemetrictype]
     )
 
-    container_aut = widgets.HBox([aut_diff_case, aut_diff_var_A, aut_diff_var_B])
+    container_aut_gen = widgets.HBox([check1a, check1b])
+    container_aut = widgets.HBox([aut_diff_case, aut_diff_var_A, check2a, aut_diff_var_B, check2b])
 
-    return container1, container2, container3, container_aut
+    return container1, container2, container3, container_aut_gen, container_aut
+
+
+def create_check_box():
+    check1a = widgets.Checkbox(
+        value=True,
+        description="Only cntgs with changes in sim A",
+        disabled=False,
+        indent=False,
+    )
+    check1b = widgets.Checkbox(
+        value=True,
+        description="Only cntgs with changes in sim B",
+        disabled=False,
+        indent=False,
+    )
+    check2a = widgets.Checkbox(
+        value=False,
+        description="Only cntgs with changes in sim A",
+        disabled=False,
+        indent=False,
+    )
+    check2b = widgets.Checkbox(
+        value=False,
+        description="Only cntgs with changes in sim B",
+        disabled=False,
+        indent=False,
+    )
+    return check1a, check1b, check2a, check2b
 
 
 # Create all the layouts of the output
@@ -1310,6 +1343,7 @@ def paint_graph(C, data, nodetype, nodemetrictype, edgetype, edgemetrictype):
 def show_displays(
     aut_diffs_A,
     aut_diffs_B,
+    container_aut_gen,
     container_aut,
     aut_diff_dfA_contgcase_grid,
     aut_diff_dfB_contgcase_grid,
@@ -1342,12 +1376,15 @@ def show_displays(
     aut_diffs = AppLayout(
         left_sidebar=aut_diffs_A, right_sidebar=aut_diffs_B, align_items="center"
     )
+    display(Markdown("# GLOBAL AGGREGATE EVENTS W.R.T. BASECASE (CONTINGENCIES SEVERITY)"))
+    display(container_aut_gen)
     display(aut_diffs)
     aut_diffs_contgcase = AppLayout(
         left_sidebar=aut_diff_dfA_contgcase_grid,
         right_sidebar=aut_diff_dfB_contgcase_grid,
         align_items="center",
     )
+    display(Markdown("# EVENT DETAILS"))
     display(container_aut)
     display(aut_diffs_contgcase)
     display(t_r)
@@ -1453,6 +1490,10 @@ def run_all(
                 aut_diff_var_A.value,
             )
 
+            if check2a.value:
+                aut_diff_dfA_contgcase = aut_diff_dfA_contgcase.loc[(aut_diff_dfA_contgcase.HAS_CHANGED != 0)]
+                aut_diff_dfA_contgcase = aut_diff_dfA_contgcase.drop(columns=["HAS_CHANGED"])
+
             aut_diff_dfA_contgcase_grid.df = aut_diff_dfA_contgcase
 
     def response_autB(change):
@@ -1466,6 +1507,10 @@ def run_all(
                 DWO_DWO,
                 aut_diff_var_B.value,
             )
+
+            if check2b.value:
+                aut_diff_dfB_contgcase = aut_diff_dfB_contgcase.loc[(aut_diff_dfB_contgcase.HAS_CHANGED != 0)]
+                aut_diff_dfB_contgcase = aut_diff_dfB_contgcase.drop(columns=["HAS_CHANGED"])
 
             aut_diff_dfB_contgcase_grid.df = aut_diff_dfB_contgcase
 
@@ -1490,8 +1535,29 @@ def run_all(
                 aut_diff_var_B.value,
             )
 
+            if check2a.value:
+                aut_diff_dfA_contgcase = aut_diff_dfA_contgcase.loc[(aut_diff_dfA_contgcase.HAS_CHANGED != 0)]
+                aut_diff_dfA_contgcase = aut_diff_dfA_contgcase.drop(columns=["HAS_CHANGED"])
+
+            if check2b.value:
+                aut_diff_dfB_contgcase = aut_diff_dfB_contgcase.loc[(aut_diff_dfB_contgcase.HAS_CHANGED != 0)]
+                aut_diff_dfB_contgcase = aut_diff_dfB_contgcase.drop(columns=["HAS_CHANGED"])
+
             aut_diff_dfA_contgcase_grid.df = aut_diff_dfA_contgcase
             aut_diff_dfB_contgcase_grid.df = aut_diff_dfB_contgcase
+
+    def response_general_aut_A(change):
+        aut_diffs_A, aut_diffs_B = read_csv_aut_diffs(RESULTS_DIR + "/" + PREFIX + "/aut/")
+        if check1a.value:
+            aut_diffs_A = aut_diffs_A.loc[(aut_diffs_A.NUM_CHANGES != 0)]
+        aut_diffs_A_grid.df = aut_diffs_A
+
+    def response_general_aut_B(change):
+        aut_diffs_A, aut_diffs_B = read_csv_aut_diffs(RESULTS_DIR + "/" + PREFIX + "/aut/")
+        if check1b.value:
+            aut_diffs_B = aut_diffs_B.loc[(aut_diffs_B.NUM_CHANGES != 0)]
+        aut_diffs_B_grid.df = aut_diffs_B
+
 
     def response3(change):
         with c.batch_update():
@@ -1543,7 +1609,7 @@ def run_all(
         )
 
         layout_temp = go.Layout(
-            title=dict(text="Case: " + name + " - " + type),
+            title=dict(text="FINAL COMPARISON OF AUT STATES - A vs B"),
             xaxis=dict(title="SIM_A"),
             yaxis=dict(title="SIM_B"),
             height=HEIGHT,
@@ -1557,6 +1623,8 @@ def run_all(
     df = read_csv_metrics(PF_SOL_DIR)
 
     aut_diffs_A, aut_diffs_B = read_csv_aut_diffs(RESULTS_DIR + "/" + PREFIX + "/aut/")
+
+    check1a, check1b, check2a, check2b = create_check_box()
 
     # Get list of contingency cases
     contg_cases = list(df["cont"].unique())
@@ -1614,7 +1682,7 @@ def run_all(
     )
 
     # Get all the containers
-    container1, container2, container3, container_aut = create_containers(
+    container1, container2, container3, container_aut_gen, container_aut = create_containers(
         varx,
         vary,
         dev,
@@ -1630,6 +1698,10 @@ def run_all(
         aut_diff_case,
         aut_diff_var_A,
         aut_diff_var_B,
+        check1a,
+        check1b,
+        check2a,
+        check2b,
     )
 
     # Get all the layouts
@@ -1662,11 +1734,23 @@ def run_all(
         aut_diff_var_B.value,
     )
 
+    if check2a.value:
+        aut_diff_dfA_contgcase = aut_diff_dfA_contgcase.loc[(aut_diff_dfA_contgcase.HAS_CHANGED  != 0)]
+        aut_diff_dfA_contgcase = aut_diff_dfA_contgcase.drop(columns=["HAS_CHANGED"])
     aut_diff_dfA_contgcase_grid = qgrid.QgridWidget(df=aut_diff_dfA_contgcase)
+
+    if check2b.value:
+        aut_diff_dfB_contgcase = aut_diff_dfB_contgcase.loc[(aut_diff_dfB_contgcase.HAS_CHANGED  != 0)]
+        aut_diff_dfB_contgcase = aut_diff_dfB_contgcase.drop(columns=["HAS_CHANGED"])
     aut_diff_dfB_contgcase_grid = qgrid.QgridWidget(df=aut_diff_dfB_contgcase)
 
     # Create the required widgets for visualization
+    if check1a.value:
+        aut_diffs_A = aut_diffs_A.loc[(aut_diffs_A.NUM_CHANGES != 0)]
     aut_diffs_A_grid = qgrid.QgridWidget(df=aut_diffs_A)
+
+    if check1b.value:
+        aut_diffs_B = aut_diffs_B.loc[(aut_diffs_B.NUM_CHANGES!= 0)]
     aut_diffs_B_grid = qgrid.QgridWidget(df=aut_diffs_B)
 
     t_r = create_tap_trace("NAOUT6REAC.1", "ratioTapChanger")
@@ -1764,6 +1848,7 @@ def run_all(
     html_graph = show_displays(
         aut_diffs_A_grid,
         aut_diffs_B_grid,
+        container_aut_gen,
         container_aut,
         aut_diff_dfA_contgcase_grid,
         aut_diff_dfB_contgcase_grid,
@@ -1807,3 +1892,7 @@ def run_all(
     aut_diff_var_A.observe(response_autA, names="value")
     aut_diff_var_B.observe(response_autB, names="value")
     aut_diff_case.observe(response_aut, names="value")
+    check1a.observe(response_general_aut_A, names="value")
+    check1b.observe(response_general_aut_B, names="value")
+    check2a.observe(response_autA, names="value")
+    check2b.observe(response_autB, names="value")

@@ -182,112 +182,112 @@ def main():
     df_dynawo_topo_diff = copy.deepcopy(df_dynawo_branch_contgcase_bus1)
 
     df_dynawo_ratioTapChanger_diff["DIFF"] = (
-        df_dynawo_ratioTapChanger_basecase["TAP_VAL"]
-        - df_dynawo_ratioTapChanger_contgcase["TAP_VAL"]
+        df_dynawo_ratioTapChanger_contgcase["TAP_VAL"]
+        - df_dynawo_ratioTapChanger_basecase["TAP_VAL"]
     )
 
-    df_dynawo_ratioTapChanger_diff["DIFF_ABS"] = df_dynawo_ratioTapChanger_diff[
+    df_dynawo_ratioTapChanger_diff["ABS_DIFF"] = df_dynawo_ratioTapChanger_diff[
         "DIFF"
     ].abs()
 
     df_dynawo_ratioTapChanger_diff.loc[
-        df_dynawo_ratioTapChanger_diff["DIFF_ABS"] != 0, "HAS_CHANGED"
+        df_dynawo_ratioTapChanger_diff["ABS_DIFF"] != 0, "NUM_CHANGES"
     ] = 1
     df_dynawo_ratioTapChanger_diff.loc[
-        df_dynawo_ratioTapChanger_diff["DIFF_ABS"] == 0, "HAS_CHANGED"
+        df_dynawo_ratioTapChanger_diff["ABS_DIFF"] == 0, "NUM_CHANGES"
     ] = 0
 
-    df_dynawo_ratioTapChanger_diff["DIFF_POS"] = df_dynawo_ratioTapChanger_diff["DIFF"]
+    df_dynawo_ratioTapChanger_diff["POS_DIFF"] = df_dynawo_ratioTapChanger_diff["DIFF"]
     df_dynawo_ratioTapChanger_diff.loc[
-        df_dynawo_ratioTapChanger_diff["DIFF"] <= 0, "DIFF_POS"
+        df_dynawo_ratioTapChanger_diff["DIFF"] <= 0, "POS_DIFF"
     ] = 0
 
-    df_dynawo_ratioTapChanger_diff["DIFF_NEG"] = df_dynawo_ratioTapChanger_diff["DIFF"]
+    df_dynawo_ratioTapChanger_diff["NEG_DIFF"] = df_dynawo_ratioTapChanger_diff["DIFF"]
     df_dynawo_ratioTapChanger_diff.loc[
-        df_dynawo_ratioTapChanger_diff["DIFF"] >= 0, "DIFF_NEG"
+        df_dynawo_ratioTapChanger_diff["DIFF"] >= 0, "NEG_DIFF"
     ] = 0
 
     df_dynawo_phaseTapChanger_diff["DIFF"] = (
-        df_dynawo_phaseTapChanger_basecase["PSTAP_VAL"]
-        - df_dynawo_phaseTapChanger_contgcase["PSTAP_VAL"]
+        df_dynawo_phaseTapChanger_contgcase["PSTAP_VAL"]
+        - df_dynawo_phaseTapChanger_basecase["PSTAP_VAL"]
     )
 
-    df_dynawo_phaseTapChanger_diff["DIFF_ABS"] = df_dynawo_phaseTapChanger_diff[
+    df_dynawo_phaseTapChanger_diff["ABS_DIFF"] = df_dynawo_phaseTapChanger_diff[
         "DIFF"
     ].abs()
 
     df_dynawo_phaseTapChanger_diff.loc[
-        df_dynawo_phaseTapChanger_diff["DIFF_ABS"] != 0, "HAS_CHANGED"
+        df_dynawo_phaseTapChanger_diff["ABS_DIFF"] != 0, "NUM_CHANGES"
     ] = 1
     df_dynawo_phaseTapChanger_diff.loc[
-        df_dynawo_phaseTapChanger_diff["DIFF_ABS"] == 0, "HAS_CHANGED"
+        df_dynawo_phaseTapChanger_diff["ABS_DIFF"] == 0, "NUM_CHANGES"
     ] = 0
 
-    df_dynawo_phaseTapChanger_diff["DIFF_POS"] = df_dynawo_phaseTapChanger_diff["DIFF"]
+    df_dynawo_phaseTapChanger_diff["POS_DIFF"] = df_dynawo_phaseTapChanger_diff["DIFF"]
     df_dynawo_phaseTapChanger_diff.loc[
-        df_dynawo_phaseTapChanger_diff["DIFF"] <= 0, "DIFF_POS"
+        df_dynawo_phaseTapChanger_diff["DIFF"] <= 0, "POS_DIFF"
     ] = 0
 
-    df_dynawo_phaseTapChanger_diff["DIFF_NEG"] = df_dynawo_phaseTapChanger_diff["DIFF"]
+    df_dynawo_phaseTapChanger_diff["NEG_DIFF"] = df_dynawo_phaseTapChanger_diff["DIFF"]
     df_dynawo_phaseTapChanger_diff.loc[
-        df_dynawo_phaseTapChanger_diff["DIFF"] >= 0, "DIFF_NEG"
+        df_dynawo_phaseTapChanger_diff["DIFF"] >= 0, "NEG_DIFF"
     ] = 0
 
     df_dynawo_shunt_diff["DIFF"] = (
-        df_dynawo_shunt_basecase["SHUNT_CHG_VAL"]
-        - df_dynawo_shunt_contgcase["SHUNT_CHG_VAL"]
+        df_dynawo_shunt_contgcase["SHUNT_CHG_VAL"]
+        - df_dynawo_shunt_basecase["SHUNT_CHG_VAL"]
     )
 
-    df_dynawo_shunt_diff["DIFF_ABS"] = df_dynawo_shunt_diff["DIFF"].abs()
+    df_dynawo_shunt_diff["ABS_DIFF"] = df_dynawo_shunt_diff["DIFF"].abs()
 
-    df_dynawo_shunt_diff.loc[df_dynawo_shunt_diff["DIFF_ABS"] != 0, "HAS_CHANGED"] = 1
-    df_dynawo_shunt_diff.loc[df_dynawo_shunt_diff["DIFF_ABS"] == 0, "HAS_CHANGED"] = 0
+    df_dynawo_shunt_diff.loc[df_dynawo_shunt_diff["ABS_DIFF"] != 0, "NUM_CHANGES"] = 1
+    df_dynawo_shunt_diff.loc[df_dynawo_shunt_diff["ABS_DIFF"] == 0, "NUM_CHANGES"] = 0
 
-    df_dynawo_shunt_diff["DIFF_POS"] = df_dynawo_shunt_diff["DIFF"]
-    df_dynawo_shunt_diff.loc[df_dynawo_shunt_diff["DIFF"] <= 0, "DIFF_POS"] = 0
+    df_dynawo_shunt_diff["POS_DIFF"] = df_dynawo_shunt_diff["DIFF"]
+    df_dynawo_shunt_diff.loc[df_dynawo_shunt_diff["DIFF"] <= 0, "POS_DIFF"] = 0
 
-    df_dynawo_shunt_diff["DIFF_NEG"] = df_dynawo_shunt_diff["DIFF"]
-    df_dynawo_shunt_diff.loc[df_dynawo_shunt_diff["DIFF"] >= 0, "DIFF_NEG"] = 0
+    df_dynawo_shunt_diff["NEG_DIFF"] = df_dynawo_shunt_diff["DIFF"]
+    df_dynawo_shunt_diff.loc[df_dynawo_shunt_diff["DIFF"] >= 0, "NEG_DIFF"] = 0
 
     df_dynawo_branch_diff_1["DIFF"] = (
-        df_dynawo_branch_basecase_bus1["TOPO_CHG_VAL_1"]
-        - df_dynawo_branch_contgcase_bus1["TOPO_CHG_VAL_1"]
+        df_dynawo_branch_contgcase_bus1["TOPO_CHG_VAL_1"]
+        - df_dynawo_branch_basecase_bus1["TOPO_CHG_VAL_1"]
     )
 
-    df_dynawo_branch_diff_1["DIFF_ABS"] = df_dynawo_branch_diff_1["DIFF"].abs()
+    df_dynawo_branch_diff_1["ABS_DIFF"] = df_dynawo_branch_diff_1["DIFF"].abs()
 
     df_dynawo_branch_diff_1.loc[
-        df_dynawo_branch_diff_1["DIFF_ABS"] != 0, "HAS_CHANGED"
+        df_dynawo_branch_diff_1["ABS_DIFF"] != 0, "NUM_CHANGES"
     ] = 1
     df_dynawo_branch_diff_1.loc[
-        df_dynawo_branch_diff_1["DIFF_ABS"] == 0, "HAS_CHANGED"
+        df_dynawo_branch_diff_1["ABS_DIFF"] == 0, "NUM_CHANGES"
     ] = 0
 
-    df_dynawo_branch_diff_1["DIFF_POS"] = df_dynawo_branch_diff_1["DIFF"]
-    df_dynawo_branch_diff_1.loc[df_dynawo_branch_diff_1["DIFF"] <= 0, "DIFF_POS"] = 0
+    df_dynawo_branch_diff_1["POS_DIFF"] = df_dynawo_branch_diff_1["DIFF"]
+    df_dynawo_branch_diff_1.loc[df_dynawo_branch_diff_1["DIFF"] <= 0, "POS_DIFF"] = 0
 
-    df_dynawo_branch_diff_1["DIFF_NEG"] = df_dynawo_branch_diff_1["DIFF"]
-    df_dynawo_branch_diff_1.loc[df_dynawo_branch_diff_1["DIFF"] >= 0, "DIFF_NEG"] = 0
+    df_dynawo_branch_diff_1["NEG_DIFF"] = df_dynawo_branch_diff_1["DIFF"]
+    df_dynawo_branch_diff_1.loc[df_dynawo_branch_diff_1["DIFF"] >= 0, "NEG_DIFF"] = 0
 
     df_dynawo_branch_diff_2["DIFF"] = (
-        df_dynawo_branch_basecase_bus2["TOPO_CHG_VAL_2"]
-        - df_dynawo_branch_contgcase_bus2["TOPO_CHG_VAL_2"]
+        df_dynawo_branch_contgcase_bus2["TOPO_CHG_VAL_2"]
+        - df_dynawo_branch_basecase_bus2["TOPO_CHG_VAL_2"]
     )
 
-    df_dynawo_branch_diff_2["DIFF_ABS"] = df_dynawo_branch_diff_2["DIFF"].abs()
+    df_dynawo_branch_diff_2["ABS_DIFF"] = df_dynawo_branch_diff_2["DIFF"].abs()
 
     df_dynawo_branch_diff_2.loc[
-        df_dynawo_branch_diff_2["DIFF_ABS"] != 0, "HAS_CHANGED"
+        df_dynawo_branch_diff_2["ABS_DIFF"] != 0, "NUM_CHANGES"
     ] = 1
     df_dynawo_branch_diff_2.loc[
-        df_dynawo_branch_diff_2["DIFF_ABS"] == 0, "HAS_CHANGED"
+        df_dynawo_branch_diff_2["ABS_DIFF"] == 0, "NUM_CHANGES"
     ] = 0
 
-    df_dynawo_branch_diff_2["DIFF_POS"] = df_dynawo_branch_diff_2["DIFF"]
-    df_dynawo_branch_diff_2.loc[df_dynawo_branch_diff_2["DIFF"] <= 0, "DIFF_POS"] = 0
+    df_dynawo_branch_diff_2["POS_DIFF"] = df_dynawo_branch_diff_2["DIFF"]
+    df_dynawo_branch_diff_2.loc[df_dynawo_branch_diff_2["DIFF"] <= 0, "POS_DIFF"] = 0
 
-    df_dynawo_branch_diff_2["DIFF_NEG"] = df_dynawo_branch_diff_2["DIFF"]
-    df_dynawo_branch_diff_2.loc[df_dynawo_branch_diff_2["DIFF"] >= 0, "DIFF_NEG"] = 0
+    df_dynawo_branch_diff_2["NEG_DIFF"] = df_dynawo_branch_diff_2["DIFF"]
+    df_dynawo_branch_diff_2.loc[df_dynawo_branch_diff_2["DIFF"] >= 0, "NEG_DIFF"] = 0
 
     df_dynawo_topo_diff["DIFF1"] = df_dynawo_branch_diff_1["DIFF"]
     df_dynawo_topo_diff["DIFF2"] = df_dynawo_branch_diff_2["DIFF"]
@@ -298,22 +298,22 @@ def main():
         default=0,
     )
 
-    df_dynawo_topo_diff["DIFF_ABS"] = df_dynawo_topo_diff["DIFF"].abs()
+    df_dynawo_topo_diff["ABS_DIFF"] = df_dynawo_topo_diff["DIFF"].abs()
 
-    df_dynawo_topo_diff.loc[df_dynawo_topo_diff["DIFF_ABS"] != 0, "HAS_CHANGED"] = 1
-    df_dynawo_topo_diff.loc[df_dynawo_topo_diff["DIFF_ABS"] == 0, "HAS_CHANGED"] = 0
+    df_dynawo_topo_diff.loc[df_dynawo_topo_diff["ABS_DIFF"] != 0, "NUM_CHANGES"] = 1
+    df_dynawo_topo_diff.loc[df_dynawo_topo_diff["ABS_DIFF"] == 0, "NUM_CHANGES"] = 0
 
-    df_dynawo_topo_diff["DIFF_POS"] = df_dynawo_topo_diff["DIFF"]
-    df_dynawo_topo_diff.loc[df_dynawo_topo_diff["DIFF"] <= 0, "DIFF_POS"] = 0
+    df_dynawo_topo_diff["POS_DIFF"] = df_dynawo_topo_diff["DIFF"]
+    df_dynawo_topo_diff.loc[df_dynawo_topo_diff["DIFF"] <= 0, "POS_DIFF"] = 0
 
-    df_dynawo_topo_diff["DIFF_NEG"] = df_dynawo_topo_diff["DIFF"]
-    df_dynawo_topo_diff.loc[df_dynawo_topo_diff["DIFF"] >= 0, "DIFF_NEG"] = 0
+    df_dynawo_topo_diff["NEG_DIFF"] = df_dynawo_topo_diff["DIFF"]
+    df_dynawo_topo_diff.loc[df_dynawo_topo_diff["DIFF"] >= 0, "NEG_DIFF"] = 0
 
     if args.save != "None":
         save_csv = args.save
         if save_csv[-4:] != ".csv":
             save_csv = save_csv + ".csv"
-        cols = ["DIFF_ABS", "HAS_CHANGED", "DIFF_POS", "DIFF_NEG"]
+        cols = ["ABS_DIFF", "NUM_CHANGES", "POS_DIFF", "NEG_DIFF"]
         ind = [
             "ratioTapChanger",
             "phaseTapChanger",
@@ -324,40 +324,40 @@ def main():
         ]
         vals = [
             [
-                sum(df_dynawo_ratioTapChanger_diff["DIFF_ABS"]),
-                sum(df_dynawo_ratioTapChanger_diff["HAS_CHANGED"]),
-                sum(df_dynawo_ratioTapChanger_diff["DIFF_POS"]),
-                sum(df_dynawo_ratioTapChanger_diff["DIFF_NEG"]),
+                sum(df_dynawo_ratioTapChanger_diff["ABS_DIFF"]),
+                sum(df_dynawo_ratioTapChanger_diff["NUM_CHANGES"]),
+                sum(df_dynawo_ratioTapChanger_diff["POS_DIFF"]),
+                sum(df_dynawo_ratioTapChanger_diff["NEG_DIFF"]),
             ],
             [
-                sum(df_dynawo_phaseTapChanger_diff["DIFF_ABS"]),
-                sum(df_dynawo_phaseTapChanger_diff["HAS_CHANGED"]),
-                sum(df_dynawo_phaseTapChanger_diff["DIFF_POS"]),
-                sum(df_dynawo_phaseTapChanger_diff["DIFF_NEG"]),
+                sum(df_dynawo_phaseTapChanger_diff["ABS_DIFF"]),
+                sum(df_dynawo_phaseTapChanger_diff["NUM_CHANGES"]),
+                sum(df_dynawo_phaseTapChanger_diff["POS_DIFF"]),
+                sum(df_dynawo_phaseTapChanger_diff["NEG_DIFF"]),
             ],
             [
-                sum(df_dynawo_shunt_diff["DIFF_ABS"]),
-                sum(df_dynawo_shunt_diff["HAS_CHANGED"]),
-                sum(df_dynawo_shunt_diff["DIFF_POS"]),
-                sum(df_dynawo_shunt_diff["DIFF_NEG"]),
+                sum(df_dynawo_shunt_diff["ABS_DIFF"]),
+                sum(df_dynawo_shunt_diff["NUM_CHANGES"]),
+                sum(df_dynawo_shunt_diff["POS_DIFF"]),
+                sum(df_dynawo_shunt_diff["NEG_DIFF"]),
             ],
             [
-                sum(df_dynawo_branch_diff_1["DIFF_ABS"]),
-                sum(df_dynawo_branch_diff_1["HAS_CHANGED"]),
-                sum(df_dynawo_branch_diff_1["DIFF_POS"]),
-                sum(df_dynawo_branch_diff_1["DIFF_NEG"]),
+                sum(df_dynawo_branch_diff_1["ABS_DIFF"]),
+                sum(df_dynawo_branch_diff_1["NUM_CHANGES"]),
+                sum(df_dynawo_branch_diff_1["POS_DIFF"]),
+                sum(df_dynawo_branch_diff_1["NEG_DIFF"]),
             ],
             [
-                sum(df_dynawo_branch_diff_2["DIFF_ABS"]),
-                sum(df_dynawo_branch_diff_2["HAS_CHANGED"]),
-                sum(df_dynawo_branch_diff_2["DIFF_POS"]),
-                sum(df_dynawo_branch_diff_2["DIFF_NEG"]),
+                sum(df_dynawo_branch_diff_2["ABS_DIFF"]),
+                sum(df_dynawo_branch_diff_2["NUM_CHANGES"]),
+                sum(df_dynawo_branch_diff_2["POS_DIFF"]),
+                sum(df_dynawo_branch_diff_2["NEG_DIFF"]),
             ],
             [
-                sum(df_dynawo_topo_diff["DIFF_ABS"]),
-                sum(df_dynawo_topo_diff["HAS_CHANGED"]),
-                sum(df_dynawo_topo_diff["DIFF_POS"]),
-                sum(df_dynawo_topo_diff["DIFF_NEG"]),
+                sum(df_dynawo_topo_diff["ABS_DIFF"]),
+                sum(df_dynawo_topo_diff["NUM_CHANGES"]),
+                sum(df_dynawo_topo_diff["POS_DIFF"]),
+                sum(df_dynawo_topo_diff["NEG_DIFF"]),
             ],
         ]
 
@@ -367,49 +367,49 @@ def main():
 
     else:
         print("TOTAL DIFFS ratioTapChanger")
-        print(sum(df_dynawo_ratioTapChanger_diff["DIFF_ABS"]))
+        print(sum(df_dynawo_ratioTapChanger_diff["ABS_DIFF"]))
         print("TOTAL CHANGES ratioTapChanger")
-        print(sum(df_dynawo_ratioTapChanger_diff["HAS_CHANGED"]))
+        print(sum(df_dynawo_ratioTapChanger_diff["NUM_CHANGES"]))
         print("TOTAL POSITIVE DIFFS ratioTapChanger")
-        print(sum(df_dynawo_ratioTapChanger_diff["DIFF_POS"]))
+        print(sum(df_dynawo_ratioTapChanger_diff["POS_DIFF"]))
         print("TOTAL NEGATIVE DIFFS ratioTapChanger")
-        print(sum(df_dynawo_ratioTapChanger_diff["DIFF_NEG"]))
+        print(sum(df_dynawo_ratioTapChanger_diff["NEG_DIFF"]))
 
         print("\n\n\nTOTAL DIFFS phaseTapChanger")
-        print(sum(df_dynawo_phaseTapChanger_diff["DIFF_ABS"]))
+        print(sum(df_dynawo_phaseTapChanger_diff["ABS_DIFF"]))
         print("TOTAL CHANGES phaseTapChanger")
-        print(sum(df_dynawo_phaseTapChanger_diff["HAS_CHANGED"]))
+        print(sum(df_dynawo_phaseTapChanger_diff["NUM_CHANGES"]))
         print("TOTAL POSITIVE DIFFS phaseTapChanger")
-        print(sum(df_dynawo_phaseTapChanger_diff["DIFF_POS"]))
+        print(sum(df_dynawo_phaseTapChanger_diff["POS_DIFF"]))
         print("TOTAL NEGATIVE DIFFS phaseTapChanger")
-        print(sum(df_dynawo_phaseTapChanger_diff["DIFF_NEG"]))
+        print(sum(df_dynawo_phaseTapChanger_diff["NEG_DIFF"]))
 
         print("\n\n\nTOTAL DIFFS shunt")
-        print(sum(df_dynawo_shunt_diff["DIFF_ABS"]))
+        print(sum(df_dynawo_shunt_diff["ABS_DIFF"]))
         print("TOTAL CHANGES shunt")
-        print(sum(df_dynawo_shunt_diff["HAS_CHANGED"]))
+        print(sum(df_dynawo_shunt_diff["NUM_CHANGES"]))
         print("TOTAL POSITIVE DIFFS shunt")
-        print(sum(df_dynawo_shunt_diff["DIFF_POS"]))
+        print(sum(df_dynawo_shunt_diff["POS_DIFF"]))
         print("TOTAL NEGATIVE DIFFS shunt")
-        print(sum(df_dynawo_shunt_diff["DIFF_NEG"]))
+        print(sum(df_dynawo_shunt_diff["NEG_DIFF"]))
 
         print("\n\n\nTOTAL DIFFS branch_bus1")
-        print(sum(df_dynawo_branch_diff_1["DIFF_ABS"]))
+        print(sum(df_dynawo_branch_diff_1["ABS_DIFF"]))
         print("TOTAL CHANGES branch_bus1")
-        print(sum(df_dynawo_branch_diff_1["HAS_CHANGED"]))
+        print(sum(df_dynawo_branch_diff_1["NUM_CHANGES"]))
         print("TOTAL POSITIVE DIFFS branch_bus1")
-        print(sum(df_dynawo_branch_diff_1["DIFF_POS"]))
+        print(sum(df_dynawo_branch_diff_1["POS_DIFF"]))
         print("TOTAL NEGATIVE DIFFS branch_bus1")
-        print(sum(df_dynawo_branch_diff_1["DIFF_NEG"]))
+        print(sum(df_dynawo_branch_diff_1["NEG_DIFF"]))
 
         print("\n\n\nTOTAL DIFFS branch_bus2")
-        print(sum(df_dynawo_branch_diff_2["DIFF_ABS"]))
+        print(sum(df_dynawo_branch_diff_2["ABS_DIFF"]))
         print("TOTAL CHANGES branch_bus2")
-        print(sum(df_dynawo_branch_diff_2["HAS_CHANGED"]))
+        print(sum(df_dynawo_branch_diff_2["NUM_CHANGES"]))
         print("TOTAL POSITIVE DIFFS branch_bus2")
-        print(sum(df_dynawo_branch_diff_2["DIFF_POS"]))
+        print(sum(df_dynawo_branch_diff_2["POS_DIFF"]))
         print("TOTAL NEGATIVE DIFFS branch_bus2")
-        print(sum(df_dynawo_branch_diff_2["DIFF_NEG"]))
+        print(sum(df_dynawo_branch_diff_2["NEG_DIFF"]))
 
 
 if __name__ == "__main__":
