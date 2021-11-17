@@ -144,6 +144,8 @@ def main():
     df_hades_dephaseurs_diff["NEG_DIFF"] = df_hades_dephaseurs_diff["DIFF"]
     df_hades_dephaseurs_diff.loc[df_hades_dephaseurs_diff["DIFF"] >= 0, "NEG_DIFF"] = 0
 
+    has_changed = df_hades_dephaseurs_diff.loc[(df_hades_dephaseurs_diff.NUM_CHANGES != 0)]
+
     if args.save != "None":
         save_csv = args.save
         if save_csv[-4:] != ".csv":
@@ -168,6 +170,8 @@ def main():
         df_to_save = pd.DataFrame(data=vals, index=ind, columns=cols)
 
         df_to_save.to_csv(save_csv, sep=";")
+        has_changed.to_csv(save_csv[-4:] + "_changes.csv", sep=";")
+
     else:
         print("TOTAL DIFFS REGLEURS")
         print(sum(df_hades_regleurs_diff["ABS_DIFF"]))
