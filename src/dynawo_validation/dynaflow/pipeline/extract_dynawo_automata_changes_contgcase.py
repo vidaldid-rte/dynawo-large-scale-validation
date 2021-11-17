@@ -170,16 +170,36 @@ def main():
     )
 
     df_dynawo_ratioTapChanger_diff = copy.deepcopy(df_dynawo_ratioTapChanger_basecase)
+    df_dynawo_ratioTapChanger_diff = df_dynawo_ratioTapChanger_diff.rename(
+        columns={"TAP_VAL": "BC_VAL"}
+    )
+    df_dynawo_ratioTapChanger_diff["CG_VAL"] = df_dynawo_ratioTapChanger_contgcase["TAP_VAL"]
 
     df_dynawo_phaseTapChanger_diff = copy.deepcopy(df_dynawo_phaseTapChanger_basecase)
+    df_dynawo_phaseTapChanger_diff = df_dynawo_phaseTapChanger_diff.rename(
+        columns={"PSTAP_VAL": "BC_VAL"}
+    )
+    df_dynawo_phaseTapChanger_diff["CG_VAL"] = df_dynawo_phaseTapChanger_contgcase["PSTAP_VAL"]
 
     df_dynawo_shunt_diff = copy.deepcopy(df_dynawo_shunt_basecase)
+    df_dynawo_shunt_diff = df_dynawo_shunt_diff.rename(
+        columns={"SHUNT_CHG_VAL": "BC_VAL"}
+    )
+    df_dynawo_shunt_diff["CG_VAL"] = df_dynawo_shunt_contgcase["SHUNT_CHG_VAL"]
 
-    df_dynawo_branch_diff_1 = copy.deepcopy(df_dynawo_branch_contgcase_bus1)
+    df_dynawo_branch_diff_1 = copy.deepcopy(df_dynawo_branch_basecase_bus1)
+    df_dynawo_branch_diff_1 = df_dynawo_branch_diff_1.rename(
+        columns={"TOPO_CHG_VAL_1": "BC_VAL"}
+    )
+    df_dynawo_branch_diff_1["CG_VAL"] = df_dynawo_branch_contgcase_bus1["TOPO_CHG_VAL_1"]
 
-    df_dynawo_branch_diff_2 = copy.deepcopy(df_dynawo_branch_contgcase_bus2)
+    df_dynawo_branch_diff_2 = copy.deepcopy(df_dynawo_branch_basecase_bus2)
+    df_dynawo_branch_diff_2 = df_dynawo_branch_diff_2.rename(
+        columns={"TOPO_CHG_VAL_2": "BC_VAL"}
+    )
+    df_dynawo_branch_diff_2["CG_VAL"] = df_dynawo_branch_contgcase_bus2["TOPO_CHG_VAL_2"]
 
-    df_dynawo_topo_diff = copy.deepcopy(df_dynawo_branch_contgcase_bus1)
+    df_dynawo_topo_diff = copy.deepcopy(df_dynawo_branch_diff_1)
 
     df_dynawo_ratioTapChanger_diff["DIFF"] = (
         df_dynawo_ratioTapChanger_contgcase["TAP_VAL"]
@@ -309,7 +329,11 @@ def main():
     df_dynawo_topo_diff["NEG_DIFF"] = df_dynawo_topo_diff["DIFF"]
     df_dynawo_topo_diff.loc[df_dynawo_topo_diff["DIFF"] >= 0, "NEG_DIFF"] = 0
 
-    has_changed = df_hades_dephaseurs_diff.loc[(df_hades_dephaseurs_diff.NUM_CHANGES != 0)]
+
+    has_changed_tap = df_dynawo_ratioTapChanger_diff.loc[(df_dynawo_ratioTapChanger_diff.NUM_CHANGES != 0)]
+    has_changed_pstap = df_dynawo_phaseTapChanger_diff.loc[(df_dynawo_phaseTapChanger_diff.NUM_CHANGES != 0)]
+
+
 
     if args.save != "None":
         save_csv = args.save
@@ -366,7 +390,9 @@ def main():
         df_to_save = pd.DataFrame(data=vals, index=ind, columns=cols)
 
         df_to_save.to_csv(save_csv, sep=";")
-        has_changed.to_csv(save_csv[-4:] + "_changes.csv", sep=";")
+
+        has_changed_tap.to_csv(save_csv[-4:] + "_TAP_changes.csv", sep=";")
+        has_changed_pstap.to_csv(save_csv[-4:] + "_PSTAP_changes.csv", sep=";")
 
     else:
         print("TOTAL DIFFS ratioTapChanger")

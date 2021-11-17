@@ -68,42 +68,110 @@ def main():
 
     data_files_list_sim_A = []
     data_files_list_sim_B = []
+    data_files_list_sim_A_TAP_changes = []
+    data_files_list_sim_B_TAP_changes = []
+    data_files_list_sim_A_PSTAP_changes = []
+    data_files_list_sim_B_PSTAP_changes = []
     data_files = os.listdir(aut_dir)
 
     if is_dwohds(basecase):
         if launcherA[:5] == "hades":
+            whatis = len("-Hades-aut-diff_TAP_changes.csv")
+            whatis2 = len("-Hades-aut-diff_PSTAP_changes.csv")
             for i in data_files:
                 if i not in data_files_list_sim_A and re.match(
                     ".*-Hades-aut-diff.csv", i
                 ):
                     data_files_list_sim_A.append(i)
+
+                if i not in data_files_list_sim_A_TAP_changes and re.match(
+                    ".*-Hades-aut-diff_TAP_changes.csv", i
+                ):
+                    data_files_list_sim_A_TAP_changes.append(i)
+                if i not in data_files_list_sim_A_PSTAP_changes and re.match(
+                    ".*-Hades-aut-diff_PSTAP_changes.csv", i
+                ):
+                    data_files_list_sim_A_PSTAP_changes.append(i)
+
             for i in data_files:
                 if i not in data_files_list_sim_B and re.match(
                     ".*-Dynawo-aut-diff.csv", i
                 ):
                     data_files_list_sim_B.append(i)
+
+                if i not in data_files_list_sim_B_TAP_changes and re.match(
+                    ".*-Dynawo-aut-diff_TAP_changes.csv", i
+                ):
+                    data_files_list_sim_B_TAP_changes.append(i)
+                if i not in data_files_list_sim_B_PSTAP_changes and re.match(
+                    ".*-Dynawo-aut-diff_PSTAP_changes.csv", i
+                ):
+                    data_files_list_sim_B_PSTAP_changes.append(i)
+
         else:
+            whatis = len("-Dynawo-aut-diff_TAP_changes.csv")
+            whatis2 = len("-Dynawo-aut-diff_PSTAP_changes.csv")
             for i in data_files:
                 if i not in data_files_list_sim_A and re.match(
                     ".*-Dynawo-aut-diff.csv", i
                 ):
                     data_files_list_sim_A.append(i)
+
+                if i not in data_files_list_sim_A_TAP_changes and re.match(
+                    ".*-Dynawo-aut-diff_TAP_changes.csv", i
+                ):
+                    data_files_list_sim_A_TAP_changes.append(i)
+                if i not in data_files_list_sim_A_PSTAP_changes and re.match(
+                    ".*-Dynawo-aut-diff_PSTAP_changes.csv", i
+                ):
+                    data_files_list_sim_A_PSTAP_changes.append(i)
+
             for i in data_files:
                 if i not in data_files_list_sim_B and re.match(
                     ".*-Hades-aut-diff.csv", i
                 ):
                     data_files_list_sim_B.append(i)
+
+                if i not in data_files_list_sim_B_TAP_changes and re.match(
+                    ".*-Hades-aut-diff_TAP_changes.csv", i
+                ):
+                    data_files_list_sim_B_TAP_changes.append(i)
+                if i not in data_files_list_sim_B_PSTAP_changes and re.match(
+                    ".*-Hades-aut-diff_PSTAP_changes.csv", i
+                ):
+                    data_files_list_sim_B_PSTAP_changes.append(i)
     else:
+        whatis = len("-DynawoA-aut-diff_TAP_changes.csv")
+        whatis2 = len("-DynawoA-aut-diff_PSTAP_changes.csv")
         for i in data_files:
             if i not in data_files_list_sim_A and re.match(
                 ".*-DynawoA-aut-diff.csv", i
             ):
                 data_files_list_sim_A.append(i)
+
+            if i not in data_files_list_sim_A_TAP_changes and re.match(
+                    ".*-DynawoA-aut-diff_TAP_changes.csv", i
+            ):
+                data_files_list_sim_A_TAP_changes.append(i)
+            if i not in data_files_list_sim_A_PSTAP_changes and re.match(
+                    ".*-DynawoA-aut-diff_PSTAP_changes.csv", i
+            ):
+                data_files_list_sim_A_PSTAP_changes.append(i)
+
         for i in data_files:
             if i not in data_files_list_sim_B and re.match(
                 ".*-DynawoB-aut-diff.csv", i
             ):
                 data_files_list_sim_B.append(i)
+
+            if i not in data_files_list_sim_B_TAP_changes and re.match(
+                    ".*-DynawoB-aut-diff_TAP_changes.csv", i
+            ):
+                data_files_list_sim_B_TAP_changes.append(i)
+            if i not in data_files_list_sim_B_PSTAP_changes and re.match(
+                    ".*-DynawoB-aut-diff_PSTAP_changes.csv", i
+            ):
+                data_files_list_sim_B_PSTAP_changes.append(i)
 
     df_temp = read_aut_changes(aut_dir + data_files_list_sim_A[0])
     temp_ind = list(df_temp.index)
@@ -146,6 +214,76 @@ def main():
     dataframeA.to_csv(aut_dir + "SIMULATOR_A_AUT_CHANGES.csv", sep=";")
 
     dataframeB.to_csv(aut_dir + "SIMULATOR_B_AUT_CHANGES.csv", sep=";")
+
+    # TODO: Fix so that the order does not matter and the initial state is not supposed
+    data_files_list_sim_A_TAP_changes.sort()
+    data_files_list_sim_B_TAP_changes.sort()
+    data_files_list_sim_A_PSTAP_changes.sort()
+    data_files_list_sim_B_PSTAP_changes.sort()
+
+    x_valuesTAP = []
+    y_valuesTAP = []
+    namesTAP = []
+    for k in range(len(data_files_list_sim_A_TAP_changes)):
+        contgname = data_files_list_sim_A_TAP_changes[:-whatis]
+        df_A = read_aut_changes(aut_dir + data_files_list_sim_A_TAP_changes[k])
+        df_B = read_aut_changes(aut_dir + data_files_list_sim_B_TAP_changes[k])
+        names_A = list(df_A.index)
+        names_B = list(df_B.index)
+        for i in range(len(names_A)):
+            if names_A[i] not in names_B:
+                x_valuesTAP.append(df_A.iloc[i, 1])
+                y_valuesTAP.append(df_A.iloc[i, 0])
+                namesTAP.append(contgname + "_" + names_A[i])
+            else:
+                for j in range(len(names_B)):
+                    if names_B[j] == names_A[i]:
+                        x_valuesTAP.append(df_A.iloc[i, 1])
+                        y_valuesTAP.append(df_B.iloc[j, 1])
+                        namesTAP.append(contgname + "_" + names_A[i])
+                        del names_B[j]
+                        break
+        for i in range(len(names_B)):
+            x_valuesTAP.append(df_B.iloc[i, 0])
+            y_valuesTAP.append(df_B.iloc[i, 1])
+            namesTAP.append(contgname + "_" + names_B[i])
+        os.remove(aut_dir + data_files_list_sim_A_TAP_changes[k])
+        os.remove(aut_dir + data_files_list_sim_B_TAP_changes[k])
+
+    x_valuesPSTAP = []
+    y_valuesPSTAP = []
+    namesPSTAP = []
+    for k in range(len(data_files_list_sim_A_PSTAP_changes)):
+        contgname = data_files_list_sim_A_PSTAP_changes[:-whatis2]
+        df_A = read_aut_changes(aut_dir + data_files_list_sim_A_PSTAP_changes[k])
+        df_B = read_aut_changes(aut_dir + data_files_list_sim_B_PSTAP_changes[k])
+        names_A = list(df_A.index)
+        names_B = list(df_B.index)
+        for i in range(len(names_A)):
+            if names_A[i] not in names_B:
+                x_valuesPSTAP.append(df_A.iloc[i, 1])
+                y_valuesPSTAP.append(df_A.iloc[i, 0])
+                namesPSTAP.append(contgname + "_" + names_A[i])
+            else:
+                for j in range(len(names_B)):
+                    if names_B[j] == names_A[i]:
+                        x_valuesPSTAP.append(df_A.iloc[i, 1])
+                        y_valuesPSTAP.append(df_B.iloc[j, 1])
+                        namesPSTAP.append(contgname + "_" + names_A[i])
+                        del names_B[j]
+                        break
+        for i in range(len(names_B)):
+            x_valuesPSTAP.append(df_B.iloc[i, 0])
+            y_valuesPSTAP.append(df_B.iloc[i, 1])
+            namesPSTAP.append(contgname + "_" + names_B[i])
+        os.remove(aut_dir + data_files_list_sim_A_PSTAP_changes[k])
+        os.remove(aut_dir + data_files_list_sim_B_PSTAP_changes[k])
+
+ # convert df and save
+
+
+
+
 
 
 def read_aut_changes(aut_dir):

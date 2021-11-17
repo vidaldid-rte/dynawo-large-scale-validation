@@ -106,6 +106,19 @@ def main():
 
     df_hades_dephaseurs_diff = copy.deepcopy(df_hades_dephaseurs_basecase)
 
+
+    df_hades_regleurs_diff = df_hades_regleurs_diff.rename(
+        columns={"AUT_VAL": "BC_VAL"}
+    )
+    df_hades_regleurs_diff["CG_VAL"] = df_hades_regleurs_contg["AUT_VAL"]
+
+
+    df_hades_dephaseurs_diff = df_hades_dephaseurs_diff.rename(
+        columns={"AUT_VAL": "BC_VAL"}
+    )
+    df_hades_dephaseurs_diff["CG_VAL"] = df_hades_dephaseurs_contg["AUT_VAL"]
+
+
     df_hades_regleurs_diff["DIFF"] = (
         df_hades_regleurs_contg["AUT_VAL"] - df_hades_regleurs_basecase["AUT_VAL"]
     )
@@ -126,7 +139,7 @@ def main():
     df_hades_regleurs_diff.loc[df_hades_regleurs_diff["DIFF"] >= 0, "NEG_DIFF"] = 0
 
     df_hades_dephaseurs_diff["DIFF"] = (
-        df_hades_dephaseurs_contg["AUT_VAL"] - df_hades_dephaseurs_diff["AUT_VAL"]
+        df_hades_dephaseurs_contg["AUT_VAL"] - df_hades_dephaseurs_basecase["AUT_VAL"]
     )
 
     df_hades_dephaseurs_diff["ABS_DIFF"] = df_hades_dephaseurs_diff["DIFF"].abs()
@@ -144,7 +157,8 @@ def main():
     df_hades_dephaseurs_diff["NEG_DIFF"] = df_hades_dephaseurs_diff["DIFF"]
     df_hades_dephaseurs_diff.loc[df_hades_dephaseurs_diff["DIFF"] >= 0, "NEG_DIFF"] = 0
 
-    has_changed = df_hades_dephaseurs_diff.loc[(df_hades_dephaseurs_diff.NUM_CHANGES != 0)]
+    has_changed_regleurs = df_hades_regleurs_diff.loc[(df_hades_regleurs_diff.NUM_CHANGES != 0)]
+    has_changed_dephaseurs = df_hades_dephaseurs_diff.loc[(df_hades_dephaseurs_diff.NUM_CHANGES != 0)]
 
     if args.save != "None":
         save_csv = args.save
@@ -170,7 +184,8 @@ def main():
         df_to_save = pd.DataFrame(data=vals, index=ind, columns=cols)
 
         df_to_save.to_csv(save_csv, sep=";")
-        has_changed.to_csv(save_csv[-4:] + "_changes.csv", sep=";")
+        has_changed_regleurs.to_csv(save_csv[-4:] + "_TAP_changes.csv", sep=";")
+        has_changed_dephaseurs.to_csv(save_csv[-4:] + "_PSTAP_changes.csv", sep=";")
 
     else:
         print("TOTAL DIFFS REGLEURS")
