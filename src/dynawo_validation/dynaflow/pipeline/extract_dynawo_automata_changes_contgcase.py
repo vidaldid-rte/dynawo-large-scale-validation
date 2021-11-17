@@ -391,8 +391,8 @@ def main():
 
         df_to_save.to_csv(save_csv, sep=";")
 
-        has_changed_tap.to_csv(save_csv[-4:] + "_TAP_changes.csv", sep=";")
-        has_changed_pstap.to_csv(save_csv[-4:] + "_PSTAP_changes.csv", sep=";")
+        has_changed_tap.to_csv(save_csv[:-4] + "_TAP_changes.csv", sep=";")
+        has_changed_pstap.to_csv(save_csv[:-4] + "_PSTAP_changes.csv", sep=";")
 
     else:
         print("TOTAL DIFFS ratioTapChanger")

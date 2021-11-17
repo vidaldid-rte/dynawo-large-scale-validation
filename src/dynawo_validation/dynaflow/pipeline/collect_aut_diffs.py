@@ -7,7 +7,7 @@
 # collect_aut_diffs.py:
 #
 # This script extracts the differences between case A and case B and saves them in csv.xz format
-
+import copy
 import glob
 import pandas as pd
 import sys
@@ -225,11 +225,12 @@ def main():
     y_valuesTAP = []
     namesTAP = []
     for k in range(len(data_files_list_sim_A_TAP_changes)):
-        contgname = data_files_list_sim_A_TAP_changes[:-whatis]
+        contgname = data_files_list_sim_A_TAP_changes[k][:-whatis]
         df_A = read_aut_changes(aut_dir + data_files_list_sim_A_TAP_changes[k])
         df_B = read_aut_changes(aut_dir + data_files_list_sim_B_TAP_changes[k])
         names_A = list(df_A.index)
         names_B = list(df_B.index)
+        names_B_aux = copy.deepcopy(names_B)
         for i in range(len(names_A)):
             if names_A[i] not in names_B:
                 x_valuesTAP.append(df_A.iloc[i, 1])
@@ -238,15 +239,21 @@ def main():
             else:
                 for j in range(len(names_B)):
                     if names_B[j] == names_A[i]:
+                        print("\n\n\n")
+                        print(df_A.iloc[i, 1])
+                        print(df_B.iloc[j, 1])
+                        print("\n\n\n")
                         x_valuesTAP.append(df_A.iloc[i, 1])
                         y_valuesTAP.append(df_B.iloc[j, 1])
                         namesTAP.append(contgname + "_" + names_A[i])
-                        del names_B[j]
+                        names_B_aux[j] = 0
                         break
-        for i in range(len(names_B)):
-            x_valuesTAP.append(df_B.iloc[i, 0])
-            y_valuesTAP.append(df_B.iloc[i, 1])
-            namesTAP.append(contgname + "_" + names_B[i])
+
+        for i in range(len(names_B_aux)):
+            if names_B_aux[i] != 0:
+                x_valuesTAP.append(df_B.iloc[i, 0])
+                y_valuesTAP.append(df_B.iloc[i, 1])
+                namesTAP.append(contgname + "_" + names_B[i])
         os.remove(aut_dir + data_files_list_sim_A_TAP_changes[k])
         os.remove(aut_dir + data_files_list_sim_B_TAP_changes[k])
 
@@ -254,7 +261,7 @@ def main():
     y_valuesPSTAP = []
     namesPSTAP = []
     for k in range(len(data_files_list_sim_A_PSTAP_changes)):
-        contgname = data_files_list_sim_A_PSTAP_changes[:-whatis2]
+        contgname = data_files_list_sim_A_PSTAP_changes[k][:-whatis2]
         df_A = read_aut_changes(aut_dir + data_files_list_sim_A_PSTAP_changes[k])
         df_B = read_aut_changes(aut_dir + data_files_list_sim_B_PSTAP_changes[k])
         names_A = list(df_A.index)
@@ -279,11 +286,13 @@ def main():
         os.remove(aut_dir + data_files_list_sim_A_PSTAP_changes[k])
         os.remove(aut_dir + data_files_list_sim_B_PSTAP_changes[k])
 
- # convert df and save
+    dataTAP = {"sim_A":x_valuesTAP, "sim_B":y_valuesTAP}
+    dataPSTAP = {"sim_A": x_valuesPSTAP, "sim_B": y_valuesPSTAP}
+    df_TAP = pd.DataFrame(data=dataTAP, index=namesTAP)
+    df_PSTAP = pd.DataFrame(data=dataPSTAP, index=namesPSTAP)
 
-
-
-
+    df_TAP.to_csv(aut_dir + "TAP_CHANGES.csv", sep=";")
+    df_PSTAP.to_csv(aut_dir + "PSTAP_CHANGES.csv", sep=";")
 
 
 def read_aut_changes(aut_dir):

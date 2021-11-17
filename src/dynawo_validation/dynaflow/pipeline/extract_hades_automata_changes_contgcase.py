@@ -184,8 +184,8 @@ def main():
         df_to_save = pd.DataFrame(data=vals, index=ind, columns=cols)
 
         df_to_save.to_csv(save_csv, sep=";")
-        has_changed_regleurs.to_csv(save_csv[-4:] + "_TAP_changes.csv", sep=";")
-        has_changed_dephaseurs.to_csv(save_csv[-4:] + "_PSTAP_changes.csv", sep=";")
+        has_changed_regleurs.to_csv(save_csv[:-4] + "_TAP_changes.csv", sep=";")
+        has_changed_dephaseurs.to_csv(save_csv[:-4] + "_PSTAP_changes.csv", sep=";")
 
     else:
         print("TOTAL DIFFS REGLEURS")

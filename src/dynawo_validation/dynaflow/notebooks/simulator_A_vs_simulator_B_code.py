@@ -16,6 +16,7 @@ import lzma
 import os
 import copy
 
+
 # Read the metric file
 def read_csv_metrics(pf_dir):
     data = pd.read_csv(pf_dir + "/pf_metrics/metrics.csv.xz", index_col=0)
@@ -26,6 +27,14 @@ def read_csv_aut_diffs(aut_dir):
     dataA = pd.read_csv(aut_dir + "/SIMULATOR_A_AUT_CHANGES.csv", sep=";", index_col=0)
     dataB = pd.read_csv(aut_dir + "/SIMULATOR_B_AUT_CHANGES.csv", sep=";", index_col=0)
     return dataA, dataB
+
+
+def read_aut_case(aut_dir, var):
+    if var == "ratioTapChanger":
+        var = "TAP_CHANGES.csv"
+    else:
+        var = "PSTAP_CHANGES.csv"
+    return pd.read_csv(aut_dir + var, sep=";", index_col=0)
 
 
 # Create the first graph
@@ -1134,6 +1143,10 @@ def create_dropdowns(
         options=sorted(b_var), value=b_var[0], description="Aut. var B: "
     )
 
+    aut_diff_var_plot = widgets.Dropdown(
+        options=["ratioTapChanger", "phaseTapChanger"], value="ratioTapChanger", description="Aut. var: "
+    )
+
     return (
         def_volt_level,
         varx,
@@ -1151,6 +1164,7 @@ def create_dropdowns(
         aut_diff_case,
         aut_diff_var_A,
         aut_diff_var_B,
+        aut_diff_var_plot,
     )
 
 
@@ -1175,6 +1189,7 @@ def create_containers(
     check1b,
     check2a,
     check2b,
+    aut_trace,
 ):
     container1 = widgets.HBox([varx, vary])
 
@@ -1186,8 +1201,8 @@ def create_containers(
 
     container_aut_gen = widgets.HBox([check1a, check1b])
     container_aut = widgets.HBox([aut_diff_case, aut_diff_var_A, check2a, aut_diff_var_B, check2b])
-
-    return container1, container2, container3, container_aut_gen, container_aut
+    container_aut_trace = widgets.HBox([aut_trace])
+    return container1, container2, container3, container_aut_gen, container_aut,container_aut_trace
 
 
 def create_check_box():
@@ -1205,17 +1220,35 @@ def create_check_box():
     )
     check2a = widgets.Checkbox(
         value=False,
-        description="Only cntgs with changes in sim A",
+        description="Only devices with changes in sim A",
         disabled=False,
         indent=False,
     )
     check2b = widgets.Checkbox(
         value=False,
-        description="Only cntgs with changes in sim B",
+        description="Only devices with changes in sim B",
         disabled=False,
         indent=False,
     )
     return check1a, check1b, check2a, check2b
+
+
+def create_tap_trace(df, HEIGHT, WIDTH):
+    trace = go.Scatter(
+        x=df["sim_A"],
+        y=df["sim_B"],
+        mode="markers",
+        text=list(df.index),
+    )
+    layout_temp = go.Layout(
+        title=dict(text="FINAL COMPARISON OF AUT STATES - A vs B"),
+        xaxis=dict(title="SIM_A"),
+        yaxis=dict(title="SIM_B"),
+        height=HEIGHT,
+        width=WIDTH,
+    )
+
+    return go.FigureWidget(data=[trace], layout=layout_temp)
 
 
 # Create all the layouts of the output
@@ -1345,10 +1378,10 @@ def show_displays(
     aut_diffs_B,
     container_aut_gen,
     container_aut,
+    container_aut_trace,
     aut_diff_dfA_contgcase_grid,
     aut_diff_dfB_contgcase_grid,
     t_r,
-    t_p,
     def_volt_level,
     sdf,
     container1,
@@ -1387,8 +1420,8 @@ def show_displays(
     display(Markdown("# EVENT DETAILS"))
     display(container_aut)
     display(aut_diffs_contgcase)
+    display(container_aut_trace)
     display(t_r)
-    display(t_p)
     display(def_volt_level)
     display(sdf)
     display(container1)
@@ -1558,6 +1591,12 @@ def run_all(
             aut_diffs_B = aut_diffs_B.loc[(aut_diffs_B.NUM_CHANGES != 0)]
         aut_diffs_B_grid.df = aut_diffs_B
 
+    def response_aut_plot(change):
+        df_aut = read_aut_case(RESULTS_DIR + "/" + PREFIX + "/aut/", aut_diff_var_plot.value)
+        t_r.data[0].x = df_aut["sim_A"]
+        t_r.data[0].y = df_aut["sim_B"]
+        t_r.data[0].text = list(df_aut.index)
+
 
     def response3(change):
         with c.batch_update():
@@ -1578,45 +1617,6 @@ def run_all(
             legend1widget.value = legend1
             legend2widget.value = legend2
 
-    def create_tap_trace(name, type):
-        temp_A = create_aut_df(
-            RESULTS_DIR,
-            1,
-            name,
-            PREFIX,
-            BASECASE,
-            DWO_DWO,
-            type,
-        )
-        temp_B = create_aut_df(
-            RESULTS_DIR,
-            2,
-            name,
-            PREFIX,
-            BASECASE,
-            DWO_DWO,
-            type,
-        )
-
-        names_aut, x_values_aut, y_values_aut = match_taps(temp_A, temp_B)
-
-        trace = go.Scatter(
-            x=x_values_aut,
-            y=y_values_aut,
-            mode="markers",
-            text=names_aut,
-            name="Case: " + name + " - " + type,
-        )
-
-        layout_temp = go.Layout(
-            title=dict(text="FINAL COMPARISON OF AUT STATES - A vs B"),
-            xaxis=dict(title="SIM_A"),
-            yaxis=dict(title="SIM_B"),
-            height=HEIGHT,
-            width=WIDTH,
-        )
-
-        return go.FigureWidget(data=[trace], layout=layout_temp)
 
     do_displaybutton()
 
@@ -1648,6 +1648,9 @@ def run_all(
 
     edgemetrictypes = ["DIFF", "ABS_ERR", "REL_ERR", "VALUE_A", "VALUE_B"]
 
+    df_aut = read_aut_case(RESULTS_DIR + "/" + PREFIX + "/aut/", "ratioTapChanger")
+    t_r = create_tap_trace(df_aut, HEIGHT, WIDTH)
+
     # Get all the dropdowns
     (
         def_volt_level,
@@ -1666,6 +1669,7 @@ def run_all(
         aut_diff_case,
         aut_diff_var_A,
         aut_diff_var_B,
+        aut_diff_var_plot,
     ) = create_dropdowns(
         df,
         contg_cases,
@@ -1682,7 +1686,7 @@ def run_all(
     )
 
     # Get all the containers
-    container1, container2, container3, container_aut_gen, container_aut = create_containers(
+    container1, container2, container3, container_aut_gen, container_aut, container_aut_trace = create_containers(
         varx,
         vary,
         dev,
@@ -1702,6 +1706,7 @@ def run_all(
         check1b,
         check2a,
         check2b,
+        aut_diff_var_plot,
     )
 
     # Get all the layouts
@@ -1752,9 +1757,6 @@ def run_all(
     if check1b.value:
         aut_diffs_B = aut_diffs_B.loc[(aut_diffs_B.NUM_CHANGES!= 0)]
     aut_diffs_B_grid = qgrid.QgridWidget(df=aut_diffs_B)
-
-    t_r = create_tap_trace("NAOUT6REAC.1", "ratioTapChanger")
-    t_p = create_tap_trace("NAOUT6REAC.1", "phaseTapChanger")
 
 
     # Matching df
@@ -1850,10 +1852,10 @@ def run_all(
         aut_diffs_B_grid,
         container_aut_gen,
         container_aut,
+        container_aut_trace,
         aut_diff_dfA_contgcase_grid,
         aut_diff_dfB_contgcase_grid,
         t_r,
-        t_p,
         def_volt_level,
         sdf,
         container1,
@@ -1892,6 +1894,7 @@ def run_all(
     aut_diff_var_A.observe(response_autA, names="value")
     aut_diff_var_B.observe(response_autB, names="value")
     aut_diff_case.observe(response_aut, names="value")
+    aut_diff_var_plot.observe(response_aut_plot, names="value")
     check1a.observe(response_general_aut_A, names="value")
     check1b.observe(response_general_aut_B, names="value")
     check2a.observe(response_autA, names="value")
