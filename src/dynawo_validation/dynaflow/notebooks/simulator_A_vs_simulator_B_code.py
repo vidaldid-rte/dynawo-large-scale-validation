@@ -1225,20 +1225,70 @@ def create_check_box():
 
 def create_tap_trace(df, HEIGHT, WIDTH):
     trace = go.Scatter(
+        name="Positions",
         x=df["sim_A"],
         y=df["sim_B"],
         mode="markers",
         text=list(df.index),
     )
-    layout_temp = go.Layout(
-        title=dict(text="FINAL COMPARISON OF AUT STATES - A vs B"),
-        xaxis=dict(title="SIM_A"),
-        yaxis=dict(title="SIM_B"),
-        height=HEIGHT,
-        width=WIDTH,
+
+    temp_sim_A = min(df["sim_A"], default=None)
+    temp_sim_B = min(df["sim_B"], default=None)
+    if temp_sim_A is None and temp_sim_B is None:
+        min_val = 0
+    else:
+        min_val = min([temp_sim_A, temp_sim_B]) - 1
+
+    temp_sim_A = max(df["sim_A"], default=None)
+    temp_sim_B = max(df["sim_B"], default=None)
+    if temp_sim_A is None and temp_sim_B is None:
+        max_val = 1
+    else:
+        max_val = max([temp_sim_A, temp_sim_B]) + 1
+
+    tracel = go.Scatter(
+        name="Diagonal",
+        x=[min_val, max_val],
+        y=[min_val, max_val],
+        mode="lines",
+        marker_color="red",
+        line_width=1,
+        xaxis="x1",
+        yaxis="y1",
     )
 
-    return go.FigureWidget(data=[trace], layout=layout_temp)
+    layout_temp = go.Layout(
+        title=dict(text="FINAL COMPARISON OF AUT STATES - A vs B"),
+        xaxis=dict(
+            title="SIM_A",
+            range=[min_val, max_val],
+            tickmode="linear",
+        ),
+        yaxis=dict(
+            title="SIM_B",
+            range=[min_val, max_val],
+            tickmode="linear",
+        ),
+        height=HEIGHT,
+        width=HEIGHT,
+    )
+    """
+        layout_temp = go.Layout(
+        title=dict(text="FINAL COMPARISON OF AUT STATES - A vs B"),
+        xaxis=dict(title="SIM_A",
+                   rangemode='tozero',
+                   ),
+        yaxis=dict(title="SIM_B",
+                   scaleanchor="x",
+                   scaleratio=1,
+                   rangemode='tozero',
+                   ),
+        height=HEIGHT,
+        width=HEIGHT,
+    )
+    """
+
+    return go.FigureWidget(data=[trace, tracel], layout=layout_temp)
 
 
 # Create all the layouts of the output
@@ -1607,9 +1657,37 @@ def run_all(
         df_aut = read_aut_case(
             RESULTS_DIR + "/" + PREFIX + "/aut/", aut_diff_var_plot.value
         )
+
+        temp_sim_A = min(df_aut["sim_A"], default=None)
+        temp_sim_B = min(df_aut["sim_B"], default=None)
+        if temp_sim_A is None and temp_sim_B is None:
+            min_val = 0
+        else:
+            min_val = min([temp_sim_A, temp_sim_B]) - 1
+
+        temp_sim_A = max(df_aut["sim_A"], default=None)
+        temp_sim_B = max(df_aut["sim_B"], default=None)
+        if temp_sim_A is None and temp_sim_B is None:
+            max_val = 1
+        else:
+            max_val = max([temp_sim_A, temp_sim_B]) + 1
+
         t_r.data[0].x = df_aut["sim_A"]
         t_r.data[0].y = df_aut["sim_B"]
         t_r.data[0].text = list(df_aut.index)
+        t_r.layout.xaxis = dict(
+            title="SIM_A",
+            range=[min_val, max_val],
+            tickmode="linear",
+        )
+        t_r.layout.yaxis = dict(
+            title="SIM_B",
+            range=[min_val, max_val],
+            tickmode="linear",
+        )
+
+        t_r.data[1].x = [min_val, max_val]
+        t_r.data[1].y = [min_val, max_val]
 
     def response3(change):
         with c.batch_update():
