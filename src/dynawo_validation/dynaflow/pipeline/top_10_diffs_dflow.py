@@ -4,20 +4,19 @@
 # (c) Grupo AIA
 #     marinjl@aia.es
 #
-# In this script, the necessary calculations are performed to find the largest differences
-# between the two cases executed and through the top 10 of several metrics, we can see the
-# contingencies that diverge the most between the two simulators.
+# In this script, the necessary calculations are performed to find the largest
+# differences between the two cases executed and through the top 10 of several
+# metrics, we can see the contingencies that diverge the most between the two
+# simulators.
 #
 # top_10_diffs.py
 #
 
 import os
-import random
 import re
 import sys
 import pandas as pd
 import argparse
-import copy
 
 
 parser = argparse.ArgumentParser()
@@ -33,10 +32,10 @@ def main():
 
     # argument management
     pf_solutions_dir = args.pf_solutions_dir
-    
-    if (pf_solutions_dir[-1] != "/"):
+
+    if pf_solutions_dir[-1] != "/":
         pf_solutions_dir = pf_solutions_dir + "/"
-    
+
     data_files = os.listdir(pf_solutions_dir)
     first_iteration = True
 

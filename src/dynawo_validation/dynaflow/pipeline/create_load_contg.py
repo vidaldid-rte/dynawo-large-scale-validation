@@ -197,7 +197,7 @@ def main():
         dynawo_loads = matching_in_dwoB(dynawo_loads, dynawo_loadsB)
 
     # Prepare for random sampling if there's too many
-    if args.allcontg == False:
+    if not args.allcontg:
         sampling_ratio = MAX_NCASES / len(dynawo_loads)
         random.seed(RNG_SEED)
         if len(filter_list) == 0 and sampling_ratio < 1:

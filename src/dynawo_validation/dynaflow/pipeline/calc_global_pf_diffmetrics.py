@@ -4,9 +4,6 @@
 # (c) Grupo AIA
 #
 #
-# extract_case_comparison.py:
-#
-# This script extracts the differences between case A and case B and saves them in csv.xz format
 
 import glob
 import pandas as pd

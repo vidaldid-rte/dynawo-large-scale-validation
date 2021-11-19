@@ -177,7 +177,7 @@ def main():
         dynawo_gens = matching_in_dwoB(dynawo_gens, dynawo_gensB)
 
     # Prepare for random sampling if there's too many
-    if args.allcontg == False:
+    if not args.allcontg:
         sampling_ratio = MAX_NCASES / len(dynawo_gens)
         random.seed(RNG_SEED)
         if len(filter_list) == 0 and sampling_ratio < 1:

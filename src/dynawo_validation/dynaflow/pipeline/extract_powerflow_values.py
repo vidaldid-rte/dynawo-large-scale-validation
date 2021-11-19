@@ -159,11 +159,11 @@ def find_launchers(pathtofiles):
     launcherB = None
     for file in os.listdir(pathtofiles):
         basefile = os.path.basename(file)
-        if ".LAUNCHER_A_WAS_" == basefile[:16] and launcherA == None:
+        if ".LAUNCHER_A_WAS_" == basefile[:16] and launcherA is None:
             launcherA = basefile[16:]
         elif ".LAUNCHER_A_WAS_" == basefile[:16]:
             raise ValueError(f"Two or more .LAUNCHER_WAS_A in results dir")
-        elif ".LAUNCHER_B_WAS_" == basefile[:16] and launcherB == None:
+        elif ".LAUNCHER_B_WAS_" == basefile[:16] and launcherB is None:
             launcherB = basefile[16:]
         elif ".LAUNCHER_B_WAS_" == basefile[:16]:
             raise ValueError(f"Two or more .LAUNCHER_WAS_A in results dir")

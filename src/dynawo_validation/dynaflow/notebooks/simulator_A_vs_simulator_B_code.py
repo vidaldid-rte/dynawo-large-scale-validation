@@ -4,11 +4,8 @@ from dynawo_validation.dynaflow.notebooks import create_graph
 from IPython.display import display, HTML, Markdown
 import qgrid
 from ipywidgets import widgets, AppLayout
-from collections import namedtuple
-import networkx as nx
-from pyvis.network import Network
 import warnings
-from matplotlib import pylab, cm, patches, pyplot
+from matplotlib import cm, patches, pyplot
 import pylab as pl
 import numpy as np
 from lxml import etree
@@ -23,12 +20,14 @@ def read_csv_metrics(pf_dir):
     return data
 
 
+# Read general aut_diffs csv
 def read_csv_aut_diffs(aut_dir):
     dataA = pd.read_csv(aut_dir + "/SIMULATOR_A_AUT_CHANGES.csv", sep=";", index_col=0)
     dataB = pd.read_csv(aut_dir + "/SIMULATOR_B_AUT_CHANGES.csv", sep=";", index_col=0)
     return dataA, dataB
 
 
+# Read csv for aut plot
 def read_aut_case(aut_dir, var):
     if var == "ratioTapChanger":
         var = "TAP_CHANGES.csv"
@@ -106,6 +105,7 @@ def create_general_trace(data, x, y, DATA_LIMIT):
     return trace
 
 
+# Create the colors and legends for plot
 def create_colors(data):
     colordata = []
     for datanum in data["VOLT_LEVEL"]:
@@ -174,42 +174,25 @@ def create_individual_trace(data, x, y, DATA_LIMIT):
     return trace
 
 
+# Find the execution launchers
 def find_launchers(pathtofiles):
     launcherA = None
     launcherB = None
     for file in os.listdir(pathtofiles):
         basefile = os.path.basename(file)
-        if ".LAUNCHER_A_WAS_" == basefile[:16] and launcherA == None:
+        if ".LAUNCHER_A_WAS_" == basefile[:16] and launcherA is None:
             launcherA = basefile[16:]
         elif ".LAUNCHER_A_WAS_" == basefile[:16]:
             raise ValueError(f"Two or more .LAUNCHER_WAS_A in results dir")
-        elif ".LAUNCHER_B_WAS_" == basefile[:16] and launcherB == None:
+        elif ".LAUNCHER_B_WAS_" == basefile[:16] and launcherB is None:
             launcherB = basefile[16:]
         elif ".LAUNCHER_B_WAS_" == basefile[:16]:
             raise ValueError(f"Two or more .LAUNCHER_WAS_A in results dir")
     return launcherA, launcherB
 
 
-def match_taps(df_A, df_B):
-    names_A = list(df_A.index)
-    names_B = list(df_B.index)
-    x_values = []
-    y_values = []
-    names = []
-    for i in range(len(names_A)):
-        if names_A[i] not in names_B:
-            continue
-        else:
-            for j in range(len(names_B)):
-                if names_B[j] == names_A[i]:
-                    if int(df_A.iloc[i, 4]) == 1 or int(df_B.iloc[j, 4]) == 1:
-                        x_values.append(df_A.iloc[i, 1])
-                        y_values.append(df_B.iloc[j, 1])
-                        names.append(names_A[i])
-                    break
-    return names, x_values, y_values
-
-
+# In order not to have to save all the differences of each of the contingencies,
+# we eliminate them in the pipeline and create only the necessary ones here.
 def create_aut_df(results_dir, A_B, contgcase, prefix, basecase, dwo_dwo, var_value):
     launcherA, launcherB = find_launchers(results_dir)
     run_dwo = True
@@ -295,7 +278,7 @@ def create_aut_df(results_dir, A_B, contgcase, prefix, basecase, dwo_dwo, var_va
                 )
                 save_path = results_dir + basecase + "/B/"
 
-    if run_dwo == False:
+    if not run_dwo:
 
         tree = etree.parse(hades_input)
         root = tree.getroot()
@@ -402,9 +385,7 @@ def create_aut_df(results_dir, A_B, contgcase, prefix, basecase, dwo_dwo, var_va
             df_hades_dephaseurs_diff = df_hades_dephaseurs_diff.rename(
                 columns={"AUT_VAL": "BC_VAL"}
             )
-            df_hades_dephaseurs_diff["CG_VAL"] = df_hades_dephaseurs_contg[
-                "AUT_VAL"
-            ]
+            df_hades_dephaseurs_diff["CG_VAL"] = df_hades_dephaseurs_contg["AUT_VAL"]
 
             df_hades_dephaseurs_diff["DIFF"] = (
                 df_hades_dephaseurs_contg["AUT_VAL"]
@@ -608,9 +589,7 @@ def create_aut_df(results_dir, A_B, contgcase, prefix, basecase, dwo_dwo, var_va
             df_dynawo_shunt_diff = df_dynawo_shunt_diff.rename(
                 columns={"SHUNT_CHG_VAL": "BC_VAL"}
             )
-            df_dynawo_shunt_diff["CG_VAL"] = df_dynawo_shunt_contgcase[
-                "SHUNT_CHG_VAL"
-            ]
+            df_dynawo_shunt_diff["CG_VAL"] = df_dynawo_shunt_contgcase["SHUNT_CHG_VAL"]
 
             df_dynawo_shunt_diff["DIFF"] = (
                 df_dynawo_shunt_contgcase["SHUNT_CHG_VAL"]
@@ -694,18 +673,18 @@ def create_aut_df(results_dir, A_B, contgcase, prefix, basecase, dwo_dwo, var_va
             df_dynawo_branch_diff_1 = df_dynawo_branch_diff_1.rename(
                 columns={"TOPO_CHG_VAL_1": "BC_VAL_1"}
             )
-            df_dynawo_branch_diff_1[
-                "CG_VAL_1"
-            ] = df_dynawo_branch_contgcase_bus1["TOPO_CHG_VAL_1"]
+            df_dynawo_branch_diff_1["CG_VAL_1"] = df_dynawo_branch_contgcase_bus1[
+                "TOPO_CHG_VAL_1"
+            ]
 
             df_dynawo_branch_diff_2 = copy.deepcopy(df_dynawo_branch_basecase_bus2)
 
             df_dynawo_branch_diff_2 = df_dynawo_branch_diff_2.rename(
                 columns={"TOPO_CHG_VAL_2": "BC_VAL_2"}
             )
-            df_dynawo_branch_diff_2[
-                "CG_VAL_2"
-            ] = df_dynawo_branch_contgcase_bus2["TOPO_CHG_VAL_2"]
+            df_dynawo_branch_diff_2["CG_VAL_2"] = df_dynawo_branch_contgcase_bus2[
+                "TOPO_CHG_VAL_2"
+            ]
 
             df_dynawo_branch_diff_1["DIFF"] = (
                 df_dynawo_branch_contgcase_bus1["TOPO_CHG_VAL_1"]
@@ -817,18 +796,18 @@ def create_aut_df(results_dir, A_B, contgcase, prefix, basecase, dwo_dwo, var_va
             df_dynawo_branch_diff_1 = df_dynawo_branch_diff_1.rename(
                 columns={"TOPO_CHG_VAL_1": "BC_VAL_1"}
             )
-            df_dynawo_branch_diff_1[
-                "CG_VAL_1"
-            ] = df_dynawo_branch_contgcase_bus1["TOPO_CHG_VAL_1"]
+            df_dynawo_branch_diff_1["CG_VAL_1"] = df_dynawo_branch_contgcase_bus1[
+                "TOPO_CHG_VAL_1"
+            ]
 
             df_dynawo_branch_diff_2 = copy.deepcopy(df_dynawo_branch_basecase_bus2)
 
             df_dynawo_branch_diff_2 = df_dynawo_branch_diff_2.rename(
                 columns={"TOPO_CHG_VAL_2": "BC_VAL_2"}
             )
-            df_dynawo_branch_diff_2[
-                "CG_VAL_2"
-            ] = df_dynawo_branch_contgcase_bus2["TOPO_CHG_VAL_2"]
+            df_dynawo_branch_diff_2["CG_VAL_2"] = df_dynawo_branch_contgcase_bus2[
+                "TOPO_CHG_VAL_2"
+            ]
 
             df_dynawo_branch_diff_1["DIFF"] = (
                 df_dynawo_branch_contgcase_bus1["TOPO_CHG_VAL_1"]
@@ -940,18 +919,18 @@ def create_aut_df(results_dir, A_B, contgcase, prefix, basecase, dwo_dwo, var_va
             df_dynawo_branch_diff_1 = df_dynawo_branch_diff_1.rename(
                 columns={"TOPO_CHG_VAL_1": "BC_VAL_1"}
             )
-            df_dynawo_branch_diff_1[
-                "CG_VAL_1"
-            ] = df_dynawo_branch_contgcase_bus1["TOPO_CHG_VAL_1"]
+            df_dynawo_branch_diff_1["CG_VAL_1"] = df_dynawo_branch_contgcase_bus1[
+                "TOPO_CHG_VAL_1"
+            ]
 
             df_dynawo_branch_diff_2 = copy.deepcopy(df_dynawo_branch_basecase_bus2)
 
             df_dynawo_branch_diff_2 = df_dynawo_branch_diff_2.rename(
                 columns={"TOPO_CHG_VAL_2": "BC_VAL_2"}
             )
-            df_dynawo_branch_diff_2[
-                "CG_VAL_2"
-            ] = df_dynawo_branch_contgcase_bus2["TOPO_CHG_VAL_2"]
+            df_dynawo_branch_diff_2["CG_VAL_2"] = df_dynawo_branch_contgcase_bus2[
+                "TOPO_CHG_VAL_2"
+            ]
 
             df_dynawo_topo_diff = copy.deepcopy(df_dynawo_branch_basecase_bus1)
             df_dynawo_topo_diff = df_dynawo_topo_diff.rename(
@@ -1144,7 +1123,9 @@ def create_dropdowns(
     )
 
     aut_diff_var_plot = widgets.Dropdown(
-        options=["ratioTapChanger", "phaseTapChanger"], value="ratioTapChanger", description="Aut. var: "
+        options=["ratioTapChanger", "phaseTapChanger"],
+        value="ratioTapChanger",
+        description="Aut. var: ",
     )
 
     return (
@@ -1200,9 +1181,18 @@ def create_containers(
     )
 
     container_aut_gen = widgets.HBox([check1a, check1b])
-    container_aut = widgets.HBox([aut_diff_case, aut_diff_var_A, check2a, aut_diff_var_B, check2b])
+    container_aut = widgets.HBox(
+        [aut_diff_case, aut_diff_var_A, check2a, aut_diff_var_B, check2b]
+    )
     container_aut_trace = widgets.HBox([aut_trace])
-    return container1, container2, container3, container_aut_gen, container_aut,container_aut_trace
+    return (
+        container1,
+        container2,
+        container3,
+        container_aut_gen,
+        container_aut,
+        container_aut_trace,
+    )
 
 
 def create_check_box():
@@ -1409,7 +1399,9 @@ def show_displays(
     aut_diffs = AppLayout(
         left_sidebar=aut_diffs_A, right_sidebar=aut_diffs_B, align_items="center"
     )
-    display(Markdown("# GLOBAL AGGREGATE EVENTS W.R.T. BASECASE (CONTINGENCIES SEVERITY)"))
+    display(
+        Markdown("# GLOBAL AGGREGATE EVENTS W.R.T. BASECASE (CONTINGENCIES SEVERITY)")
+    )
     display(container_aut_gen)
     display(aut_diffs)
     aut_diffs_contgcase = AppLayout(
@@ -1524,8 +1516,12 @@ def run_all(
             )
 
             if check2a.value:
-                aut_diff_dfA_contgcase = aut_diff_dfA_contgcase.loc[(aut_diff_dfA_contgcase.HAS_CHANGED != 0)]
-                aut_diff_dfA_contgcase = aut_diff_dfA_contgcase.drop(columns=["HAS_CHANGED"])
+                aut_diff_dfA_contgcase = aut_diff_dfA_contgcase.loc[
+                    (aut_diff_dfA_contgcase.HAS_CHANGED != 0)
+                ]
+                aut_diff_dfA_contgcase = aut_diff_dfA_contgcase.drop(
+                    columns=["HAS_CHANGED"]
+                )
 
             aut_diff_dfA_contgcase_grid.df = aut_diff_dfA_contgcase
 
@@ -1542,8 +1538,12 @@ def run_all(
             )
 
             if check2b.value:
-                aut_diff_dfB_contgcase = aut_diff_dfB_contgcase.loc[(aut_diff_dfB_contgcase.HAS_CHANGED != 0)]
-                aut_diff_dfB_contgcase = aut_diff_dfB_contgcase.drop(columns=["HAS_CHANGED"])
+                aut_diff_dfB_contgcase = aut_diff_dfB_contgcase.loc[
+                    (aut_diff_dfB_contgcase.HAS_CHANGED != 0)
+                ]
+                aut_diff_dfB_contgcase = aut_diff_dfB_contgcase.drop(
+                    columns=["HAS_CHANGED"]
+                )
 
             aut_diff_dfB_contgcase_grid.df = aut_diff_dfB_contgcase
 
@@ -1569,34 +1569,47 @@ def run_all(
             )
 
             if check2a.value:
-                aut_diff_dfA_contgcase = aut_diff_dfA_contgcase.loc[(aut_diff_dfA_contgcase.HAS_CHANGED != 0)]
-                aut_diff_dfA_contgcase = aut_diff_dfA_contgcase.drop(columns=["HAS_CHANGED"])
+                aut_diff_dfA_contgcase = aut_diff_dfA_contgcase.loc[
+                    (aut_diff_dfA_contgcase.HAS_CHANGED != 0)
+                ]
+                aut_diff_dfA_contgcase = aut_diff_dfA_contgcase.drop(
+                    columns=["HAS_CHANGED"]
+                )
 
             if check2b.value:
-                aut_diff_dfB_contgcase = aut_diff_dfB_contgcase.loc[(aut_diff_dfB_contgcase.HAS_CHANGED != 0)]
-                aut_diff_dfB_contgcase = aut_diff_dfB_contgcase.drop(columns=["HAS_CHANGED"])
+                aut_diff_dfB_contgcase = aut_diff_dfB_contgcase.loc[
+                    (aut_diff_dfB_contgcase.HAS_CHANGED != 0)
+                ]
+                aut_diff_dfB_contgcase = aut_diff_dfB_contgcase.drop(
+                    columns=["HAS_CHANGED"]
+                )
 
             aut_diff_dfA_contgcase_grid.df = aut_diff_dfA_contgcase
             aut_diff_dfB_contgcase_grid.df = aut_diff_dfB_contgcase
 
     def response_general_aut_A(change):
-        aut_diffs_A, aut_diffs_B = read_csv_aut_diffs(RESULTS_DIR + "/" + PREFIX + "/aut/")
+        aut_diffs_A, aut_diffs_B = read_csv_aut_diffs(
+            RESULTS_DIR + "/" + PREFIX + "/aut/"
+        )
         if check1a.value:
             aut_diffs_A = aut_diffs_A.loc[(aut_diffs_A.NUM_CHANGES != 0)]
         aut_diffs_A_grid.df = aut_diffs_A
 
     def response_general_aut_B(change):
-        aut_diffs_A, aut_diffs_B = read_csv_aut_diffs(RESULTS_DIR + "/" + PREFIX + "/aut/")
+        aut_diffs_A, aut_diffs_B = read_csv_aut_diffs(
+            RESULTS_DIR + "/" + PREFIX + "/aut/"
+        )
         if check1b.value:
             aut_diffs_B = aut_diffs_B.loc[(aut_diffs_B.NUM_CHANGES != 0)]
         aut_diffs_B_grid.df = aut_diffs_B
 
     def response_aut_plot(change):
-        df_aut = read_aut_case(RESULTS_DIR + "/" + PREFIX + "/aut/", aut_diff_var_plot.value)
+        df_aut = read_aut_case(
+            RESULTS_DIR + "/" + PREFIX + "/aut/", aut_diff_var_plot.value
+        )
         t_r.data[0].x = df_aut["sim_A"]
         t_r.data[0].y = df_aut["sim_B"]
         t_r.data[0].text = list(df_aut.index)
-
 
     def response3(change):
         with c.batch_update():
@@ -1617,6 +1630,10 @@ def run_all(
             legend1widget.value = legend1
             legend2widget.value = legend2
 
+    nodetypes = ["v", "angle", "p", "q"]
+    nodemetrictypes = ["DIFF", "ABS_ERR", "REL_ERR", "VALUE_A", "VALUE_B"]
+    edgetypes = ["p1", "p2", "q1", "q2"]
+    edgemetrictypes = ["DIFF", "ABS_ERR", "REL_ERR", "VALUE_A", "VALUE_B"]
 
     do_displaybutton()
 
@@ -1639,14 +1656,6 @@ def run_all(
     bus_list = sorted(
         list(set(data_first_case.loc[(data_first_case.ELEMENT_TYPE == "bus")]["ID"]))
     )
-
-    nodetypes = ["v", "angle", "p", "q"]
-
-    nodemetrictypes = ["DIFF", "ABS_ERR", "REL_ERR", "VALUE_A", "VALUE_B"]
-
-    edgetypes = ["p1", "p2", "q1", "q2"]
-
-    edgemetrictypes = ["DIFF", "ABS_ERR", "REL_ERR", "VALUE_A", "VALUE_B"]
 
     df_aut = read_aut_case(RESULTS_DIR + "/" + PREFIX + "/aut/", "ratioTapChanger")
     t_r = create_tap_trace(df_aut, HEIGHT, WIDTH)
@@ -1686,7 +1695,14 @@ def run_all(
     )
 
     # Get all the containers
-    container1, container2, container3, container_aut_gen, container_aut, container_aut_trace = create_containers(
+    (
+        container1,
+        container2,
+        container3,
+        container_aut_gen,
+        container_aut,
+        container_aut_trace,
+    ) = create_containers(
         varx,
         vary,
         dev,
@@ -1740,12 +1756,16 @@ def run_all(
     )
 
     if check2a.value:
-        aut_diff_dfA_contgcase = aut_diff_dfA_contgcase.loc[(aut_diff_dfA_contgcase.HAS_CHANGED  != 0)]
+        aut_diff_dfA_contgcase = aut_diff_dfA_contgcase.loc[
+            (aut_diff_dfA_contgcase.HAS_CHANGED != 0)
+        ]
         aut_diff_dfA_contgcase = aut_diff_dfA_contgcase.drop(columns=["HAS_CHANGED"])
     aut_diff_dfA_contgcase_grid = qgrid.QgridWidget(df=aut_diff_dfA_contgcase)
 
     if check2b.value:
-        aut_diff_dfB_contgcase = aut_diff_dfB_contgcase.loc[(aut_diff_dfB_contgcase.HAS_CHANGED  != 0)]
+        aut_diff_dfB_contgcase = aut_diff_dfB_contgcase.loc[
+            (aut_diff_dfB_contgcase.HAS_CHANGED != 0)
+        ]
         aut_diff_dfB_contgcase = aut_diff_dfB_contgcase.drop(columns=["HAS_CHANGED"])
     aut_diff_dfB_contgcase_grid = qgrid.QgridWidget(df=aut_diff_dfB_contgcase)
 
@@ -1755,12 +1775,10 @@ def run_all(
     aut_diffs_A_grid = qgrid.QgridWidget(df=aut_diffs_A)
 
     if check1b.value:
-        aut_diffs_B = aut_diffs_B.loc[(aut_diffs_B.NUM_CHANGES!= 0)]
+        aut_diffs_B = aut_diffs_B.loc[(aut_diffs_B.NUM_CHANGES != 0)]
     aut_diffs_B_grid = qgrid.QgridWidget(df=aut_diffs_B)
 
-
     # Matching df
-
     sdf = qgrid.QgridWidget(df=df)
 
     g = go.FigureWidget(data=[current_general_trace], layout=layout1)

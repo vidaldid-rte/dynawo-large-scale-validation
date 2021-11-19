@@ -8,14 +8,12 @@
 # extract_hades_tap_changes.py
 
 import os
-import math
 import sys
 import pandas as pd
 import copy
 import argparse
 import lzma
 from lxml import etree
-from collections import namedtuple
 
 sys.path.insert(
     1, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -106,18 +104,15 @@ def main():
 
     df_hades_dephaseurs_diff = copy.deepcopy(df_hades_dephaseurs_basecase)
 
-
     df_hades_regleurs_diff = df_hades_regleurs_diff.rename(
         columns={"AUT_VAL": "BC_VAL"}
     )
     df_hades_regleurs_diff["CG_VAL"] = df_hades_regleurs_contg["AUT_VAL"]
 
-
     df_hades_dephaseurs_diff = df_hades_dephaseurs_diff.rename(
         columns={"AUT_VAL": "BC_VAL"}
     )
     df_hades_dephaseurs_diff["CG_VAL"] = df_hades_dephaseurs_contg["AUT_VAL"]
-
 
     df_hades_regleurs_diff["DIFF"] = (
         df_hades_regleurs_contg["AUT_VAL"] - df_hades_regleurs_basecase["AUT_VAL"]
@@ -157,8 +152,12 @@ def main():
     df_hades_dephaseurs_diff["NEG_DIFF"] = df_hades_dephaseurs_diff["DIFF"]
     df_hades_dephaseurs_diff.loc[df_hades_dephaseurs_diff["DIFF"] >= 0, "NEG_DIFF"] = 0
 
-    has_changed_regleurs = df_hades_regleurs_diff.loc[(df_hades_regleurs_diff.NUM_CHANGES != 0)]
-    has_changed_dephaseurs = df_hades_dephaseurs_diff.loc[(df_hades_dephaseurs_diff.NUM_CHANGES != 0)]
+    has_changed_regleurs = df_hades_regleurs_diff.loc[
+        (df_hades_regleurs_diff.NUM_CHANGES != 0)
+    ]
+    has_changed_dephaseurs = df_hades_dephaseurs_diff.loc[
+        (df_hades_dephaseurs_diff.NUM_CHANGES != 0)
+    ]
 
     if args.save != "None":
         save_csv = args.save

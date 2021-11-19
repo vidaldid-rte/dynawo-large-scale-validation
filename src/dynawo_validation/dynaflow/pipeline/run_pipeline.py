@@ -6,7 +6,6 @@
 
 
 import os
-import sys
 from subprocess import run
 
 
@@ -25,16 +24,16 @@ def run_pipeline(
 ):
     file_path = os.path.abspath(os.path.dirname(__file__))
     runallopts = ""
-    if sequential == True:
+    if sequential:
         runallopts += "-s "
 
-    if debug == True:
+    if debug:
         runallopts += "-d "
 
-    if cleanup == True:
+    if cleanup:
         runallopts += "-c "
 
-    if random == True:
+    if random:
         runallopts += "-r "
 
     if allcontg:

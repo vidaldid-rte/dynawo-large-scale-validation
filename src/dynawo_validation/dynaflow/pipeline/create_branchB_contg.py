@@ -185,7 +185,7 @@ def main():
         dynawo_branches = matching_in_dwoB(dynawo_branches, dynawo_branchesB)
 
     # Prepare for random sampling if there's too many
-    if args.allcontg == False:
+    if not args.allcontg:
         sampling_ratio = MAX_NCASES / len(dynawo_branches)
         random.seed(RNG_SEED)
         if len(filter_list) == 0 and sampling_ratio < 1:

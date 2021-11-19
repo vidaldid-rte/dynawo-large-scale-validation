@@ -5,17 +5,13 @@
 #     marinjl@aia.es
 #
 #
-# extract_dynawo_automata_changes.py
+# extract_dynawo_automata_changes_basecase.py
 
 import os
-import math
 import sys
 import pandas as pd
-import copy
 import argparse
-import lzma
 from lxml import etree
-from collections import namedtuple
 
 sys.path.insert(
     1, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

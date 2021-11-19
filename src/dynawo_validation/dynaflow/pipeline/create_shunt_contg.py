@@ -177,7 +177,7 @@ def main():
         dynawo_shunts = matching_in_dwoB(dynawo_shunts, dynawo_shuntsB)
 
     # Prepare for random sampling if there's too many
-    if args.allcontg == False:
+    if not args.allcontg:
         sampling_ratio = MAX_NCASES / len(dynawo_shunts)
         random.seed(RNG_SEED)
         if len(filter_list) == 0 and sampling_ratio < 1:

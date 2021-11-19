@@ -4,20 +4,19 @@
 # (c) Grupo AIA
 #     marinjl@aia.es
 #
-# In this script, the necessary calculations are performed to find the largest differences
-# between the two cases executed and through the top 10 of several metrics, we can see the
-# contingencies that diverge the most between the two simulators.
+# In this script, the necessary calculations are performed to find the largest
+# differences between the two cases executed and through the top 10 of several
+# metrics, we can see the contingencies that diverge the most between the two
+# simulators.
 #
 # analyze_automata_changes.py
 #
 
 import os
-import random
 import re
 import sys
 import pandas as pd
 import argparse
-import copy
 
 TIME_THRESH = 30.0
 ELECTRIC_THRESH = 70.0
@@ -36,7 +35,6 @@ def main():
     # argument management
     aut_dir = args.aut_dir
     data_files = os.listdir(aut_dir)
-    first_iteration = True
 
     # regex list
     data_files_list = []
@@ -48,9 +46,7 @@ def main():
     for i in data_files_list:
         data = read_aut_changes(aut_dir + i)
         datatimefilter = data.loc[data.TIME >= 100.0]
-        datatimefiltersort = datatimefilter.sort_values("TIME", ascending=True)
 
-        electric_groups = []
         # TODO: First filter with electric distance
         # TODO: Adapt it when we introduce separated dyd and par files contg
         # Parametrize 100 with JOB.xml --> JOB --> dyd --> par

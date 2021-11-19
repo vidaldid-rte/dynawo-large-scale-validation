@@ -6,14 +6,13 @@
 #
 # collect_aut_diffs.py:
 #
-# This script extracts the differences between case A and case B and saves them in csv.xz format
+# This script extracts the differences between case A and case B and saves them in
+# csv.xz format
+
 import copy
-import glob
 import pandas as pd
 import sys
-from pathlib import Path
 import argparse
-import numpy as np
 import os
 from dynawo_validation.dynaflow.pipeline.dwo_jobinfo import is_dwohds
 import re
@@ -41,11 +40,11 @@ def find_launchers(pathtofiles):
     launcherB = None
     for file in os.listdir(pathtofiles):
         basefile = os.path.basename(file)
-        if ".LAUNCHER_A_WAS_" == basefile[:16] and launcherA == None:
+        if ".LAUNCHER_A_WAS_" == basefile[:16] and launcherA is None:
             launcherA = basefile[16:]
         elif ".LAUNCHER_A_WAS_" == basefile[:16]:
             raise ValueError(f"Two or more .LAUNCHER_WAS_A in results dir")
-        elif ".LAUNCHER_B_WAS_" == basefile[:16] and launcherB == None:
+        elif ".LAUNCHER_B_WAS_" == basefile[:16] and launcherB is None:
             launcherB = basefile[16:]
         elif ".LAUNCHER_B_WAS_" == basefile[:16]:
             raise ValueError(f"Two or more .LAUNCHER_WAS_A in results dir")
@@ -150,11 +149,11 @@ def main():
                 data_files_list_sim_A.append(i)
 
             if i not in data_files_list_sim_A_TAP_changes and re.match(
-                    ".*-DynawoA-aut-diff_TAP_changes.csv", i
+                ".*-DynawoA-aut-diff_TAP_changes.csv", i
             ):
                 data_files_list_sim_A_TAP_changes.append(i)
             if i not in data_files_list_sim_A_PSTAP_changes and re.match(
-                    ".*-DynawoA-aut-diff_PSTAP_changes.csv", i
+                ".*-DynawoA-aut-diff_PSTAP_changes.csv", i
             ):
                 data_files_list_sim_A_PSTAP_changes.append(i)
 
@@ -165,11 +164,11 @@ def main():
                 data_files_list_sim_B.append(i)
 
             if i not in data_files_list_sim_B_TAP_changes and re.match(
-                    ".*-DynawoB-aut-diff_TAP_changes.csv", i
+                ".*-DynawoB-aut-diff_TAP_changes.csv", i
             ):
                 data_files_list_sim_B_TAP_changes.append(i)
             if i not in data_files_list_sim_B_PSTAP_changes and re.match(
-                    ".*-DynawoB-aut-diff_PSTAP_changes.csv", i
+                ".*-DynawoB-aut-diff_PSTAP_changes.csv", i
             ):
                 data_files_list_sim_B_PSTAP_changes.append(i)
 
@@ -286,7 +285,7 @@ def main():
         os.remove(aut_dir + data_files_list_sim_A_PSTAP_changes[k])
         os.remove(aut_dir + data_files_list_sim_B_PSTAP_changes[k])
 
-    dataTAP = {"sim_A":x_valuesTAP, "sim_B":y_valuesTAP}
+    dataTAP = {"sim_A": x_valuesTAP, "sim_B": y_valuesTAP}
     dataPSTAP = {"sim_A": x_valuesPSTAP, "sim_B": y_valuesPSTAP}
     df_TAP = pd.DataFrame(data=dataTAP, index=namesTAP)
     df_PSTAP = pd.DataFrame(data=dataPSTAP, index=namesPSTAP)
