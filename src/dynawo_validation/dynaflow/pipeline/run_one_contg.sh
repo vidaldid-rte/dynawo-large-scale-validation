@@ -388,7 +388,6 @@ python3 "$scripts_basedir"/extract_automata_changes.py "$CONTG_CASE" "$outDir"/.
 
 # Collect and compress all results
 if [ "$CASE_TYPE" = "dwohds" ]; then
-    xz -c9 "$CONTG_CASE"/Hades/Hades_automata_changes.csv > "$outDir"/aut/"$prefix"-HadesAutomata.csv.xz
     xz -c9 "$CONTG_CASE"/Dynawo_automata_changes.csv      > "$outDir"/aut/"$prefix"-DynawoAutomata.csv.xz
 else
     xz -c9 "$CONTG_CASE"/DynawoA_automata_changes.csv      > "$outDir"/aut/"$prefix"-DynawoAutomataA.csv.xz
