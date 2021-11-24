@@ -78,6 +78,10 @@ devtype_loadxfmer = "Load_Transformer"
 devtype_shunt = "Shunt"
 devtype_shuntctrl = "Shunt_Control"
 devtype_klevel = "K_level"
+devtype_gen = "Generator"
+devtype_branch = "Branch"
+devtype_load = "Load"
+devtype_bus = "Bus"
 
 verbose = True
 
@@ -121,31 +125,17 @@ def main():
                 run_case + ASTRE_EVENTS_OUT,
             )
     elif is_dwohds(run_case):
-        launcherA, launcherB = find_launchers(results_dir)
         # construct Dynawo paths from the info in the JOB file
         dwo_paths = get_dwo_jobpaths(run_case)
         dwo_events_in = "/" + dwo_paths.outputs_directory + DYNAWO_TIMELINE
         dyd_file = "/" + dwo_paths.dydFile
-        check_inputfiles(run_case, HADES_EVENTS_IN, dwo_events_in)
-        # Extract the events from Hades results
-        df_hds = extract_astre_events(run_case + HADES_EVENTS_IN)
+        check_inputfiles(run_case, dwo_events_in, dwo_events_in)
         # Extract the events from Dynawo results
         df_dwo = extract_dynawo_events(run_case + dwo_events_in, run_case + dyd_file)
         # Sort and save
-        if launcherA[:5] == "hades":
-            save_extracted_events(
-                df_hds,
-                df_dwo,
-                run_case + HADES_EVENTS_OUT,
-                run_case + DYNAWO_EVENTS_OUT,
-            )
-        else:
-            save_extracted_events(
-                df_dwo,
-                df_hds,
-                run_case + DYNAWO_EVENTS_OUT,
-                run_case + HADES_EVENTS_OUT,
-            )
+        save_extracted_event(
+            df_dwo, run_case + DYNAWO_EVENTS_OUT
+        )
                     
     elif is_dwodwo(run_case):
         # construct Dynawo paths from the info in the JOB_A and JOB_B files
@@ -330,6 +320,30 @@ def extract_dynawo_events(dynawo_input, dynawo_dyd):
         # K-levels
         elif event.get("message")[:21] == "SVC Area : new level ":
             append_dynawo_data(data, event, devtype_klevel, "NewRstLevel")
+        # Generators
+        if event.get("message") == "GENERATOR : disconnecting":
+            append_dynawo_data(data, event, devtype_gen, "GenDisconnected")
+        elif event.get("message") == "GENERATOR : connecting":
+            append_dynawo_data(data, event, devtype_gen, "GenConnected")
+        # Branches
+        if event.get("message") == "LINE : opening both sides":
+            append_dynawo_data(data, event, devtype_branch, "LineDisconnected")
+        elif event.get("message") == "LINE : connecting":
+            append_dynawo_data(data, event, devtype_branch, "LineConnected")
+        elif event.get("message") == "TRANSFORMER : closing both sides":
+            append_dynawo_data(data, event, devtype_branch, "TransformerDisconnected")
+        elif event.get("message") == "TRANSFORMER : opening both sides":
+            append_dynawo_data(data, event, devtype_branch, "TransformerConnected")
+        # Loads
+        if event.get("message") == "LOAD : disconnecting":
+            append_dynawo_data(data, event, devtype_load, "LoadDisconnected")
+        elif event.get("message") == "LOAD : connecting":
+            append_dynawo_data(data, event, devtype_load, "LoadConnected")
+        # Bus
+        if event.get("message") == "BUS : switch off":
+            append_dynawo_data(data, event, devtype_bus, "BusDisconnected")
+        elif event.get("message") == "BUS : switch on":
+            append_dynawo_data(data, event, devtype_bus, "BusConnected")
 
     # Translate the dynamic model labels to their static device counterparts
     dynawo_id2name(data, dynawo_dyd)
@@ -386,10 +400,14 @@ def save_extracted_events(df_1, df_2, output_1, output_2):
     # Filter events. Use Panda's query() syntax (use None for no filter).
     # evt_filter = "DEVICE_TYPE in ['%s', '%s', '%s']" % (devtype_xfmer,
     # devtype_loadxfmer, devtype_shunt)
-    evt_filter = "DEVICE_TYPE in ['%s', '%s', '%s']" % (
+    evt_filter = "DEVICE_TYPE in ['%s', '%s', '%s','%s', '%s', '%s',  '%s']" % (
         devtype_xfmer,
         devtype_loadxfmer,
         devtype_shunt,
+        devtype_gen,
+        devtype_branch,
+        devtype_load,
+        devtype_bus,
     )
     if evt_filter is not None:
         df_1 = df_1.query(evt_filter)
@@ -408,6 +426,33 @@ def save_extracted_events(df_1, df_2, output_1, output_2):
     # Save to file
     df_1.to_csv(output_1, index=False, sep=";", encoding="utf-8")
     df_2.to_csv(output_2, index=False, sep=";", encoding="utf-8")
+
+
+def save_extracted_event(df_1, output_1):
+    # Filter events. Use Panda's query() syntax (use None for no filter).
+    # evt_filter = "DEVICE_TYPE in ['%s', '%s', '%s']" % (devtype_xfmer,
+    # devtype_loadxfmer, devtype_shunt)
+    evt_filter = "DEVICE_TYPE in ['%s', '%s', '%s','%s', '%s', '%s',  '%s']" % (
+        devtype_xfmer,
+        devtype_loadxfmer,
+        devtype_shunt,
+        devtype_gen,
+        devtype_branch,
+        devtype_load,
+        devtype_bus,
+    )
+    if evt_filter is not None:
+        df_1 = df_1.query(evt_filter)
+
+    # Sort dataframe
+    sort_fields = ["DEVICE_TYPE", "DEVICE", "TIME"]
+    sort_order = [True, True, True]
+    df_1 = df_1.sort_values(
+        by=sort_fields, ascending=sort_order, inplace=False, na_position="first"
+    )
+
+    # Save to file
+    df_1.to_csv(output_1, index=False, sep=";", encoding="utf-8")
 
 
 if __name__ == "__main__":
