@@ -79,7 +79,7 @@ devtype_shunt = "Shunt"
 devtype_shuntctrl = "Shunt_Control"
 devtype_klevel = "K_level"
 devtype_gen = "Generator"
-devtype_branch = "Branch"
+devtype_branch = "Line"
 devtype_load = "Load"
 devtype_bus = "Bus"
 
