@@ -10,6 +10,8 @@ import argparse
 from lxml import etree
 import networkx as nx
 import math
+from dynawo_validation.dynaflow.pipeline.dwo_jobinfo import get_dwo_jobpaths, get_dwodwo_jobpaths
+
 THRESHOLD = 50
 
 parser = argparse.ArgumentParser()
@@ -19,20 +21,46 @@ parser.add_argument(
 )
 
 parser.add_argument(
-    "iidmfile_basecase",
-    help="Enter iidm file",
+    "basecase",
+    help="Enter basecase dir",
 )
 
+parser.add_argument(
+    "save_file",
+    help="Enter the path and the name of the file to save",
+)
+
+parser.add_argument(
+    "basecase_type",
+    help="Enter 0 for dwo, 1 for dwoA or 2 for dwoB",
+)
 
 args = parser.parse_args()
 
+
 def main():
     dynawoautomata = args.dynawoautomata
-    iidm_file = args.iidmfile_basecase
+    basecase_dir = args.basecase
+    basecase_type = args.basecase_type
 
-    # Remove a possible trailing slash
-    if iidm_file[-1] == "/":
-        iidm_file = iidm_file[:-1]
+    if basecase_dir[-1] != "/":
+        basecase_dir = basecase_dir + "/"
+        
+    if basecase_type != "0" and basecase_type != "1" and basecase_type != "2":
+        raise ValueError(f"Non-valid option")
+    else:
+        basecase_type = int(basecase_type)
+    
+    
+    if basecase_type == 0:
+        dwo_jobpaths = get_dwo_jobpaths(basecase_dir)
+        iidm_file = basecase_dir + dwo_jobpaths.iidmFile
+    elif basecase_type == 1:
+        dwo_jobpathsA, dwo_jobpathsB = get_dwodwo_jobpaths(basecase_dir)
+        iidm_file = basecase_dir + dwo_jobpathsA.iidmFile
+    else:
+        dwo_jobpathsA, dwo_jobpathsB = get_dwodwo_jobpaths(basecase_dir)
+        iidm_file = basecase_dir + dwo_jobpathsB.iidmFile
 
     df = read_aut_changes(dynawoautomata)
     aut_df = filter_dwo_events(df)
@@ -41,22 +69,35 @@ def main():
         if len(aut_df.loc[i, "BUS"].split("%")) != 1:
             list_bus = aut_df.loc[i, "BUS"].split("%")
             aut_df.loc[i, "BUS"] = list_bus[0]
-            aut_df.loc[len(aut_df.index)] = aut_df.loc[i,:]
+            aut_df.loc[len(aut_df.index)] = aut_df.loc[i, :]
             aut_df.loc[len(aut_df.index) - 1, "BUS"] = list_bus[1]
 
     graph = create_graph(iidm_file)
     small_distance_matrix = create_distance_matrix(graph, aut_df)
     groups = group_dwo_events(aut_df, small_distance_matrix)
 
-    print(small_distance_matrix)
-    print(groups)
+    data_list = {"GROUP": [], "DEVICE_TYPE": [], "DEVICE": [], "TIME": [], "EVENT": [], "EVENT_MESSAGE": [], "BUS": []}
+
     for i in range(len(groups)):
-        print("GROUP " + str(i) + " ----------------------")
         for j in range(len(groups[i])):
-            print(list(aut_df.loc[groups[i][j], :]))
-        print("\n")
-        print("\n")
-        print("\n")
+            data_list["GROUP"].append(i)
+            data_list["DEVICE_TYPE"].append(aut_df.loc[groups[i][j], "DEVICE_TYPE"])
+            data_list["DEVICE"].append(aut_df.loc[groups[i][j], "DEVICE"])
+            data_list["TIME"].append(aut_df.loc[groups[i][j], "TIME"])
+            data_list["EVENT"].append(aut_df.loc[groups[i][j], "EVENT"])
+            data_list["EVENT_MESSAGE"].append(aut_df.loc[groups[i][j], "EVENT_MESSAGE"])
+            data_list["BUS"].append(aut_df.loc[groups[i][j], "BUS"])
+
+    df_groups = pd.DataFrame(
+        data=data_list,
+    )
+    
+    save_file = args.save_file
+    
+    if save_file[-4:] != ".csv":
+        save_file = save_file + ".csv"
+        
+    df_groups.to_csv(save_file, sep=';')
 
 
 def read_aut_changes(aut_dir):
@@ -65,7 +106,9 @@ def read_aut_changes(aut_dir):
 
 
 def filter_dwo_events(df):
-    aut_df = df.loc[(df.DEVICE_TYPE == "Transformer") | (df.DEVICE_TYPE == "Shunt") | (df.DEVICE_TYPE == "Generator") | (df.DEVICE_TYPE == "Line") | (df.DEVICE_TYPE == "Load")]
+    aut_df = df.loc[
+        (df.DEVICE_TYPE == "Transformer") | (df.DEVICE_TYPE == "Shunt") | (df.DEVICE_TYPE == "Generator") | (
+                    df.DEVICE_TYPE == "Line") | (df.DEVICE_TYPE == "Load")]
     return aut_df
 
 
@@ -142,7 +185,6 @@ def create_graph(iidm_file):
     G = insert_HVDCLines(iidmTree, G, n_edges)
 
     return G
-
 
 
 def insert_buses(iidm_tree, G):

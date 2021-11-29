@@ -238,10 +238,6 @@ def main():
             else:
                 for j in range(len(names_B)):
                     if names_B[j] == names_A[i]:
-                        print("\n\n\n")
-                        print(df_A.iloc[i, 1])
-                        print(df_B.iloc[j, 1])
-                        print("\n\n\n")
                         x_valuesTAP.append(df_A.iloc[i, 1])
                         y_valuesTAP.append(df_B.iloc[j, 1])
                         namesTAP.append(contgname + "_" + names_A[i])

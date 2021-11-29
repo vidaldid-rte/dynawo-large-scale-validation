@@ -331,9 +331,9 @@ def extract_dynawo_events(dynawo_input, dynawo_dyd):
         elif event.get("message") == "LINE : connecting":
             append_dynawo_data(data, event, devtype_branch, "LineConnected")
         elif event.get("message") == "TRANSFORMER : closing both sides":
-            append_dynawo_data(data, event, devtype_branch, "TransformerDisconnected")
+            append_dynawo_data(data, event, devtype_xfmer, "TransformerDisconnected")
         elif event.get("message") == "TRANSFORMER : opening both sides":
-            append_dynawo_data(data, event, devtype_branch, "TransformerConnected")
+            append_dynawo_data(data, event, devtype_xfmer, "TransformerConnected")
         # Loads
         if event.get("message") == "LOAD : disconnecting":
             append_dynawo_data(data, event, devtype_load, "LoadDisconnected")
