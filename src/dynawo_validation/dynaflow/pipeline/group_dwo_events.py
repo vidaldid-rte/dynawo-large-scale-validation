@@ -76,6 +76,8 @@ def main():
 
     graph = create_graph(iidm_file)
     small_distance_matrix = create_distance_matrix(graph, aut_df)
+    for i in range(len(small_distance_matrix)):
+        print(small_distance_matrix[i])
     groups = group_dwo_events(aut_df, small_distance_matrix)
 
     data_list = {

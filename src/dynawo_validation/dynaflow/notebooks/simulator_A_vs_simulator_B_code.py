@@ -91,6 +91,12 @@ def read_case(name, PF_SOL_DIR, PREFIX):
     return data
 
 
+def read_aut_group(name, PF_SOL_DIR, PREFIX):
+    file_name = PF_SOL_DIR + "/aut/" + PREFIX + "_" + name + "-aut-groups.csv"
+    data = pd.read_csv(file_name, sep=";")
+    return data
+
+
 # Create the general graphic of simulator A vs B
 def create_general_trace(data, x, y, DATA_LIMIT):
     if data.shape[0] > DATA_LIMIT:
@@ -170,6 +176,28 @@ def create_individual_trace(data, x, y, DATA_LIMIT):
         name=x + "_" + y,
         marker=dict(color=colordata),
         showlegend=False,
+    )
+    return trace
+
+
+def create_aut_group_trace(data, DATA_LIMIT):
+    if data.shape[0] > DATA_LIMIT:
+        data = data.sample(DATA_LIMIT)
+    c = list(data["GROUP"])
+    max_val = max(c)
+    plasma = cm.get_cmap("plasma", 12)
+    for i in range(len(c)):
+        c[i] = c[i] / max_val
+        r = plasma(c[i])[0] * 256
+        g = plasma(c[i])[1] * 256
+        b = plasma(c[i])[2] * 256
+        c[i] = "rgb(" + str(r) + "," + str(g) + "," + str(b) + ")"
+    trace = go.Scatter(
+        x=data["TIME"],
+        y=data["DEVICE"],
+        mode="markers",
+        text=data["EVENT_MESSAGE"],
+        marker=dict(color=c),
     )
     return trace
 
@@ -1272,21 +1300,6 @@ def create_tap_trace(df, HEIGHT, WIDTH):
         height=HEIGHT,
         width=HEIGHT,
     )
-    """
-        layout_temp = go.Layout(
-        title=dict(text="FINAL COMPARISON OF AUT STATES - A vs B"),
-        xaxis=dict(title="SIM_A",
-                   rangemode='tozero',
-                   ),
-        yaxis=dict(title="SIM_B",
-                   scaleanchor="x",
-                   scaleratio=1,
-                   rangemode='tozero',
-                   ),
-        height=HEIGHT,
-        width=HEIGHT,
-    )
-    """
 
     return go.FigureWidget(data=[trace, tracel], layout=layout_temp)
 
@@ -1309,7 +1322,15 @@ def create_layouts(varx, vary, HEIGHT, WIDTH, contg_case0, dropdown1, dropdown2)
         width=WIDTH,
     )
 
-    return layout1, layout2
+    layout3 = go.Layout(
+        title=dict(text="Case: " + contg_case0),
+        xaxis=dict(title="TIME", range=[0,200]),
+        yaxis=dict(title="EVENT"),
+        height=HEIGHT,
+        width=WIDTH/2,
+    )
+
+    return layout1, layout2, layout3
 
 
 # Paint the node colors of the graph
@@ -1422,6 +1443,7 @@ def show_displays(
     aut_diff_dfA_contgcase_grid,
     aut_diff_dfB_contgcase_grid,
     t_r,
+    groups_trace,
     def_volt_level,
     sdf,
     container1,
@@ -1463,7 +1485,8 @@ def show_displays(
     display(container_aut)
     display(aut_diffs_contgcase)
     display(container_aut_trace)
-    display(t_r)
+    containergroup = widgets.HBox([t_r, groups_trace])
+    display(containergroup)
     display(def_volt_level)
     display(sdf)
     display(container1)
@@ -1546,6 +1569,27 @@ def run_all(
             c.layout.title.text = "Case: " + case
             dev.value = case
 
+    def individual_aut_group(case):
+        df1 = read_aut_group(case, PF_SOL_DIR, PREFIX)
+        # PERF: Plotly starts showing horrible performance with more than 5,000 points
+        with groups_trace.batch_update():
+            color = list(df1["GROUP"])
+            max_val = max(color)
+            plasma = cm.get_cmap("plasma", 12)
+            for i in range(len(color)):
+                color[i] = color[i] / max_val
+                r = plasma(color[i])[0] * 256
+                g = plasma(color[i])[1] * 256
+                b = plasma(color[i])[2] * 256
+                color[i] = "rgb(" + str(r) + "," + str(g) + "," + str(b) + ")"
+
+            groups_trace.data[0].x = df1["TIME"]
+            groups_trace.data[0].y = df1["DEVICE"]
+            groups_trace.data[0].text = df1["EVENT_MESSAGE"]
+            groups_trace.data[0].marker = dict(color=color)
+            groups_trace.layout.xaxis.range=[0, 200]
+            groups_trace.layout.title.text = "Case: " + case
+
     def update_case(trace, points, selector):
         name = trace.text[points.point_inds[0]].split("_(")
         individual_case(name[0])
@@ -1605,6 +1649,15 @@ def run_all(
 
     def response_aut(change):
         with c.batch_update():
+
+            #TODO: fix this
+            # if len(aut_diffs_A_grid.selections) != 0:
+            #     print(aut_diffs_A_grid.selections)
+            # elif len(aut_diffs_B_grid.selections) != 0:
+            #     print(aut_diffs_B_grid.selections)
+
+            aut_diffs_A_grid.clear_selection()
+            aut_diffs_B_grid.clear_selection()
             aut_diff_dfA_contgcase = create_aut_df(
                 RESULTS_DIR,
                 1,
@@ -1648,6 +1701,7 @@ def run_all(
             aut_diff_dfB_contgcase_grid.base_column_size = int(
                 (WIDTH / 2 / 1.1) / len(aut_diff_dfB_contgcase.columns)
             )
+            individual_aut_group(aut_diff_case.value)
 
     def response_general_aut_A(change):
         aut_diffs_A, aut_diffs_B = read_csv_aut_diffs(
@@ -1746,6 +1800,8 @@ def run_all(
     # Read the first contingency to put default data
     data_first_case = read_case(contg_case0, PF_SOL_DIR, PREFIX)
 
+    aut_group_data_first_case = read_aut_group(contg_case0, PF_SOL_DIR, PREFIX)
+
     vars_case = data_first_case.columns[1:]
 
     # Get the bus list for subgraph selection
@@ -1822,7 +1878,7 @@ def run_all(
     )
 
     # Get all the layouts
-    layout1, layout2 = create_layouts(
+    layout1, layout2, layout3 = create_layouts(
         varx, vary, HEIGHT, WIDTH, contg_case0, dropdown1, dropdown2
     )
 
@@ -1831,6 +1887,11 @@ def run_all(
     current_individual_trace = create_individual_trace(
         data_first_case, dropdown1.value, dropdown2.value, DATA_LIMIT
     )
+
+    current_aut_group_trace = create_aut_group_trace(
+        aut_group_data_first_case, DATA_LIMIT
+    )
+
 
     aut_diff_dfA_contgcase = create_aut_df(
         RESULTS_DIR,
@@ -1874,24 +1935,35 @@ def run_all(
     # Create the required widgets for visualization
     if check1a.value:
         aut_diffs_A = aut_diffs_A.loc[(aut_diffs_A.NUM_CHANGES != 0)]
-    aut_diffs_A_grid = ipydatagrid.DataGrid(
-        aut_diffs_A, base_column_size=int((WIDTH / 2 / 1.1) / len(aut_diffs_A.columns))
+        aut_diffs_A_grid = ipydatagrid.DataGrid(
+        aut_diffs_A,
+        base_column_size=int((WIDTH / 2 / 1.1) / len(aut_diffs_A.columns)),
+        # TODO: fix this
+        selection_mode="row",
     )
 
     if check1b.value:
         aut_diffs_B = aut_diffs_B.loc[(aut_diffs_B.NUM_CHANGES != 0)]
-    aut_diffs_B_grid = ipydatagrid.DataGrid(
-        aut_diffs_B, base_column_size=int((WIDTH / 2 / 1.1) / len(aut_diffs_B.columns))
+        aut_diffs_B_grid = ipydatagrid.DataGrid(
+        aut_diffs_B,
+        base_column_size=int((WIDTH / 2 / 1.1) / len(aut_diffs_B.columns)),
+        # TODO: fix this
+        selection_mode="row",
     )
 
     # Matching df
     sdf = ipydatagrid.DataGrid(
-        df, base_column_size=int((WIDTH / 1.03) / len(df.columns))
+        df,
+        base_column_size=int((WIDTH / 1.03) / len(df.columns)),
+        # TODO: fix this
+        selection_mode="row",
     )
 
     g = go.FigureWidget(data=[current_general_trace], layout=layout1)
 
     c = go.FigureWidget(data=[current_individual_trace], layout=layout2)
+
+    groups_trace = go.FigureWidget(data=[current_aut_group_trace], layout=layout3)
 
     file0 = open("legend0.png", "rb")
     legend0 = file0.read()
@@ -1985,6 +2057,7 @@ def run_all(
         aut_diff_dfA_contgcase_grid,
         aut_diff_dfB_contgcase_grid,
         t_r,
+        groups_trace,
         def_volt_level,
         sdf,
         container1,
@@ -2023,6 +2096,12 @@ def run_all(
     aut_diff_var_A.observe(response_autA, names="value")
     aut_diff_var_B.observe(response_autB, names="value")
     aut_diff_case.observe(response_aut, names="value")
+
+    # TODO: fix this
+    # aut_diffs_A_grid.observe(response_aut, names="value")
+    # aut_diffs_B_grid.observe(response_aut, names="value")
+
+
     aut_diff_var_plot.observe(response_aut_plot, names="value")
     check1a.observe(response_general_aut_A, names="value")
     check1b.observe(response_general_aut_B, names="value")
