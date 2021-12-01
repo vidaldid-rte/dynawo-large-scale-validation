@@ -10,7 +10,10 @@ import argparse
 from lxml import etree
 import networkx as nx
 import math
-from dynawo_validation.dynaflow.pipeline.dwo_jobinfo import get_dwo_jobpaths, get_dwodwo_jobpaths
+from dynawo_validation.dynaflow.pipeline.dwo_jobinfo import (
+    get_dwo_jobpaths,
+    get_dwodwo_jobpaths,
+)
 
 THRESHOLD = 50
 
@@ -45,13 +48,12 @@ def main():
 
     if basecase_dir[-1] != "/":
         basecase_dir = basecase_dir + "/"
-        
+
     if basecase_type != "0" and basecase_type != "1" and basecase_type != "2":
         raise ValueError(f"Non-valid option")
     else:
         basecase_type = int(basecase_type)
-    
-    
+
     if basecase_type == 0:
         dwo_jobpaths = get_dwo_jobpaths(basecase_dir)
         iidm_file = basecase_dir + dwo_jobpaths.iidmFile
@@ -76,7 +78,15 @@ def main():
     small_distance_matrix = create_distance_matrix(graph, aut_df)
     groups = group_dwo_events(aut_df, small_distance_matrix)
 
-    data_list = {"GROUP": [], "DEVICE_TYPE": [], "DEVICE": [], "TIME": [], "EVENT": [], "EVENT_MESSAGE": [], "BUS": []}
+    data_list = {
+        "GROUP": [],
+        "DEVICE_TYPE": [],
+        "DEVICE": [],
+        "TIME": [],
+        "EVENT": [],
+        "EVENT_MESSAGE": [],
+        "BUS": [],
+    }
 
     for i in range(len(groups)):
         for j in range(len(groups[i])):
@@ -91,13 +101,13 @@ def main():
     df_groups = pd.DataFrame(
         data=data_list,
     )
-    
+
     save_file = args.save_file
-    
+
     if save_file[-4:] != ".csv":
         save_file = save_file + ".csv"
-        
-    df_groups.to_csv(save_file, sep=';')
+
+    df_groups.to_csv(save_file, sep=";")
 
 
 def read_aut_changes(aut_dir):
@@ -107,8 +117,12 @@ def read_aut_changes(aut_dir):
 
 def filter_dwo_events(df):
     aut_df = df.loc[
-        (df.DEVICE_TYPE == "Transformer") | (df.DEVICE_TYPE == "Shunt") | (df.DEVICE_TYPE == "Generator") | (
-                    df.DEVICE_TYPE == "Line") | (df.DEVICE_TYPE == "Load")]
+        (df.DEVICE_TYPE == "Transformer")
+        | (df.DEVICE_TYPE == "Shunt")
+        | (df.DEVICE_TYPE == "Generator")
+        | (df.DEVICE_TYPE == "Line")
+        | (df.DEVICE_TYPE == "Load")
+    ]
     return aut_df
 
 
@@ -313,7 +327,10 @@ def create_distance_matrix(graph, aut_df):
         distance_matrix.append([])
         for df_j in range(len(aut_df.index)):
             shortest_path = nx.shortest_path_length(
-                graph, source=aut_df.loc[df_i, "BUS"], target=aut_df.loc[df_j, "BUS"], weight="imp"
+                graph,
+                source=aut_df.loc[df_i, "BUS"],
+                target=aut_df.loc[df_j, "BUS"],
+                weight="imp",
             )
             distance_matrix[df_i].append(shortest_path)
 

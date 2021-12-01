@@ -83,7 +83,7 @@ colormsg "OK."
 
 
 # Step 5: some packages do not automatically register their notebook extensions
-colormsg "Registering qgrid as a Jupyter Notebook extension... "
-jupyter nbextension enable --py --sys-prefix qgrid
+colormsg "Registering ipydatagrid as a Jupyter Notebook extension... "
+jupyter nbextension enable --py --sys-prefix ipydatagrid
 colormsg "OK. (to check all extensions, execute: jupyter nbextension list)"
 

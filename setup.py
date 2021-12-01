@@ -12,7 +12,7 @@ setup(
     "frozendict>=2.0.3",
     "networkx>=2.5.1",
     "pyvis>=0.1.9",
-    "qgrid>=1.3.1",
+    "ipydatagrid>=1.1.6",
     "notebook>=6.4.0",
     "numpy>=1.21.0",
     "matplotlib>=3.4.2",

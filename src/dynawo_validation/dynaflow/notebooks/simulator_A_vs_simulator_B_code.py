@@ -2,7 +2,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from dynawo_validation.dynaflow.notebooks import create_graph
 from IPython.display import display, HTML, Markdown
-import qgrid
+import ipydatagrid
 from ipywidgets import widgets, AppLayout
 import warnings
 from matplotlib import cm, patches, pyplot
@@ -1510,7 +1510,7 @@ def run_all(
         if df1.shape[0] > DATA_LIMIT:
             df1 = df1.sample(DATA_LIMIT)
         with g.batch_update():
-            sdf.df = df1
+            sdf.data = df1
             g.data[0].x = df1[varx.value]
             g.data[0].y = df1[vary.value]
             g.data[0].name = varx.value + "_" + vary.value
@@ -1534,7 +1534,7 @@ def run_all(
                         df1 = df1.loc[(df1.VAR == dropdown4.value)]
             if df1.shape[0] > DATA_LIMIT:
                 df1 = df1.sample(DATA_LIMIT)
-            s.df = df1.sort_values("ID")
+            s.data = df1.sort_values("ID")
             c.data[0].x = df1[dropdown1.value]
             c.data[0].y = df1[dropdown2.value]
             c.data[0].name = dropdown1.value + "_" + dropdown2.value
@@ -1573,7 +1573,10 @@ def run_all(
                     columns=["HAS_CHANGED"]
                 )
 
-            aut_diff_dfA_contgcase_grid.df = aut_diff_dfA_contgcase
+            aut_diff_dfA_contgcase_grid.data = aut_diff_dfA_contgcase
+            aut_diff_dfA_contgcase_grid.base_column_size = int(
+                (WIDTH / 2 / 1.1) / len(aut_diff_dfA_contgcase.columns)
+            )
 
     def response_autB(change):
         with c.batch_update():
@@ -1595,7 +1598,10 @@ def run_all(
                     columns=["HAS_CHANGED"]
                 )
 
-            aut_diff_dfB_contgcase_grid.df = aut_diff_dfB_contgcase
+            aut_diff_dfB_contgcase_grid.data = aut_diff_dfB_contgcase
+            aut_diff_dfB_contgcase_grid.base_column_size = int(
+                (WIDTH / 2 / 1.1) / len(aut_diff_dfB_contgcase.columns)
+            )
 
     def response_aut(change):
         with c.batch_update():
@@ -1634,8 +1640,14 @@ def run_all(
                     columns=["HAS_CHANGED"]
                 )
 
-            aut_diff_dfA_contgcase_grid.df = aut_diff_dfA_contgcase
-            aut_diff_dfB_contgcase_grid.df = aut_diff_dfB_contgcase
+            aut_diff_dfA_contgcase_grid.data = aut_diff_dfA_contgcase
+            aut_diff_dfA_contgcase_grid.base_column_size = int(
+                (WIDTH / 2 / 1.1) / len(aut_diff_dfA_contgcase.columns)
+            )
+            aut_diff_dfB_contgcase_grid.data = aut_diff_dfB_contgcase
+            aut_diff_dfB_contgcase_grid.base_column_size = int(
+                (WIDTH / 2 / 1.1) / len(aut_diff_dfB_contgcase.columns)
+            )
 
     def response_general_aut_A(change):
         aut_diffs_A, aut_diffs_B = read_csv_aut_diffs(
@@ -1643,7 +1655,10 @@ def run_all(
         )
         if check1a.value:
             aut_diffs_A = aut_diffs_A.loc[(aut_diffs_A.NUM_CHANGES != 0)]
-        aut_diffs_A_grid.df = aut_diffs_A
+        aut_diffs_A_grid.data = aut_diffs_A
+        aut_diffs_A_grid.base_column_size = int(
+            (WIDTH / 2 / 1.1) / len(aut_diffs_A.columns)
+        )
 
     def response_general_aut_B(change):
         aut_diffs_A, aut_diffs_B = read_csv_aut_diffs(
@@ -1651,7 +1666,10 @@ def run_all(
         )
         if check1b.value:
             aut_diffs_B = aut_diffs_B.loc[(aut_diffs_B.NUM_CHANGES != 0)]
-        aut_diffs_B_grid.df = aut_diffs_B
+        aut_diffs_B_grid.data = aut_diffs_B
+        aut_diffs_B_grid.base_column_size = int(
+            (WIDTH / 2 / 1.1) / len(aut_diffs_B.columns)
+        )
 
     def response_aut_plot(change):
         df_aut = read_aut_case(
@@ -1838,26 +1856,38 @@ def run_all(
             (aut_diff_dfA_contgcase.HAS_CHANGED != 0)
         ]
         aut_diff_dfA_contgcase = aut_diff_dfA_contgcase.drop(columns=["HAS_CHANGED"])
-    aut_diff_dfA_contgcase_grid = qgrid.QgridWidget(df=aut_diff_dfA_contgcase)
+    aut_diff_dfA_contgcase_grid = ipydatagrid.DataGrid(
+        aut_diff_dfA_contgcase,
+        base_column_size=int((WIDTH / 2 / 1.1) / len(aut_diff_dfA_contgcase.columns)),
+    )
 
     if check2b.value:
         aut_diff_dfB_contgcase = aut_diff_dfB_contgcase.loc[
             (aut_diff_dfB_contgcase.HAS_CHANGED != 0)
         ]
         aut_diff_dfB_contgcase = aut_diff_dfB_contgcase.drop(columns=["HAS_CHANGED"])
-    aut_diff_dfB_contgcase_grid = qgrid.QgridWidget(df=aut_diff_dfB_contgcase)
+    aut_diff_dfB_contgcase_grid = ipydatagrid.DataGrid(
+        aut_diff_dfB_contgcase,
+        base_column_size=int((WIDTH / 2 / 1.1) / len(aut_diff_dfB_contgcase.columns)),
+    )
 
     # Create the required widgets for visualization
     if check1a.value:
         aut_diffs_A = aut_diffs_A.loc[(aut_diffs_A.NUM_CHANGES != 0)]
-    aut_diffs_A_grid = qgrid.QgridWidget(df=aut_diffs_A)
+    aut_diffs_A_grid = ipydatagrid.DataGrid(
+        aut_diffs_A, base_column_size=int((WIDTH / 2 / 1.1) / len(aut_diffs_A.columns))
+    )
 
     if check1b.value:
         aut_diffs_B = aut_diffs_B.loc[(aut_diffs_B.NUM_CHANGES != 0)]
-    aut_diffs_B_grid = qgrid.QgridWidget(df=aut_diffs_B)
+    aut_diffs_B_grid = ipydatagrid.DataGrid(
+        aut_diffs_B, base_column_size=int((WIDTH / 2 / 1.1) / len(aut_diffs_B.columns))
+    )
 
     # Matching df
-    sdf = qgrid.QgridWidget(df=df)
+    sdf = ipydatagrid.DataGrid(
+        df, base_column_size=int((WIDTH / 1.03) / len(df.columns))
+    )
 
     g = go.FigureWidget(data=[current_general_trace], layout=layout1)
 
@@ -1869,7 +1899,10 @@ def run_all(
 
     container0 = widgets.HBox([c, legend0widget])
 
-    s = qgrid.QgridWidget(df=data_first_case)
+    s = ipydatagrid.DataGrid(
+        data_first_case,
+        base_column_size=int((WIDTH / 1.03) / len(data_first_case.columns)),
+    )
 
     # Get iidm file
     if DWO_DWO == 0:
