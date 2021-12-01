@@ -91,8 +91,11 @@ def read_case(name, PF_SOL_DIR, PREFIX):
     return data
 
 
-def read_aut_group(name, PF_SOL_DIR, PREFIX):
-    file_name = PF_SOL_DIR + "/aut/" + PREFIX + "_" + name + "-aut-groups.csv"
+def read_aut_group(name, PF_SOL_DIR, DWO_DWO, PREFIX):
+    if DWO_DWO == 0:
+        file_name = PF_SOL_DIR + "/aut/" + PREFIX + "_" + name + "-aut-groups.csv"
+    else:
+        file_name = PF_SOL_DIR + "/aut/" + PREFIX + "_" + name + "-autA-groups.csv"
     data = pd.read_csv(file_name, sep=";")
     return data
 
@@ -1570,7 +1573,7 @@ def run_all(
             dev.value = case
 
     def individual_aut_group(case):
-        df1 = read_aut_group(case, PF_SOL_DIR, PREFIX)
+        df1 = read_aut_group(case, PF_SOL_DIR, DWO_DWO, PREFIX)
         # PERF: Plotly starts showing horrible performance with more than 5,000 points
         with groups_trace.batch_update():
             color = list(df1["GROUP"])
@@ -1800,7 +1803,7 @@ def run_all(
     # Read the first contingency to put default data
     data_first_case = read_case(contg_case0, PF_SOL_DIR, PREFIX)
 
-    aut_group_data_first_case = read_aut_group(contg_case0, PF_SOL_DIR, PREFIX)
+    aut_group_data_first_case = read_aut_group(contg_case0, PF_SOL_DIR, DWO_DWO, PREFIX)
 
     vars_case = data_first_case.columns[1:]
 
