@@ -190,7 +190,7 @@ def create_aut_group_trace(data, DATA_LIMIT):
     max_val = max(c)
     plasma = cm.get_cmap("plasma", 12)
     for i in range(len(c)):
-        c[i] = c[i] / max_val
+        c[i] = c[i] / (max_val + 1)
         r = plasma(c[i])[0] * 256
         g = plasma(c[i])[1] * 256
         b = plasma(c[i])[2] * 256
@@ -1458,6 +1458,8 @@ def show_displays(
     C,
     dev,
     container4,
+    button_aut,
+    button_case,
 ):
     display(
         HTML(
@@ -1479,6 +1481,7 @@ def show_displays(
     )
     display(container_aut_gen)
     display(aut_diffs)
+    display(button_aut)
     aut_diffs_contgcase = AppLayout(
         left_sidebar=aut_diff_dfA_contgcase_grid,
         right_sidebar=aut_diff_dfB_contgcase_grid,
@@ -1492,6 +1495,7 @@ def show_displays(
     display(containergroup)
     display(def_volt_level)
     display(sdf)
+    display(button_case)
     display(container1)
     display(g)
     display(container2)
@@ -1545,6 +1549,10 @@ def run_all(
             g.layout.yaxis.title = vary.value
 
     def individual_case(case):
+        if len(sdf.selections) != 0:
+            case = sdf.data.loc[sdf.selections[0]["r1"], "cont"]
+            sdf.clear_selection()
+
         df1 = read_case(case, PF_SOL_DIR, PREFIX)
         # PERF: Plotly starts showing horrible performance with more than 5,000 points
         with c.batch_update():
@@ -1580,7 +1588,7 @@ def run_all(
             max_val = max(color)
             plasma = cm.get_cmap("plasma", 12)
             for i in range(len(color)):
-                color[i] = color[i] / max_val
+                color[i] = color[i] / (max_val+1)
                 r = plasma(color[i])[0] * 256
                 g = plasma(color[i])[1] * 256
                 b = plasma(color[i])[2] * 256
@@ -1652,15 +1660,16 @@ def run_all(
 
     def response_aut(change):
         with c.batch_update():
-
-            #TODO: fix this
-            # if len(aut_diffs_A_grid.selections) != 0:
-            #     print(aut_diffs_A_grid.selections)
-            # elif len(aut_diffs_B_grid.selections) != 0:
-            #     print(aut_diffs_B_grid.selections)
+            '''
+            if len(aut_diffs_A_grid.selections) != 0:
+                print(aut_diffs_A_grid.selections)
+                print(aut_diffs_A_grid.data[int(aut_diffs_A_grid.selections[0]["r1"])])
+            elif len(aut_diffs_B_grid.selections) != 0:
+                print(aut_diffs_B_grid.data[int(aut_diffs_B_grid.selections[0]["r1"])])
 
             aut_diffs_A_grid.clear_selection()
             aut_diffs_B_grid.clear_selection()
+            '''
             aut_diff_dfA_contgcase = create_aut_df(
                 RESULTS_DIR,
                 1,
@@ -1942,7 +1951,7 @@ def run_all(
         aut_diffs_A,
         base_column_size=int((WIDTH / 2 / 1.1) / len(aut_diffs_A.columns)),
         # TODO: fix this
-        selection_mode="row",
+        # selection_mode="row",
     )
 
     if check1b.value:
@@ -1951,7 +1960,7 @@ def run_all(
         aut_diffs_B,
         base_column_size=int((WIDTH / 2 / 1.1) / len(aut_diffs_B.columns)),
         # TODO: fix this
-        selection_mode="row",
+        # selection_mode="row",
     )
 
     # Matching df
@@ -2050,6 +2059,13 @@ def run_all(
 
     container4 = widgets.HBox([legend1widget, legend2widget])
 
+    button_descriptions_aut = {False: "Apply Selection", True: "Apply Selection"}
+    button_aut = widgets.ToggleButton(False, description=button_descriptions_aut[False])
+
+    button_descriptions_case = {False: "Apply Selection", True: "Apply Selection"}
+    button_case = widgets.ToggleButton(False, description=button_descriptions_case[False])
+
+
     # Display all the objects and get html subgraph id
     html_graph = show_displays(
         aut_diffs_A_grid,
@@ -2072,6 +2088,8 @@ def run_all(
         C,
         dev,
         container4,
+        button_aut,
+        button_case,
     )
 
     # Observe selection events to update graphics
@@ -2100,10 +2118,8 @@ def run_all(
     aut_diff_var_B.observe(response_autB, names="value")
     aut_diff_case.observe(response_aut, names="value")
 
-    # TODO: fix this
-    # aut_diffs_A_grid.observe(response_aut, names="value")
-    # aut_diffs_B_grid.observe(response_aut, names="value")
-
+    button_case.observe(response2, "value")
+    button_aut.observe(response_aut, "value")
 
     aut_diff_var_plot.observe(response_aut_plot, names="value")
     check1a.observe(response_general_aut_A, names="value")
