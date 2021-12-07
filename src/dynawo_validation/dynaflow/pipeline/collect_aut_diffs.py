@@ -77,6 +77,8 @@ def main():
         if launcherA[:5] == "hades":
             whatis = len("-Hades-aut-diff_TAP_changes.csv")
             whatis2 = len("-Hades-aut-diff_PSTAP_changes.csv")
+            rest_A = -19
+            rest_B = -20
             for i in data_files:
                 if i not in data_files_list_sim_A and re.match(
                     ".*-Hades-aut-diff.csv", i
@@ -110,6 +112,8 @@ def main():
         else:
             whatis = len("-Dynawo-aut-diff_TAP_changes.csv")
             whatis2 = len("-Dynawo-aut-diff_PSTAP_changes.csv")
+            rest_A = -20
+            rest_B = -19
             for i in data_files:
                 if i not in data_files_list_sim_A and re.match(
                     ".*-Dynawo-aut-diff.csv", i
@@ -142,6 +146,8 @@ def main():
     else:
         whatis = len("-DynawoA-aut-diff_TAP_changes.csv")
         whatis2 = len("-DynawoA-aut-diff_PSTAP_changes.csv")
+        rest_A = -21
+        rest_B = -21
         for i in data_files:
             if i not in data_files_list_sim_A and re.match(
                 ".*-DynawoA-aut-diff.csv", i
@@ -172,11 +178,16 @@ def main():
             ):
                 data_files_list_sim_B_PSTAP_changes.append(i)
 
+
     df_temp = read_aut_changes(aut_dir + data_files_list_sim_A[0])
     temp_ind = list(df_temp.index)
+    temp_bus = list(df_temp.index)
     for x in range(len(temp_ind)):
-        temp_ind[x] = data_files_list_sim_A[0][:-21] + "-" + temp_ind[x]
+        temp_ind[x] = data_files_list_sim_A[0][:rest_A] + "-" + temp_ind[x]
+        temp_bus[x] = data_files_list_sim_A[0][:rest_A]
+        
     df_temp["ID"] = temp_ind
+    df_temp["CONTG"] = temp_bus
     df_temp.set_index("ID", inplace=True)
     dataframeA = df_temp
     os.remove(aut_dir + data_files_list_sim_A[0])
@@ -184,18 +195,24 @@ def main():
     for j in data_files_list_sim_A[1:]:
         df_temp = read_aut_changes(aut_dir + j)
         temp_ind = list(df_temp.index)
+        temp_bus = list(df_temp.index)
         for x in range(len(temp_ind)):
-            temp_ind[x] = j[:-21] + "-" + temp_ind[x]
+            temp_ind[x] = j[:rest_A] + "-" + temp_ind[x]
+            temp_bus[x] = j[:rest_A]
         df_temp["ID"] = temp_ind
+        df_temp["CONTG"] = temp_bus
         df_temp.set_index("ID", inplace=True)
         dataframeA = dataframeA.append(df_temp)
         os.remove(aut_dir + j)
 
     df_temp = read_aut_changes(aut_dir + data_files_list_sim_B[0])
     temp_ind = list(df_temp.index)
+    temp_bus = list(df_temp.index)
     for x in range(len(temp_ind)):
-        temp_ind[x] = data_files_list_sim_B[0][:-21] + "-" + temp_ind[x]
+        temp_ind[x] = data_files_list_sim_B[0][:rest_B] + "-" + temp_ind[x]
+        temp_bus[x] = data_files_list_sim_B[0][:rest_B]
     df_temp["ID"] = temp_ind
+    df_temp["CONTG"] = temp_bus
     df_temp.set_index("ID", inplace=True)
     dataframeB = df_temp
     os.remove(aut_dir + data_files_list_sim_B[0])
@@ -203,9 +220,12 @@ def main():
     for j in data_files_list_sim_B[1:]:
         df_temp = read_aut_changes(aut_dir + j)
         temp_ind = list(df_temp.index)
+        temp_bus = list(df_temp.index)
         for x in range(len(temp_ind)):
-            temp_ind[x] = j[:-21] + "-" + temp_ind[x]
+            temp_ind[x] = j[:rest_B] + "-" + temp_ind[x]
+            temp_bus[x] = j[:rest_B]
         df_temp["ID"] = temp_ind
+        df_temp["CONTG"] = temp_bus
         df_temp.set_index("ID", inplace=True)
         dataframeB = dataframeB.append(df_temp)
         os.remove(aut_dir + j)

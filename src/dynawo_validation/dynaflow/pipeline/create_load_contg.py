@@ -270,6 +270,19 @@ def main():
                 dynawo_loadsB[load_name].Q,
             )
 
+    '''
+    # Add NOCONTINGENCY
+
+    # We fix any device names with slashes in them (illegal filenames)
+    contg_casedir = dirname + "/load_NOCONTINGENCY"
+
+    if dwohds:
+        # Copy the basecase (unchanged files and dir structure)
+        copy_dwohds_basecase(base_case, dwo_paths, contg_casedir)
+    else:
+        # Copy the basecase (unchanged files and dir structure)
+        copy_dwodwo_basecase(base_case, dwo_pathsA, dwo_pathsB, contg_casedir)
+    '''
     # Finally, save the (P,Q) values of disconnected loads in all *processed* cases
     save_total_loadpq(dirname, dwohds, dynawo_loads, processed_loadsPQ)
 

@@ -271,8 +271,22 @@ def main():
                 dynawo_branchesB[branch_name].Q,
             )
 
+    '''
+    # Add NOCONTINGENCY
+
+    # We fix any device names with slashes in them (illegal filenames)
+    contg_casedir = dirname + "/branchB_NOCONTINGENCY"
+
+    if dwohds:
+        # Copy the basecase (unchanged files and dir structure)
+        copy_dwohds_basecase(base_case, dwo_paths, contg_casedir)
+    else:
+        # Copy the basecase (unchanged files and dir structure)
+        copy_dwodwo_basecase(base_case, dwo_pathsA, dwo_pathsB, contg_casedir)
+    '''
     # Finally, save the (P,Q) values of disconnected branches in all *processed* cases
     save_total_branchpq(dirname, dwohds, dynawo_branches, processed_branchesPQ)
+
 
     return 0
 

@@ -1660,16 +1660,16 @@ def run_all(
 
     def response_aut(change):
         with c.batch_update():
-            '''
             if len(aut_diffs_A_grid.selections) != 0:
-                print(aut_diffs_A_grid.selections)
-                print(aut_diffs_A_grid.data[int(aut_diffs_A_grid.selections[0]["r1"])])
-            elif len(aut_diffs_B_grid.selections) != 0:
-                print(aut_diffs_B_grid.data[int(aut_diffs_B_grid.selections[0]["r1"])])
+                aut_diff_case.value = aut_diffs_A_grid.data.iloc[aut_diffs_A_grid.selections[0]["r1"], 4][len(PREFIX)+1:]
+                aut_diffs_A_grid.clear_selection()
+                aut_diffs_B_grid.clear_selection()
 
-            aut_diffs_A_grid.clear_selection()
-            aut_diffs_B_grid.clear_selection()
-            '''
+            elif len(aut_diffs_B_grid.selections) != 0:
+                aut_diff_case.value = aut_diffs_B_grid.data.iloc[aut_diffs_B_grid.selections[0]["r1"], 4][len(PREFIX)+1:]
+                aut_diffs_A_grid.clear_selection()
+                aut_diffs_B_grid.clear_selection()
+
             aut_diff_dfA_contgcase = create_aut_df(
                 RESULTS_DIR,
                 1,
@@ -1904,7 +1904,6 @@ def run_all(
         aut_group_data_first_case, DATA_LIMIT
     )
 
-
     aut_diff_dfA_contgcase = create_aut_df(
         RESULTS_DIR,
         1,
@@ -1914,6 +1913,7 @@ def run_all(
         DWO_DWO,
         aut_diff_var_A.value,
     )
+
     aut_diff_dfB_contgcase = create_aut_df(
         RESULTS_DIR,
         2,
@@ -1950,8 +1950,7 @@ def run_all(
         aut_diffs_A_grid = ipydatagrid.DataGrid(
         aut_diffs_A,
         base_column_size=int((WIDTH / 2 / 1.1) / len(aut_diffs_A.columns)),
-        # TODO: fix this
-        # selection_mode="row",
+        selection_mode="row",
     )
 
     if check1b.value:
@@ -1959,15 +1958,13 @@ def run_all(
         aut_diffs_B_grid = ipydatagrid.DataGrid(
         aut_diffs_B,
         base_column_size=int((WIDTH / 2 / 1.1) / len(aut_diffs_B.columns)),
-        # TODO: fix this
-        # selection_mode="row",
+        selection_mode="row",
     )
 
     # Matching df
     sdf = ipydatagrid.DataGrid(
         df,
         base_column_size=int((WIDTH / 1.03) / len(df.columns)),
-        # TODO: fix this
         selection_mode="row",
     )
 
