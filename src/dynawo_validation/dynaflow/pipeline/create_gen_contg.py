@@ -44,6 +44,7 @@
 import os
 import random
 import re
+import subprocess
 import sys
 from collections import namedtuple
 from dynawo_validation.dynaflow.pipeline.common_funcs import (
@@ -188,6 +189,53 @@ def main():
     else:
         sampling_ratio = 1
 
+
+    # Add NOCONTINGENCY
+
+    # We fix any device names with slashes in them (illegal filenames)
+    contg_casedir = dirname + "/gen_NOCONTINGENCY"
+
+    if dwohds:
+        # Copy the basecase (unchanged files and dir structure)
+        copy_dwohds_basecase(base_case, dwo_paths, contg_casedir)
+        dyd_file = contg_casedir + "/" + dwo_paths.dydFile
+        dyd_tree = parsed_case.dydTree
+        dyd_tree.write(
+            dyd_file,
+            pretty_print=True,
+            xml_declaration='<?xml version="1.0" encoding="UTF-8"?>',
+            encoding="UTF-8",
+        )
+        par_file = contg_casedir + "/" + dwo_paths.parFile
+        par_tree = parsed_case.parTree
+        par_tree.write(
+            par_file,
+            pretty_print=True,
+            xml_declaration='<?xml version="1.0" encoding="UTF-8"?>',
+            encoding="UTF-8",
+        )
+        crv_file = contg_casedir + "/" + dwo_paths.curves_inputFile
+        crv_tree = parsed_case.crvTree
+        crv_tree.write(
+            crv_file,
+            pretty_print=True,
+            xml_declaration='<?xml version="1.0" encoding="UTF-8"?>',
+            encoding="UTF-8",
+        )
+        hades_file = contg_casedir + HADES_PATH
+        hades_tree = parsed_case.asthdsTree
+        hades_tree.write(
+            hades_file,
+            pretty_print=True,
+            xml_declaration='<?xml version="1.0" encoding="UTF-8"?>',
+            encoding="UTF-8",
+        )
+
+    else:
+        # Copy the basecase (unchanged files and dir structure)
+        copy_dwodwo_basecase(base_case, dwo_pathsA, dwo_pathsB, contg_casedir)
+
+
     # This dict will keep track of which contingencies are actually processed
     # It will also keep Hades's (P,Q) of each gen
     processed_gensPQ = dict()
@@ -253,20 +301,6 @@ def main():
                 dynawo_gensB[gen_name].P,
                 dynawo_gensB[gen_name].Q,
             )
-
-    '''
-    #Add NOCONTINGENCY
-
-    # We fix any device names with slashes in them (illegal filenames)
-    contg_casedir = dirname + "/gen_NOCONTINGENCY"
-
-    if dwohds:
-        # Copy the basecase (unchanged files and dir structure)
-        copy_dwohds_basecase(base_case, dwo_paths, contg_casedir)
-    else:
-        # Copy the basecase (unchanged files and dir structure)
-        copy_dwodwo_basecase(base_case, dwo_pathsA, dwo_pathsB, contg_casedir)
-    '''
 
     # Finally, save the (P,Q) values of disconnected gens in all *processed* cases
     save_total_genpq(dirname, dwohds, dynawo_gens, processed_gensPQ)
