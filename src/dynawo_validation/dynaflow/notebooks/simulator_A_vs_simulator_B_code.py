@@ -1463,6 +1463,7 @@ def show_displays(
     container4,
     button_aut,
     button_case,
+    button_download_data,
 ):
     display(
         HTML(
@@ -1504,6 +1505,7 @@ def show_displays(
     display(container2)
     display(container0)
     display(s)
+    display(button_download_data)
     display(container3)
     html_graph = display(C.show("subgraph.html"), display_id=True)
     print("Node Legend - Edge Legend")
@@ -1720,6 +1722,14 @@ def run_all(
                 (WIDTH / 2 / 1.1) / len(aut_diff_dfB_contgcase.columns)
             )
             individual_aut_group(aut_diff_case.value)
+
+    def response_download_data(change):
+        temp_dict = {"text":list(t_r.data[0].text),"x":list(t_r.data[0].x),"y":list(t_r.data[0].y)}
+        pd.DataFrame(temp_dict).to_csv("comparison_aut_states.csv",sep=";")
+        temp_dict = {"text": list(c.data[0].text), "x": list(c.data[0].x), "y": list(c.data[0].y)}
+        pd.DataFrame(temp_dict).to_csv("indv_case_diffs.csv",sep=";")
+        temp_dict = {"text": list(g.data[0].text), "x": list(g.data[0].x), "y": list(g.data[0].y)}
+        pd.DataFrame(temp_dict).to_csv("global_case_diffs.csv",sep=";")
 
     def response_general_aut_A(change):
         aut_diffs_A, aut_diffs_B = read_csv_aut_diffs(
@@ -2068,6 +2078,9 @@ def run_all(
     button_descriptions_case = {False: "Apply Selection", True: "Apply Selection"}
     button_case = widgets.ToggleButton(False, description=button_descriptions_case[False])
 
+    button_download_data_opts = {False: "Download Data", True: "Download Data"}
+    button_download_data = widgets.ToggleButton(False, description=button_download_data_opts[False])
+
 
     # Display all the objects and get html subgraph id
     html_graph = show_displays(
@@ -2093,6 +2106,7 @@ def run_all(
         container4,
         button_aut,
         button_case,
+        button_download_data,
     )
 
     # Observe selection events to update graphics
@@ -2123,6 +2137,7 @@ def run_all(
 
     button_case.observe(response2, "value")
     button_aut.observe(response_aut, "value")
+    button_download_data.observe(response_download_data, "value")
 
     aut_diff_var_plot.observe(response_aut_plot, names="value")
     check1a.observe(response_general_aut_A, names="value")
