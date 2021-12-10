@@ -234,7 +234,56 @@ def main():
     else:
         # Copy the basecase (unchanged files and dir structure)
         copy_dwodwo_basecase(base_case, dwo_pathsA, dwo_pathsB, contg_casedir)
-
+        #A
+        dyd_file = contg_casedir + "/" + dwo_pathsA.dydFile
+        dyd_tree = parsed_case.A.dydTree
+        dyd_tree.write(
+            dyd_file,
+            pretty_print=True,
+            xml_declaration='<?xml version="1.0" encoding="UTF-8"?>',
+            encoding="UTF-8",
+        )
+        par_file = contg_casedir + "/" + dwo_pathsA.parFile
+        par_tree = parsed_case.A.parTree
+        par_tree.write(
+            par_file,
+            pretty_print=True,
+            xml_declaration='<?xml version="1.0" encoding="UTF-8"?>',
+            encoding="UTF-8",
+        )
+        crv_file = contg_casedir + "/" + dwo_pathsA.curves_inputFile
+        crv_tree = parsed_case.A.crvTree
+        crv_tree.write(
+            crv_file,
+            pretty_print=True,
+            xml_declaration='<?xml version="1.0" encoding="UTF-8"?>',
+            encoding="UTF-8",
+        )
+        #B
+        dyd_file = contg_casedir + "/" + dwo_pathsB.dydFile
+        dyd_tree = parsed_case.B.dydTree
+        dyd_tree.write(
+            dyd_file,
+            pretty_print=True,
+            xml_declaration='<?xml version="1.0" encoding="UTF-8"?>',
+            encoding="UTF-8",
+        )
+        par_file = contg_casedir + "/" + dwo_pathsB.parFile
+        par_tree = parsed_case.B.parTree
+        par_tree.write(
+            par_file,
+            pretty_print=True,
+            xml_declaration='<?xml version="1.0" encoding="UTF-8"?>',
+            encoding="UTF-8",
+        )
+        crv_file = contg_casedir + "/" + dwo_pathsB.curves_inputFile
+        crv_tree = parsed_case.B.crvTree
+        crv_tree.write(
+            crv_file,
+            pretty_print=True,
+            xml_declaration='<?xml version="1.0" encoding="UTF-8"?>',
+            encoding="UTF-8",
+        )
 
     # This dict will keep track of which contingencies are actually processed
     # It will also keep Hades's (P,Q) of each gen

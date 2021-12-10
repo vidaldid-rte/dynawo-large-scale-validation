@@ -187,7 +187,10 @@ def create_aut_group_trace(data, DATA_LIMIT):
     if data.shape[0] > DATA_LIMIT:
         data = data.sample(DATA_LIMIT)
     c = list(data["GROUP"])
-    max_val = max(c)
+    if len(c) != 0:
+        max_val = max(c)
+    else:
+        max_val = 0
     plasma = cm.get_cmap("plasma", 12)
     for i in range(len(c)):
         c[i] = c[i] / (max_val + 1)
@@ -1585,7 +1588,10 @@ def run_all(
         # PERF: Plotly starts showing horrible performance with more than 5,000 points
         with groups_trace.batch_update():
             color = list(df1["GROUP"])
-            max_val = max(color)
+            if len(color) != 0:
+                max_val = max(color)
+            else:
+                max_val = 0
             plasma = cm.get_cmap("plasma", 12)
             for i in range(len(color)):
                 color[i] = color[i] / (max_val+1)
