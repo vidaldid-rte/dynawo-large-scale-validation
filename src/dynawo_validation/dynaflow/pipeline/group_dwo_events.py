@@ -15,7 +15,7 @@ from dynawo_validation.dynaflow.pipeline.dwo_jobinfo import (
     get_dwodwo_jobpaths,
 )
 
-THRESHOLD = 50
+THRESHOLD = 100
 
 parser = argparse.ArgumentParser()
 parser.add_argument(

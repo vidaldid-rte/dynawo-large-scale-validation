@@ -186,6 +186,7 @@ def create_individual_trace(data, x, y, DATA_LIMIT):
 def create_aut_group_trace(data, DATA_LIMIT):
     if data.shape[0] > DATA_LIMIT:
         data = data.sample(DATA_LIMIT)
+    data = data.sort_values("GROUP", axis = 0)
     c = list(data["GROUP"])
     if len(c) != 0:
         max_val = max(c)
@@ -1589,6 +1590,7 @@ def run_all(
         df1 = read_aut_group(case, PF_SOL_DIR, DWO_DWO, PREFIX)
         # PERF: Plotly starts showing horrible performance with more than 5,000 points
         with groups_trace.batch_update():
+            df1 = df1.sort_values("GROUP", axis=0)
             color = list(df1["GROUP"])
             if len(color) != 0:
                 max_val = max(color)
@@ -1601,7 +1603,6 @@ def run_all(
                 g = plasma(color[i])[1] * 256
                 b = plasma(color[i])[2] * 256
                 color[i] = "rgb(" + str(r) + "," + str(g) + "," + str(b) + ")"
-
             groups_trace.data[0].x = df1["TIME"]
             groups_trace.data[0].y = df1["DEVICE"]
             groups_trace.data[0].text = df1["EVENT_MESSAGE"]
