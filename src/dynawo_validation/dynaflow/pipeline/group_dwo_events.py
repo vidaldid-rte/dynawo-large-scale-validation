@@ -92,7 +92,9 @@ def main():
         for j in range(len(groups[i])):
             data_list["GROUP"].append(i)
             data_list["DEVICE_TYPE"].append(aut_df.loc[groups[i][j], "DEVICE_TYPE"])
-            data_list["DEVICE"].append(aut_df.loc[groups[i][j], "DEVICE"]+str(i))
+            data_list["DEVICE"].append(
+                aut_df.loc[groups[i][j], "DEVICE"] + "_" + str(i)
+            )
             data_list["TIME"].append(aut_df.loc[groups[i][j], "TIME"])
             data_list["EVENT"].append(aut_df.loc[groups[i][j], "EVENT"])
             data_list["EVENT_MESSAGE"].append(aut_df.loc[groups[i][j], "EVENT_MESSAGE"])
