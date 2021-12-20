@@ -94,10 +94,17 @@ def read_case(name, PF_SOL_DIR, PREFIX):
 def read_aut_group(name, PF_SOL_DIR, DWO_DWO, PREFIX):
     if DWO_DWO == 0:
         file_name = PF_SOL_DIR + "/aut/" + PREFIX + "_" + name + "-aut-groups.csv"
+        data = pd.read_csv(file_name, sep=";")
+        return data, None
     else:
         file_name = PF_SOL_DIR + "/aut/" + PREFIX + "_" + name + "-autA-groups.csv"
-    data = pd.read_csv(file_name, sep=";")
-    return data
+        data1 = pd.read_csv(file_name, sep=";")
+        file_name = PF_SOL_DIR + "/aut/" + PREFIX + "_" + name + "-autB-groups.csv"
+        data2 = pd.read_csv(file_name, sep=";")
+        return data1, data2
+
+
+
 
 
 # Create the general graphic of simulator A vs B
@@ -183,30 +190,77 @@ def create_individual_trace(data, x, y, DATA_LIMIT):
     return trace
 
 
-def create_aut_group_trace(data, DATA_LIMIT):
-    if data.shape[0] > DATA_LIMIT:
-        data = data.sample(DATA_LIMIT)
-    data = data.sort_values("GROUP", axis = 0)
-    c = list(data["GROUP"])
-    if len(c) != 0:
-        max_val = max(c)
+def create_aut_group_trace(data1, data2, DATA_LIMIT):
+    if data1.shape[0] > DATA_LIMIT:
+        data1 = data1.sample(DATA_LIMIT)
+
+    if data2 is None:
+        data = data1.sort_values("GROUP", axis = 0)
+        c = list(data["GROUP"])
+        if len(c) != 0:
+            max_val = max(c)
+        else:
+            max_val = 0
+        plasma = cm.get_cmap("plasma", 12)
+        for i in range(len(c)):
+            c[i] = c[i] / (max_val + 1)
+            r = plasma(c[i])[0] * 256
+            g = plasma(c[i])[1] * 256
+            b = plasma(c[i])[2] * 256
+            c[i] = "rgb(" + str(r) + "," + str(g) + "," + str(b) + ")"
+        trace1 = go.Scatter(
+            x=data["TIME"],
+            y=data["DEVICE"],
+            mode="markers",
+            text=data["EVENT_MESSAGE"],
+            marker=dict(color=c),
+        )
+        trace2 = None
     else:
-        max_val = 0
-    plasma = cm.get_cmap("plasma", 12)
-    for i in range(len(c)):
-        c[i] = c[i] / (max_val + 1)
-        r = plasma(c[i])[0] * 256
-        g = plasma(c[i])[1] * 256
-        b = plasma(c[i])[2] * 256
-        c[i] = "rgb(" + str(r) + "," + str(g) + "," + str(b) + ")"
-    trace = go.Scatter(
-        x=data["TIME"],
-        y=data["DEVICE"],
-        mode="markers",
-        text=data["EVENT_MESSAGE"],
-        marker=dict(color=c),
-    )
-    return trace
+        if data2.shape[0] > DATA_LIMIT:
+            data2 = data2.sample(DATA_LIMIT)
+        data = data1.sort_values("GROUP", axis=0)
+        c = list(data["GROUP"])
+        if len(c) != 0:
+            max_val = max(c)
+        else:
+            max_val = 0
+        plasma = cm.get_cmap("plasma", 12)
+        for i in range(len(c)):
+            c[i] = c[i] / (max_val + 1)
+            r = plasma(c[i])[0] * 256
+            g = plasma(c[i])[1] * 256
+            b = plasma(c[i])[2] * 256
+            c[i] = "rgb(" + str(r) + "," + str(g) + "," + str(b) + ")"
+        trace1 = go.Scatter(
+            x=data["TIME"],
+            y=data["DEVICE"],
+            mode="markers",
+            text=data["EVENT_MESSAGE"],
+            marker=dict(color=c),
+        )
+        data = data2.sort_values("GROUP", axis=0)
+        c = list(data["GROUP"])
+        if len(c) != 0:
+            max_val = max(c)
+        else:
+            max_val = 0
+        plasma = cm.get_cmap("plasma", 12)
+        for i in range(len(c)):
+            c[i] = c[i] / (max_val + 1)
+            r = plasma(c[i])[0] * 256
+            g = plasma(c[i])[1] * 256
+            b = plasma(c[i])[2] * 256
+            c[i] = "rgb(" + str(r) + "," + str(g) + "," + str(b) + ")"
+        trace2 = go.Scatter(
+            x=data["TIME"],
+            y=data["DEVICE"],
+            mode="markers",
+            text=data["EVENT_MESSAGE"],
+            marker=dict(color=c),
+        )
+
+    return trace1, trace2
 
 
 # Find the execution launchers
@@ -1450,7 +1504,8 @@ def show_displays(
     aut_diff_dfA_contgcase_grid,
     aut_diff_dfB_contgcase_grid,
     t_r,
-    groups_trace,
+    groups_traceA,
+    groups_traceB,
     def_volt_level,
     sdf,
     container1,
@@ -1496,7 +1551,11 @@ def show_displays(
     display(container_aut)
     display(aut_diffs_contgcase)
     display(container_aut_trace)
-    containergroup = widgets.HBox([t_r, groups_trace])
+    if groups_traceB is not None:
+        containergroup = widgets.HBox([groups_traceA, groups_traceB])
+    else:
+        containergroup = widgets.HBox([groups_traceA])
+    display(t_r)
     display(containergroup)
     display(def_volt_level)
     display(sdf)
@@ -1587,9 +1646,9 @@ def run_all(
             dev.value = case
 
     def individual_aut_group(case):
-        df1 = read_aut_group(case, PF_SOL_DIR, DWO_DWO, PREFIX)
+        df1, df2 = read_aut_group(case, PF_SOL_DIR, DWO_DWO, PREFIX)
         # PERF: Plotly starts showing horrible performance with more than 5,000 points
-        with groups_trace.batch_update():
+        with groups_traceA.batch_update():
             df1 = df1.sort_values("GROUP", axis=0)
             color = list(df1["GROUP"])
             if len(color) != 0:
@@ -1603,12 +1662,33 @@ def run_all(
                 g = plasma(color[i])[1] * 256
                 b = plasma(color[i])[2] * 256
                 color[i] = "rgb(" + str(r) + "," + str(g) + "," + str(b) + ")"
-            groups_trace.data[0].x = df1["TIME"]
-            groups_trace.data[0].y = df1["DEVICE"]
-            groups_trace.data[0].text = df1["EVENT_MESSAGE"]
-            groups_trace.data[0].marker = dict(color=color)
-            groups_trace.layout.xaxis.range=[0, 200]
-            groups_trace.layout.title.text = "Case: " + case
+            groups_traceA.data[0].x = df1["TIME"]
+            groups_traceA.data[0].y = df1["DEVICE"]
+            groups_traceA.data[0].text = df1["EVENT_MESSAGE"]
+            groups_traceA.data[0].marker = dict(color=color)
+            groups_traceA.layout.xaxis.range=[0, 200]
+            groups_traceA.layout.title.text = "Case: " + case
+        if df2 is not None:
+            with groups_traceB.batch_update():
+                df2 = df2.sort_values("GROUP", axis=0)
+                color = list(df2["GROUP"])
+                if len(color) != 0:
+                    max_val = max(color)
+                else:
+                    max_val = 0
+                plasma = cm.get_cmap("plasma", 12)
+                for i in range(len(color)):
+                    color[i] = color[i] / (max_val + 1)
+                    r = plasma(color[i])[0] * 256
+                    g = plasma(color[i])[1] * 256
+                    b = plasma(color[i])[2] * 256
+                    color[i] = "rgb(" + str(r) + "," + str(g) + "," + str(b) + ")"
+                groups_traceB.data[0].x = df2["TIME"]
+                groups_traceB.data[0].y = df2["DEVICE"]
+                groups_traceB.data[0].text = df2["EVENT_MESSAGE"]
+                groups_traceB.data[0].marker = dict(color=color)
+                groups_traceB.layout.xaxis.range = [0, 200]
+                groups_traceB.layout.title.text = "Case: " + case
 
     def update_case(trace, points, selector):
         name = trace.text[points.point_inds[0]].split("_(")
@@ -1758,37 +1838,37 @@ def run_all(
         df_aut = read_aut_case(
             RESULTS_DIR + "/" + PREFIX + "/aut/", aut_diff_var_plot.value
         )
+        with t_r.batch_update():
+            temp_sim_A = min(df_aut["sim_A"], default=None)
+            temp_sim_B = min(df_aut["sim_B"], default=None)
+            if temp_sim_A is None and temp_sim_B is None:
+                min_val = 0
+            else:
+                min_val = min([temp_sim_A, temp_sim_B]) - 1
 
-        temp_sim_A = min(df_aut["sim_A"], default=None)
-        temp_sim_B = min(df_aut["sim_B"], default=None)
-        if temp_sim_A is None and temp_sim_B is None:
-            min_val = 0
-        else:
-            min_val = min([temp_sim_A, temp_sim_B]) - 1
+            temp_sim_A = max(df_aut["sim_A"], default=None)
+            temp_sim_B = max(df_aut["sim_B"], default=None)
+            if temp_sim_A is None and temp_sim_B is None:
+                max_val = 1
+            else:
+                max_val = max([temp_sim_A, temp_sim_B]) + 1
 
-        temp_sim_A = max(df_aut["sim_A"], default=None)
-        temp_sim_B = max(df_aut["sim_B"], default=None)
-        if temp_sim_A is None and temp_sim_B is None:
-            max_val = 1
-        else:
-            max_val = max([temp_sim_A, temp_sim_B]) + 1
+            t_r.data[0].x = df_aut["sim_A"]
+            t_r.data[0].y = df_aut["sim_B"]
+            t_r.data[0].text = list(df_aut.index)
+            t_r.layout.xaxis = dict(
+                title="SIM_A",
+                range=[min_val, max_val],
+                tickmode="linear",
+            )
+            t_r.layout.yaxis = dict(
+                title="SIM_B",
+                range=[min_val, max_val],
+                tickmode="linear",
+            )
 
-        t_r.data[0].x = df_aut["sim_A"]
-        t_r.data[0].y = df_aut["sim_B"]
-        t_r.data[0].text = list(df_aut.index)
-        t_r.layout.xaxis = dict(
-            title="SIM_A",
-            range=[min_val, max_val],
-            tickmode="linear",
-        )
-        t_r.layout.yaxis = dict(
-            title="SIM_B",
-            range=[min_val, max_val],
-            tickmode="linear",
-        )
-
-        t_r.data[1].x = [min_val, max_val]
-        t_r.data[1].y = [min_val, max_val]
+            t_r.data[1].x = [min_val, max_val]
+            t_r.data[1].y = [min_val, max_val]
 
     def response3(change):
         with c.batch_update():
@@ -1829,7 +1909,7 @@ def run_all(
     # Read the first contingency to put default data
     data_first_case = read_case(contg_case0, PF_SOL_DIR, PREFIX)
 
-    aut_group_data_first_case = read_aut_group(contg_case0, PF_SOL_DIR, DWO_DWO, PREFIX)
+    aut_group_data_first_caseA, aut_group_data_first_caseB = read_aut_group(contg_case0, PF_SOL_DIR, DWO_DWO, PREFIX)
 
     vars_case = data_first_case.columns[1:]
 
@@ -1917,8 +1997,8 @@ def run_all(
         data_first_case, dropdown1.value, dropdown2.value, DATA_LIMIT
     )
 
-    current_aut_group_trace = create_aut_group_trace(
-        aut_group_data_first_case, DATA_LIMIT
+    current_aut_group_traceA, current_aut_group_traceB = create_aut_group_trace(
+        aut_group_data_first_caseA, aut_group_data_first_caseB, DATA_LIMIT
     )
 
     aut_diff_dfA_contgcase = create_aut_df(
@@ -1989,7 +2069,11 @@ def run_all(
 
     c = go.FigureWidget(data=[current_individual_trace], layout=layout2)
 
-    groups_trace = go.FigureWidget(data=[current_aut_group_trace], layout=layout3)
+    groups_traceA = go.FigureWidget(data=[current_aut_group_traceA], layout=layout3)
+    if current_aut_group_traceB is not None:
+        groups_traceB = go.FigureWidget(data=[current_aut_group_traceB], layout=layout3)
+    else:
+        groups_traceB = None
 
     file0 = open("legend0.png", "rb")
     legend0 = file0.read()
@@ -2093,7 +2177,8 @@ def run_all(
         aut_diff_dfA_contgcase_grid,
         aut_diff_dfB_contgcase_grid,
         t_r,
-        groups_trace,
+        groups_traceA,
+        groups_traceB,
         def_volt_level,
         sdf,
         container1,
