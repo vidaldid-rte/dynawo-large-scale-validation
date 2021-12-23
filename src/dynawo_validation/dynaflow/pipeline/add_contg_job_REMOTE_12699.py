@@ -4,11 +4,8 @@
 # (c) Grupo AIA
 #
 import os.path
-<<<<<<< HEAD
-=======
 
 import pandas as pd
->>>>>>> cf4f14905c1d1e24cfbdf1fbd450191e1339746f
 import sys
 import argparse
 from lxml import etree
@@ -21,7 +18,7 @@ parser.add_argument(
 )
 parser.add_argument(
     "basecase_dir",
-    help="Enter basecase dir relative to the contingencies path",
+    help="Enter basecase dir"
 )
 
 args = parser.parse_args()
@@ -41,9 +38,7 @@ def main():
     for dyd_file in root.iter(f"{{{ns}}}dynModels"):
         dir_dyd_file = dyd_file.get("dydFile")
         dir_dyd = os.path.dirname(dir_dyd_file)
-        if len(dir_dyd) != 0:
-            dir_dyd = dir_dyd + "/"
-        dir_dyd_contg = dir_dyd + "contingency.dyd"
+        dir_dyd_contg = dir_dyd + "/contingency.dyd"
         event = etree.SubElement(dyd_file.getparent(), f"{{{ns}}}dynModels")
         event.set("dydFile", dir_dyd_contg)
         dyd_file.set("dydFile", basecase_dir+dir_dyd_file)
