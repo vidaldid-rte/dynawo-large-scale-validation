@@ -151,11 +151,17 @@ def main():
     if is_dwohds(base_case):
         print(f"Creating contingencies from DYNAWO-vs-HADES case: {base_case}")
         dwo_paths = get_dwo_jobpaths(base_case)
+        dwo_paths2 = dwo_paths
+        dwo_paths = dwo_paths._replace(dydFile="contingency.dyd", parFile="contingency.par")
         dwo_tparams = get_dwo_tparams(base_case)
         dwohds = True
     elif is_dwodwo(base_case):
         print(f"Creating contingencies from DYNAWO-vs-DYNAWO case: {base_case}")
         dwo_pathsA, dwo_pathsB = get_dwodwo_jobpaths(base_case)
+        dwo_pathsA2 = dwo_pathsA
+        dwo_pathsB2 = dwo_pathsB
+        dwo_pathsA = dwo_pathsA._replace(dydFile="A/contingency.dyd", parFile="A/contingency.par")
+        dwo_pathsB = dwo_pathsB._replace(dydFile="B/contingency.dyd", parFile="B/contingency.par")
         dwo_tparamsA, dwo_tparamsB = get_dwodwo_tparams(base_case)
         dwohds = False
     else:
@@ -197,9 +203,15 @@ def main():
 
     if dwohds:
         # Copy the basecase (unchanged files and dir structure)
-        copy_dwohds_basecase(base_case, dwo_paths, contg_casedir)
+        copy_dwohds_basecase(base_case, dwo_paths2, contg_casedir)
         dyd_file = contg_casedir + "/" + dwo_paths.dydFile
         dyd_tree = parsed_case.dydTree
+        root = dyd_tree.getroot()
+        ns = etree.QName(root).namespace
+        for event in root.iterfind(f"./{{{ns}}}blackBoxModel"):
+            event.getparent().remove(event)
+        for con in root.iterfind(f"./{{{ns}}}connect"):
+            con.getparent().remove(con)
         dyd_tree.write(
             dyd_file,
             pretty_print=True,
@@ -208,6 +220,10 @@ def main():
         )
         par_file = contg_casedir + "/" + dwo_paths.parFile
         par_tree = parsed_case.parTree
+        root = par_tree.getroot()
+        ns = etree.QName(root).namespace
+        for setc in root.iterfind(f"./{{{ns}}}set"):
+            setc.getparent().remove(setc)
         par_tree.write(
             par_file,
             pretty_print=True,
@@ -233,10 +249,16 @@ def main():
 
     else:
         # Copy the basecase (unchanged files and dir structure)
-        copy_dwodwo_basecase(base_case, dwo_pathsA, dwo_pathsB, contg_casedir)
+        copy_dwodwo_basecase(base_case, dwo_pathsA2, dwo_pathsB2, contg_casedir)
         #A
         dyd_file = contg_casedir + "/" + dwo_pathsA.dydFile
         dyd_tree = parsed_case.A.dydTree
+        root = dyd_tree.getroot()
+        ns = etree.QName(root).namespace
+        for event in root.iterfind(f"./{{{ns}}}blackBoxModel"):
+            event.getparent().remove(event)
+        for con in root.iterfind(f"./{{{ns}}}connect"):
+            con.getparent().remove(con)
         dyd_tree.write(
             dyd_file,
             pretty_print=True,
@@ -245,6 +267,10 @@ def main():
         )
         par_file = contg_casedir + "/" + dwo_pathsA.parFile
         par_tree = parsed_case.A.parTree
+        root = par_tree.getroot()
+        ns = etree.QName(root).namespace
+        for setc in root.iterfind(f"./{{{ns}}}set"):
+            setc.getparent().remove(setc)
         par_tree.write(
             par_file,
             pretty_print=True,
@@ -259,9 +285,15 @@ def main():
             xml_declaration='<?xml version="1.0" encoding="UTF-8"?>',
             encoding="UTF-8",
         )
-        #B
+        # B
         dyd_file = contg_casedir + "/" + dwo_pathsB.dydFile
         dyd_tree = parsed_case.B.dydTree
+        root = dyd_tree.getroot()
+        ns = etree.QName(root).namespace
+        for event in root.iterfind(f"./{{{ns}}}blackBoxModel"):
+            event.getparent().remove(event)
+        for con in root.iterfind(f"./{{{ns}}}connect"):
+            con.getparent().remove(con)
         dyd_tree.write(
             dyd_file,
             pretty_print=True,
@@ -270,6 +302,10 @@ def main():
         )
         par_file = contg_casedir + "/" + dwo_pathsB.parFile
         par_tree = parsed_case.B.parTree
+        root = par_tree.getroot()
+        ns = etree.QName(root).namespace
+        for setc in root.iterfind(f"./{{{ns}}}set"):
+            setc.getparent().remove(setc)
         par_tree.write(
             par_file,
             pretty_print=True,
@@ -311,7 +347,7 @@ def main():
 
         if dwohds:
             # Copy the basecase (unchanged files and dir structure)
-            copy_dwohds_basecase(base_case, dwo_paths, contg_casedir)
+            copy_dwohds_basecase(base_case, dwo_paths2, contg_casedir)
             # Modify the Dynawo case (DYD,PAR,CRV)
             config_dynawo_gen_contingency(
                 contg_casedir,
@@ -327,7 +363,7 @@ def main():
             )
         else:
             # Copy the basecase (unchanged files and dir structure)
-            copy_dwodwo_basecase(base_case, dwo_pathsA, dwo_pathsB, contg_casedir)
+            copy_dwodwo_basecase(base_case, dwo_pathsA2, dwo_pathsB2, contg_casedir)
             # Modify the Dynawo A & B cases (DYD,PAR,CRV)
             config_dynawo_gen_contingency(
                 contg_casedir,
