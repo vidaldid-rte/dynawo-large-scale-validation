@@ -86,14 +86,14 @@ def copy_dwohds_basecase(base_case, dwo_paths, dest_case):
     try:
         retcode = subprocess.call(
             f"mkdir -p '{dest_case}/Hades' '{dest_case}/{spar_dir}'"
-            f" '{dest_case}/{npar_dir}' '{dest_case}/{iidm_dir}'"
-            f" '{dest_case}/{dyd_dir}' '{dest_case}/{par_dir}' '{dest_case}/{crv_dir}'"
+            f" '{dest_case}/{npar_dir}' '{dest_case}/{par_dir}'"
+            f" '{dest_case}/{crv_dir}'"
             f" && cp -l '{dwo_paths.job_file}' '{dest_case}'"
-            f" &&"
-            f" cp -l '{base_case}/{dwo_paths.solver_parFile}' '{dest_case}/{spar_dir}'"
-            f" &&"
-            f" cp -l '{base_case}/{dwo_paths.network_parFile}' '{dest_case}/{npar_dir}'"
-            f" && cp -l '{base_case}/{dwo_paths.iidmFile}' '{dest_case}/{iidm_dir}'"
+            f" && cp -l '{base_case}/{dwo_paths.solver_parFile}' '{dest_case}/{spar_dir}'"
+            f" && cp -l '{base_case}/{dwo_paths.network_parFile}' '{dest_case}/{npar_dir}'"
+            f" && cp -l '{base_case}/{dwo_paths.parFile}' '{dest_case}/{par_dir}'"
+            f" && cp '{base_case}/contingency.dyd' '{dest_case}/'"
+            f" && cp '{base_case}/contingency.par' '{dest_case}/'"
             + copy_diags_command,
             shell=True,
         )
@@ -136,20 +136,22 @@ def copy_dwodwo_basecase(base_case, dwo_pathsA, dwo_pathsB, dest_case):
         copy_diags_commandB = ""
     try:
         retcode = subprocess.call(
-            f"mkdir -p '{dest_case}/{iidm_dirA}' '{dest_case}/{iidm_dirB}'"
-            f" '{dest_case}/{dyd_dirA}' '{dest_case}/{dyd_dirB}'"
-            f" '{dest_case}/{par_dirA}' '{dest_case}/{par_dirB}'"
+            f"mkdir -p '{dest_case}/{par_dirA}' '{dest_case}/{par_dirB}'"
             f" '{dest_case}/{crv_dirA}' '{dest_case}/{crv_dirB}'"
             f" '{dest_case}/{spar_dirA}' '{dest_case}/{spar_dirB}'"
             f" '{dest_case}/{npar_dirA}' '{dest_case}/{npar_dirB}'"
             f" && cp -l '{dwo_pathsA.job_file}' '{dest_case}'"
             f" && cp -l '{dwo_pathsB.job_file}' '{dest_case}'"
-            f" && cp -l '{base_case}/{dwo_pathsA.iidmFile}' '{dest_case}/{iidm_dirA}'"
-            f" && cp -l '{base_case}/{dwo_pathsB.iidmFile}' '{dest_case}/{iidm_dirB}'"
+            f" && cp -l '{base_case}/{dwo_pathsA.parFile}' '{dest_case}/{par_dirA}'"
+            f" && cp -l '{base_case}/{dwo_pathsB.parFile}' '{dest_case}/{par_dirB}'"
             f" && cp -l '{base_case}/{dwo_pathsA.solver_parFile}' '{dest_case}/{spar_dirA}'"
             f" && cp -l '{base_case}/{dwo_pathsB.solver_parFile}' '{dest_case}/{spar_dirB}'"
             f" && cp -l '{base_case}/{dwo_pathsA.network_parFile}' '{dest_case}/{npar_dirA}'"
             f" && cp -l '{base_case}/{dwo_pathsB.network_parFile}' '{dest_case}/{npar_dirB}'"
+            f" && cp '{base_case}/A/contingency.dyd' '{dest_case}/A/'"
+            f" && cp '{base_case}/A/contingency.par' '{dest_case}/A/'"
+            f" && cp '{base_case}/B/contingency.dyd' '{dest_case}/B/'"
+            f" && cp '{base_case}/B/contingency.par' '{dest_case}/B/'"
             + copy_diags_commandA
             + copy_diags_commandB,
             shell=True,
