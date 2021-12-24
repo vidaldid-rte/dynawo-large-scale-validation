@@ -4,11 +4,7 @@
 # (c) Grupo AIA
 #
 import os.path
-<<<<<<< HEAD
-=======
-
 import pandas as pd
->>>>>>> cf4f14905c1d1e24cfbdf1fbd450191e1339746f
 import sys
 import argparse
 from lxml import etree
