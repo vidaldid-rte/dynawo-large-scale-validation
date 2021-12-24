@@ -204,12 +204,6 @@ def main():
         copy_dwohds_basecase(base_case, dwo_paths2, contg_casedir)
         dyd_file = contg_casedir + "/" + dwo_paths.dydFile
         dyd_tree = parsed_case.dydTree
-        root = dyd_tree.getroot()
-        ns = etree.QName(root).namespace
-        for event in root.iterfind(f"./{{{ns}}}blackBoxModel"):
-            event.getparent().remove(event)
-        for con in root.iterfind(f"./{{{ns}}}connect"):
-            con.getparent().remove(con)
         dyd_tree.write(
             dyd_file,
             pretty_print=True,
@@ -218,10 +212,6 @@ def main():
         )
         par_file = contg_casedir + "/" + dwo_paths.parFile
         par_tree = parsed_case.parTree
-        root = par_tree.getroot()
-        ns = etree.QName(root).namespace
-        for setc in root.iterfind(f"./{{{ns}}}set"):
-            setc.getparent().remove(setc)
         par_tree.write(
             par_file,
             pretty_print=True,
@@ -251,12 +241,6 @@ def main():
         # A
         dyd_file = contg_casedir + "/" + dwo_pathsA.dydFile
         dyd_tree = parsed_case.A.dydTree
-        root = dyd_tree.getroot()
-        ns = etree.QName(root).namespace
-        for event in root.iterfind(f"./{{{ns}}}blackBoxModel"):
-            event.getparent().remove(event)
-        for con in root.iterfind(f"./{{{ns}}}connect"):
-            con.getparent().remove(con)
         dyd_tree.write(
             dyd_file,
             pretty_print=True,
@@ -265,10 +249,6 @@ def main():
         )
         par_file = contg_casedir + "/" + dwo_pathsA.parFile
         par_tree = parsed_case.A.parTree
-        root = par_tree.getroot()
-        ns = etree.QName(root).namespace
-        for setc in root.iterfind(f"./{{{ns}}}set"):
-            setc.getparent().remove(setc)
         par_tree.write(
             par_file,
             pretty_print=True,
@@ -286,12 +266,6 @@ def main():
         # B
         dyd_file = contg_casedir + "/" + dwo_pathsB.dydFile
         dyd_tree = parsed_case.B.dydTree
-        root = dyd_tree.getroot()
-        ns = etree.QName(root).namespace
-        for event in root.iterfind(f"./{{{ns}}}blackBoxModel"):
-            event.getparent().remove(event)
-        for con in root.iterfind(f"./{{{ns}}}connect"):
-            con.getparent().remove(con)
         dyd_tree.write(
             dyd_file,
             pretty_print=True,
@@ -300,10 +274,6 @@ def main():
         )
         par_file = contg_casedir + "/" + dwo_pathsB.parFile
         par_tree = parsed_case.B.parTree
-        root = par_tree.getroot()
-        ns = etree.QName(root).namespace
-        for setc in root.iterfind(f"./{{{ns}}}set"):
-            setc.getparent().remove(setc)
         par_tree.write(
             par_file,
             pretty_print=True,
