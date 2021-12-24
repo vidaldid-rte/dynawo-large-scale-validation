@@ -134,9 +134,10 @@ def get_tparams(case, dwo_jobpaths):
     startTime = float(simulation.get("startTime"))
     stopTime = float(simulation.get("stopTime"))
 
-    # Read the DYD file to obtain the first Event
+    # Read the supplementary DYD file that defines the contingenmcy,
+    # in order to obtain the first Event
     casedir = Path(case)
-    dyd_file = casedir / dwo_jobpaths.dydFile
+    dyd_file = casedir / "contingency.dyd"
     tree = etree.parse(str(dyd_file), etree.XMLParser(remove_blank_text=True))
     root = tree.getroot()
     ns = etree.QName(root).namespace
