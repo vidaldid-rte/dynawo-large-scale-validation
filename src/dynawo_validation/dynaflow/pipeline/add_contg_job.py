@@ -42,11 +42,11 @@ def main():
         dir_dyd_contg = dir_dyd + "contingency.dyd"
         event = etree.SubElement(dyd_file.getparent(), f"{{{ns}}}dynModels")
         event.set("dydFile", dir_dyd_contg)
-        dyd_file.set("dydFile", basecase_dir+dir_dyd_file)
+        dyd_file.set("dydFile", basecase_dir + dir_dyd_file)
 
     for iidm_file in root.iter(f"{{{ns}}}network"):
         dir_iidm_file = iidm_file.get("iidmFile")
-        iidm_file.set("iidmFile", basecase_dir+dir_iidm_file)
+        iidm_file.set("iidmFile", basecase_dir + dir_iidm_file)
 
     tree.write(
         job_path,

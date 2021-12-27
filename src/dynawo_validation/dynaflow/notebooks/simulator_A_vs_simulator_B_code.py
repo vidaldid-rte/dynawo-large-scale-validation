@@ -104,9 +104,6 @@ def read_aut_group(name, PF_SOL_DIR, DWO_DWO, PREFIX):
         return data1, data2
 
 
-
-
-
 # Create the general graphic of simulator A vs B
 def create_general_trace(data, x, y, DATA_LIMIT):
     if data.shape[0] > DATA_LIMIT:
@@ -195,7 +192,7 @@ def create_aut_group_trace(data1, data2, DATA_LIMIT):
         data1 = data1.sample(DATA_LIMIT)
 
     if data2 is None:
-        data = data1.sort_values("GROUP", axis = 0)
+        data = data1.sort_values("GROUP", axis=0)
         c = list(data["GROUP"])
         if len(c) != 0:
             max_val = max(c)
@@ -1385,10 +1382,10 @@ def create_layouts(varx, vary, HEIGHT, WIDTH, contg_case0, dropdown1, dropdown2)
 
     layout3 = go.Layout(
         title=dict(text="Case: " + contg_case0),
-        xaxis=dict(title="TIME", range=[0,200]),
+        xaxis=dict(title="TIME", range=[0, 200]),
         yaxis=dict(title="EVENT"),
         height=HEIGHT,
-        width=WIDTH/2,
+        width=WIDTH / 2,
     )
 
     return layout1, layout2, layout3
@@ -1657,7 +1654,7 @@ def run_all(
                 max_val = 0
             plasma = cm.get_cmap("plasma", 12)
             for i in range(len(color)):
-                color[i] = color[i] / (max_val+1)
+                color[i] = color[i] / (max_val + 1)
                 r = plasma(color[i])[0] * 256
                 g = plasma(color[i])[1] * 256
                 b = plasma(color[i])[2] * 256
@@ -1666,7 +1663,7 @@ def run_all(
             groups_traceA.data[0].y = df1["DEVICE"]
             groups_traceA.data[0].text = df1["EVENT_MESSAGE"]
             groups_traceA.data[0].marker = dict(color=color)
-            groups_traceA.layout.xaxis.range=[0, 200]
+            groups_traceA.layout.xaxis.range = [0, 200]
             groups_traceA.layout.title.text = "Case: " + case
         if df2 is not None:
             with groups_traceB.batch_update():
@@ -1750,12 +1747,16 @@ def run_all(
     def response_aut(change):
         with c.batch_update():
             if len(aut_diffs_A_grid.selections) != 0:
-                aut_diff_case.value = aut_diffs_A_grid.data.iloc[aut_diffs_A_grid.selections[0]["r1"], 4][len(PREFIX)+1:]
+                aut_diff_case.value = aut_diffs_A_grid.data.iloc[
+                    aut_diffs_A_grid.selections[0]["r1"], 4
+                ][len(PREFIX) + 1 :]
                 aut_diffs_A_grid.clear_selection()
                 aut_diffs_B_grid.clear_selection()
 
             elif len(aut_diffs_B_grid.selections) != 0:
-                aut_diff_case.value = aut_diffs_B_grid.data.iloc[aut_diffs_B_grid.selections[0]["r1"], 4][len(PREFIX)+1:]
+                aut_diff_case.value = aut_diffs_B_grid.data.iloc[
+                    aut_diffs_B_grid.selections[0]["r1"], 4
+                ][len(PREFIX) + 1 :]
                 aut_diffs_A_grid.clear_selection()
                 aut_diffs_B_grid.clear_selection()
 
@@ -1805,12 +1806,24 @@ def run_all(
             individual_aut_group(aut_diff_case.value)
 
     def response_download_data(change):
-        temp_dict = {"text":list(t_r.data[0].text),"x":list(t_r.data[0].x),"y":list(t_r.data[0].y)}
-        pd.DataFrame(temp_dict).to_csv("comparison_aut_states.csv",sep=";")
-        temp_dict = {"text": list(c.data[0].text), "x": list(c.data[0].x), "y": list(c.data[0].y)}
-        pd.DataFrame(temp_dict).to_csv("indv_case_diffs.csv",sep=";")
-        temp_dict = {"text": list(g.data[0].text), "x": list(g.data[0].x), "y": list(g.data[0].y)}
-        pd.DataFrame(temp_dict).to_csv("global_case_diffs.csv",sep=";")
+        temp_dict = {
+            "text": list(t_r.data[0].text),
+            "x": list(t_r.data[0].x),
+            "y": list(t_r.data[0].y),
+        }
+        pd.DataFrame(temp_dict).to_csv("comparison_aut_states.csv", sep=";")
+        temp_dict = {
+            "text": list(c.data[0].text),
+            "x": list(c.data[0].x),
+            "y": list(c.data[0].y),
+        }
+        pd.DataFrame(temp_dict).to_csv("indv_case_diffs.csv", sep=";")
+        temp_dict = {
+            "text": list(g.data[0].text),
+            "x": list(g.data[0].x),
+            "y": list(g.data[0].y),
+        }
+        pd.DataFrame(temp_dict).to_csv("global_case_diffs.csv", sep=";")
 
     def response_general_aut_A(change):
         aut_diffs_A, aut_diffs_B = read_csv_aut_diffs(
@@ -1909,7 +1922,9 @@ def run_all(
     # Read the first contingency to put default data
     data_first_case = read_case(contg_case0, PF_SOL_DIR, PREFIX)
 
-    aut_group_data_first_caseA, aut_group_data_first_caseB = read_aut_group(contg_case0, PF_SOL_DIR, DWO_DWO, PREFIX)
+    aut_group_data_first_caseA, aut_group_data_first_caseB = read_aut_group(
+        contg_case0, PF_SOL_DIR, DWO_DWO, PREFIX
+    )
 
     vars_case = data_first_case.columns[1:]
 
@@ -2045,18 +2060,18 @@ def run_all(
     if check1a.value:
         aut_diffs_A = aut_diffs_A.loc[(aut_diffs_A.NUM_CHANGES != 0)]
         aut_diffs_A_grid = ipydatagrid.DataGrid(
-        aut_diffs_A,
-        base_column_size=int((WIDTH / 2 / 1.1) / len(aut_diffs_A.columns)),
-        selection_mode="row",
-    )
+            aut_diffs_A,
+            base_column_size=int((WIDTH / 2 / 1.1) / len(aut_diffs_A.columns)),
+            selection_mode="row",
+        )
 
     if check1b.value:
         aut_diffs_B = aut_diffs_B.loc[(aut_diffs_B.NUM_CHANGES != 0)]
         aut_diffs_B_grid = ipydatagrid.DataGrid(
-        aut_diffs_B,
-        base_column_size=int((WIDTH / 2 / 1.1) / len(aut_diffs_B.columns)),
-        selection_mode="row",
-    )
+            aut_diffs_B,
+            base_column_size=int((WIDTH / 2 / 1.1) / len(aut_diffs_B.columns)),
+            selection_mode="row",
+        )
 
     # Matching df
     sdf = ipydatagrid.DataGrid(
@@ -2161,11 +2176,14 @@ def run_all(
     button_aut = widgets.ToggleButton(False, description=button_descriptions_aut[False])
 
     button_descriptions_case = {False: "Apply Selection", True: "Apply Selection"}
-    button_case = widgets.ToggleButton(False, description=button_descriptions_case[False])
+    button_case = widgets.ToggleButton(
+        False, description=button_descriptions_case[False]
+    )
 
     button_download_data_opts = {False: "Download Data", True: "Download Data"}
-    button_download_data = widgets.ToggleButton(False, description=button_download_data_opts[False])
-
+    button_download_data = widgets.ToggleButton(
+        False, description=button_download_data_opts[False]
+    )
 
     # Display all the objects and get html subgraph id
     html_graph = show_displays(

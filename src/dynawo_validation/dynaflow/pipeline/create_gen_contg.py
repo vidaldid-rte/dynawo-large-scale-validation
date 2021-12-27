@@ -189,7 +189,6 @@ def main():
     else:
         sampling_ratio = 1
 
-
     # Add NOCONTINGENCY
 
     # We fix any device names with slashes in them (illegal filenames)
@@ -234,7 +233,7 @@ def main():
     else:
         # Copy the basecase (unchanged files and dir structure)
         copy_dwodwo_basecase(base_case, dwo_pathsA, dwo_pathsB, contg_casedir)
-        #A
+        # A
         dyd_file = contg_casedir + "/" + dwo_pathsA.dydFile_contg
         dyd_tree = parsed_case.A.dydTree_contg
         dyd_tree.write(

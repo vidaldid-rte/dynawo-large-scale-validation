@@ -178,14 +178,13 @@ def main():
             ):
                 data_files_list_sim_B_PSTAP_changes.append(i)
 
-
     df_temp = read_aut_changes(aut_dir + data_files_list_sim_A[0])
     temp_ind = list(df_temp.index)
     temp_bus = list(df_temp.index)
     for x in range(len(temp_ind)):
         temp_ind[x] = data_files_list_sim_A[0][:rest_A] + "-" + temp_ind[x]
         temp_bus[x] = data_files_list_sim_A[0][:rest_A]
-        
+
     df_temp["ID"] = temp_ind
     df_temp["CONTG"] = temp_bus
     df_temp.set_index("ID", inplace=True)

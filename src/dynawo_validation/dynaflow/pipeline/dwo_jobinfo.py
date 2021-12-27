@@ -109,7 +109,7 @@ def get_jobpaths(case, job_file):
     if first_bbm is None:
         raise ValueError("No blackBoxModel found in Dynawo DYD file %s" % dyd_file)
     parFile = first_bbm.get("parFile")
-    
+
     # Read the DYD file to obtain the parFile used by the dynamic models
     casedir = Path(case)
     dyd_file = casedir / dydFile_contg
