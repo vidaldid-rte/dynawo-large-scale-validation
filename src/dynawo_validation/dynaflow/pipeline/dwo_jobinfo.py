@@ -37,7 +37,7 @@ from lxml import etree
 Dwo_jobpaths = namedtuple(
     "Dwo_jobpaths",
     "job_file, solver_parFile, network_parFile, iidmFile, dydFile, parFile, "
-    "curves_inputFile, outputs_directory",
+    "curves_inputFile, outputs_directory, dydFile_contg, parFile_contg",
 )
 Dwo_tparams = namedtuple("Dwo_tparams", "startTime, stopTime, event_tEvent")
 
@@ -86,8 +86,9 @@ def get_jobpaths(case, job_file):
     iidmFile = network.get("iidmFile")
     network_parFile = network.get("parFile")
 
-    dynModels = modeler.find("{%s}dynModels" % ns)
-    dydFile = dynModels.get("dydFile")
+    dynModels = modeler.findall("{%s}dynModels" % ns)
+    dydFile_contg = dynModels[-1].get("dydFile")
+    dydFile = dynModels[0].get("dydFile")
 
     outputs = last_job.find("{%s}outputs" % ns)
     outputs_directory = outputs.get("directory")
@@ -108,6 +109,17 @@ def get_jobpaths(case, job_file):
     if first_bbm is None:
         raise ValueError("No blackBoxModel found in Dynawo DYD file %s" % dyd_file)
     parFile = first_bbm.get("parFile")
+    
+    # Read the DYD file to obtain the parFile used by the dynamic models
+    casedir = Path(case)
+    dyd_file = casedir / dydFile_contg
+    tree = etree.parse(str(dyd_file), etree.XMLParser(remove_blank_text=True))
+    root = tree.getroot()
+    ns = etree.QName(root).namespace
+    first_bbm = root.find("./{%s}blackBoxModel" % ns)
+    if first_bbm is None:
+        raise ValueError("No blackBoxModel found in Dynawo DYD file %s" % dyd_file)
+    parFile_contg = first_bbm.get("parFile")
 
     return Dwo_jobpaths(
         job_file=job_file,
@@ -118,6 +130,8 @@ def get_jobpaths(case, job_file):
         parFile=parFile,
         curves_inputFile=curves_inputFile,
         outputs_directory=outputs_directory,
+        dydFile_contg=dydFile_contg,
+        parFile_contg=parFile_contg,
     )
 
 
@@ -137,7 +151,7 @@ def get_tparams(case, dwo_jobpaths):
     # Read the supplementary DYD file that defines the contingenmcy,
     # in order to obtain the first Event
     casedir = Path(case)
-    dyd_file = casedir / "contingency.dyd"
+    dyd_file = casedir / dwo_jobpaths.dydFile_contg
     tree = etree.parse(str(dyd_file), etree.XMLParser(remove_blank_text=True))
     root = tree.getroot()
     ns = etree.QName(root).namespace

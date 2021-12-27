@@ -76,6 +76,8 @@ def copy_dwohds_basecase(base_case, dwo_paths, dest_case):
     npar_dir = os.path.dirname(dwo_paths.network_parFile)
     iidm_dir = os.path.dirname(dwo_paths.iidmFile)
     dyd_dir = os.path.dirname(dwo_paths.dydFile)  # all these are usually the same
+    dyd_dir_contg = os.path.dirname(dwo_paths.dydFile_contg)  # all these are usually the same
+    par_dir_contg = os.path.dirname(dwo_paths.parFile_contg)  # all these are usually the same
     par_dir = os.path.dirname(dwo_paths.parFile)  # but we allow themm to be different
     crv_dir = os.path.dirname(dwo_paths.curves_inputFile)  # just in case
     diag_dir = glob.glob(f"{base_case}/*_Diagram")
@@ -92,8 +94,8 @@ def copy_dwohds_basecase(base_case, dwo_paths, dest_case):
             f" && cp -l '{base_case}/{dwo_paths.solver_parFile}' '{dest_case}/{spar_dir}'"
             f" && cp -l '{base_case}/{dwo_paths.network_parFile}' '{dest_case}/{npar_dir}'"
             f" && cp -l '{base_case}/{dwo_paths.parFile}' '{dest_case}/{par_dir}'"
-            f" && cp '{base_case}/contingency.dyd' '{dest_case}/'"
-            f" && cp '{base_case}/contingency.par' '{dest_case}/'"
+            f" && cp '{base_case}/{dwo_paths.dydFile_contg}' '{dest_case}/{dyd_dir_contg}'"
+            f" && cp '{base_case}/{dwo_paths.parFile_contg}' '{dest_case}/{par_dir_contg}'"
             + copy_diags_command,
             shell=True,
         )
@@ -126,6 +128,10 @@ def copy_dwodwo_basecase(base_case, dwo_pathsA, dwo_pathsB, dest_case):
     par_dirB = os.path.dirname(dwo_pathsB.parFile)  # but we allow themm to be different
     crv_dirB = os.path.dirname(dwo_pathsB.curves_inputFile)  # just in case
     diag_dirB = glob.glob(f"{base_case}/B/*_Diagram")
+    dyd_dir_contgA = os.path.dirname(dwo_pathsA.dydFile_contg)  # all these are usually the same
+    par_dir_contgA = os.path.dirname(dwo_pathsA.parFile_contg)  # all these are usually the same
+    dyd_dir_contgB = os.path.dirname(dwo_pathsB.dydFile_contg)  # all these are usually the same
+    par_dir_contgB = os.path.dirname(dwo_pathsB.parFile_contg)  # all these are usually the same
     if len(diag_dirA) != 0:
         copy_diags_commandA = f" && cp -al '{diag_dirA[0]}' '{dest_case}/A'"
     else:
@@ -148,10 +154,10 @@ def copy_dwodwo_basecase(base_case, dwo_pathsA, dwo_pathsB, dest_case):
             f" && cp -l '{base_case}/{dwo_pathsB.solver_parFile}' '{dest_case}/{spar_dirB}'"
             f" && cp -l '{base_case}/{dwo_pathsA.network_parFile}' '{dest_case}/{npar_dirA}'"
             f" && cp -l '{base_case}/{dwo_pathsB.network_parFile}' '{dest_case}/{npar_dirB}'"
-            f" && cp '{base_case}/A/contingency.dyd' '{dest_case}/A/'"
-            f" && cp '{base_case}/A/contingency.par' '{dest_case}/A/'"
-            f" && cp '{base_case}/B/contingency.dyd' '{dest_case}/B/'"
-            f" && cp '{base_case}/B/contingency.par' '{dest_case}/B/'"
+            f" && cp '{base_case}/{dwo_pathsA.dydFile_contg}' '{dest_case}/{dyd_dir_contgA}'"
+            f" && cp '{base_case}/{dwo_pathsA.parFile_contg}' '{dest_case}/{par_dir_contgA}'"
+            f" && cp '{base_case}/{dwo_pathsB.dydFile_contg}' '{dest_case}/{dyd_dir_contgB}'"
+            f" && cp '{base_case}/{dwo_pathsB.parFile_contg}' '{dest_case}/{par_dir_contgB}'"
             + copy_diags_commandA
             + copy_diags_commandB,
             shell=True,
@@ -223,7 +229,7 @@ def dedup_save(basename, edited_case, deduped_case):
 
 def parse_basecase(base_case, dwo_paths, asthds_path, dwo_pathsA, dwo_pathsB):
     Parsed_case = namedtuple(
-        "Parsed_case", "asthdsTree iidmTree parTree dydTree crvTree"
+        "Parsed_case", "asthdsTree iidmTree parTree dydTree crvTree parTree_contg dydTree_contg"
     )
     Parsed_dwodwo_case = namedtuple("Parsed_dwodwo_case", "A B")
 
@@ -245,12 +251,20 @@ def parse_basecase(base_case, dwo_paths, asthds_path, dwo_pathsA, dwo_pathsB):
             base_case + "/" + dwo_paths.curves_inputFile,
             etree.XMLParser(remove_blank_text=True),
         )
+        parTree_contg = etree.parse(
+            base_case + "/" + dwo_paths.parFile_contg, etree.XMLParser(remove_blank_text=True)
+        )
+        dydTree_contg  = etree.parse(
+            base_case + "/" + dwo_paths.dydFile_contg, etree.XMLParser(remove_blank_text=True)
+        )
         return Parsed_case(
             asthdsTree=asthdsTree,
             iidmTree=iidmTree,
             parTree=parTree,
             dydTree=dydTree,
             crvTree=crvTree,
+            parTree_contg=parTree_contg,
+            dydTree_contg=dydTree_contg,
         )
     else:
         iidmTreeA = etree.parse(
@@ -269,12 +283,22 @@ def parse_basecase(base_case, dwo_paths, asthds_path, dwo_pathsA, dwo_pathsB):
             base_case + "/" + dwo_pathsA.curves_inputFile,
             etree.XMLParser(remove_blank_text=True),
         )
+        parTreeA_contg = etree.parse(
+            base_case + "/" + dwo_pathsA.parFile_contg,
+            etree.XMLParser(remove_blank_text=True),
+        )
+        dydTreeA_contg = etree.parse(
+            base_case + "/" + dwo_pathsA.dydFile_contg,
+            etree.XMLParser(remove_blank_text=True),
+        )
         parsed_caseA = Parsed_case(
             asthdsTree=None,
             iidmTree=iidmTreeA,
             parTree=parTreeA,
             dydTree=dydTreeA,
             crvTree=crvTreeA,
+            parTree_contg=parTreeA_contg,
+            dydTree_contg=dydTreeA_contg,
         )
 
         iidmTreeB = etree.parse(
@@ -293,12 +317,22 @@ def parse_basecase(base_case, dwo_paths, asthds_path, dwo_pathsA, dwo_pathsB):
             base_case + "/" + dwo_pathsB.curves_inputFile,
             etree.XMLParser(remove_blank_text=True),
         )
+        parTreeB_contg = etree.parse(
+            base_case + "/" + dwo_pathsB.parFile_contg,
+            etree.XMLParser(remove_blank_text=True),
+        )
+        dydTreeB_contg = etree.parse(
+            base_case + "/" + dwo_pathsB.dydFile_contg,
+            etree.XMLParser(remove_blank_text=True),
+        )
         parsed_caseB = Parsed_case(
             asthdsTree=None,
             iidmTree=iidmTreeB,
             parTree=parTreeB,
             dydTree=dydTreeB,
             crvTree=crvTreeB,
+            parTree_contg=parTreeB_contg,
+            dydTree_contg=dydTreeB_contg,
         )
 
         return Parsed_dwodwo_case(A=parsed_caseA, B=parsed_caseB)

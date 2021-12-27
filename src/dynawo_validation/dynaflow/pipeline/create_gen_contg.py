@@ -151,17 +151,11 @@ def main():
     if is_dwohds(base_case):
         print(f"Creating contingencies from DYNAWO-vs-HADES case: {base_case}")
         dwo_paths = get_dwo_jobpaths(base_case)
-        dwo_paths2 = dwo_paths
-        dwo_paths = dwo_paths._replace(dydFile="contingency.dyd", parFile="contingency.par")
         dwo_tparams = get_dwo_tparams(base_case)
         dwohds = True
     elif is_dwodwo(base_case):
         print(f"Creating contingencies from DYNAWO-vs-DYNAWO case: {base_case}")
         dwo_pathsA, dwo_pathsB = get_dwodwo_jobpaths(base_case)
-        dwo_pathsA2 = dwo_pathsA
-        dwo_pathsB2 = dwo_pathsB
-        dwo_pathsA = dwo_pathsA._replace(dydFile="A/contingency.dyd", parFile="A/contingency.par")
-        dwo_pathsB = dwo_pathsB._replace(dydFile="B/contingency.dyd", parFile="B/contingency.par")
         dwo_tparamsA, dwo_tparamsB = get_dwodwo_tparams(base_case)
         dwohds = False
     else:
@@ -203,17 +197,17 @@ def main():
 
     if dwohds:
         # Copy the basecase (unchanged files and dir structure)
-        copy_dwohds_basecase(base_case, dwo_paths2, contg_casedir)
-        dyd_file = contg_casedir + "/" + dwo_paths.dydFile
-        dyd_tree = parsed_case.dydTree
+        copy_dwohds_basecase(base_case, dwo_paths, contg_casedir)
+        dyd_file = contg_casedir + "/" + dwo_paths.dydFile_contg
+        dyd_tree = parsed_case.dydTree_contg
         dyd_tree.write(
             dyd_file,
             pretty_print=True,
             xml_declaration='<?xml version="1.0" encoding="UTF-8"?>',
             encoding="UTF-8",
         )
-        par_file = contg_casedir + "/" + dwo_paths.parFile
-        par_tree = parsed_case.parTree
+        par_file = contg_casedir + "/" + dwo_paths.parFile_contg
+        par_tree = parsed_case.parTree_contg
         par_tree.write(
             par_file,
             pretty_print=True,
@@ -239,18 +233,18 @@ def main():
 
     else:
         # Copy the basecase (unchanged files and dir structure)
-        copy_dwodwo_basecase(base_case, dwo_pathsA2, dwo_pathsB2, contg_casedir)
+        copy_dwodwo_basecase(base_case, dwo_pathsA, dwo_pathsB, contg_casedir)
         #A
-        dyd_file = contg_casedir + "/" + dwo_pathsA.dydFile
-        dyd_tree = parsed_case.A.dydTree
+        dyd_file = contg_casedir + "/" + dwo_pathsA.dydFile_contg
+        dyd_tree = parsed_case.A.dydTree_contg
         dyd_tree.write(
             dyd_file,
             pretty_print=True,
             xml_declaration='<?xml version="1.0" encoding="UTF-8"?>',
             encoding="UTF-8",
         )
-        par_file = contg_casedir + "/" + dwo_pathsA.parFile
-        par_tree = parsed_case.A.parTree
+        par_file = contg_casedir + "/" + dwo_pathsA.parFile_contg
+        par_tree = parsed_case.A.parTree_contg
         par_tree.write(
             par_file,
             pretty_print=True,
@@ -266,16 +260,16 @@ def main():
             encoding="UTF-8",
         )
         # B
-        dyd_file = contg_casedir + "/" + dwo_pathsB.dydFile
-        dyd_tree = parsed_case.B.dydTree
+        dyd_file = contg_casedir + "/" + dwo_pathsB.dydFile_contg
+        dyd_tree = parsed_case.B.dydTree_contg
         dyd_tree.write(
             dyd_file,
             pretty_print=True,
             xml_declaration='<?xml version="1.0" encoding="UTF-8"?>',
             encoding="UTF-8",
         )
-        par_file = contg_casedir + "/" + dwo_pathsB.parFile
-        par_tree = parsed_case.B.parTree
+        par_file = contg_casedir + "/" + dwo_pathsB.parFile_contg
+        par_tree = parsed_case.B.parTree_contg
         par_tree.write(
             par_file,
             pretty_print=True,
@@ -317,7 +311,7 @@ def main():
 
         if dwohds:
             # Copy the basecase (unchanged files and dir structure)
-            copy_dwohds_basecase(base_case, dwo_paths2, contg_casedir)
+            copy_dwohds_basecase(base_case, dwo_paths, contg_casedir)
             # Modify the Dynawo case (DYD,PAR,CRV)
             config_dynawo_gen_contingency(
                 contg_casedir,
@@ -333,7 +327,7 @@ def main():
             )
         else:
             # Copy the basecase (unchanged files and dir structure)
-            copy_dwodwo_basecase(base_case, dwo_pathsA2, dwo_pathsB2, contg_casedir)
+            copy_dwodwo_basecase(base_case, dwo_pathsA, dwo_pathsB, contg_casedir)
             # Modify the Dynawo A & B cases (DYD,PAR,CRV)
             config_dynawo_gen_contingency(
                 contg_casedir,
@@ -454,7 +448,7 @@ def config_dynawo_gen_contingency(
     ###########################################################
     # DYD file: configure an event model for the disconnection
     ###########################################################
-    dyd_file = casedir + "/" + dwo_paths.dydFile
+    dyd_file = casedir + "/" + dwo_paths.dydFile_contg
     print("   Configuring file %s" % dyd_file)
     dyd_tree = case_trees.dydTree
     root = dyd_tree.getroot()
@@ -480,6 +474,9 @@ def config_dynawo_gen_contingency(
 
     # Erase all existing Event models (keep the IDs to remove their
     # connections later below)
+    dyd_tree = case_trees.dydTree_contg
+    root = dyd_tree.getroot()
+    ns = etree.QName(root).namespace
     old_eventIds = []
     old_parIds = []
     for event in root.iterfind(f"./{{{ns}}}blackBoxModel"):
@@ -493,7 +490,7 @@ def config_dynawo_gen_contingency(
     event_id = "Disconnect my gen"
     event.set("id", event_id)
     event.set("lib", disconn_eventmodel)
-    event.set("parFile", dwo_paths.parFile)
+    event.set("parFile", dwo_paths.parFile_contg)
     event.set("parId", "99991234")
 
     # Erase all connections of the previous Events we removed above
@@ -519,9 +516,9 @@ def config_dynawo_gen_contingency(
     ###########################################################
     # PAR file: add a section with the disconnecton parameters
     ###########################################################
-    par_file = casedir + "/" + dwo_paths.parFile
+    par_file = casedir + "/" + dwo_paths.parFile_contg
     print("   Configuring file %s" % par_file)
-    par_tree = case_trees.parTree
+    par_tree = case_trees.parTree_contg
     root = par_tree.getroot()
 
     # Erase all existing parsets used by the Events removed above
