@@ -67,12 +67,32 @@ def main():
                 temp_df = delta.loc[(delta.VOLT_LEVEL == volt_level)]
                 temp_df_max = temp_df.groupby("VAR").max()
                 temp_df_mean = temp_df.groupby("VAR").mean()
-                res2 = (
-                    [cont]
-                    + [str(volt_level)]
-                    + list(temp_df_max["DIFF"].values)
-                    + list(temp_df_mean["DIFF"].values)
-                )
+                index_list = [
+                    "angle",
+                    "p",
+                    "p1",
+                    "p2",
+                    "pstap",
+                    "q",
+                    "q1",
+                    "q2",
+                    "tap",
+                    "v",
+                ]
+                real_index_list = list(temp_df_mean.index.values)
+                temp_df_max_dict = temp_df_max.to_dict("list")
+                temp_df_mean_dict = temp_df_mean.to_dict("list")
+                for i in range(len(index_list)):
+                    if index_list[i] == real_index_list[i]:
+                        pass
+                    else:
+                        real_index_list.insert(i, index_list[i])
+                        temp_df_max_dict["DIFF"].insert(i, None)
+                        temp_df_mean_dict["DIFF"].insert(i, None)
+
+                temp_df_max_list = list(temp_df_max_dict["DIFF"])
+                temp_df_mean_list = list(temp_df_mean_dict["DIFF"])
+                res2 = [cont] + [str(volt_level)] + temp_df_max_list + temp_df_mean_list
                 res = res + [res2]
     else:
         for filepath in files:
