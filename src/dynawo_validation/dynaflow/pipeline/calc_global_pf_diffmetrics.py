@@ -53,7 +53,7 @@ def main():
             # print(cont)
             delta = pd.read_csv(filepath, sep=";", index_col=False, compression="infer")
             delta["DIFF"] = delta.VALUE_A - delta.VALUE_B
-            delta_max = delta.groupby("VAR").max()
+            delta_max = delta.groupby("VAR").max([{"key":"abs"}])
             delta_mean = delta.groupby("VAR").mean()
             res1 = (
                 [cont]
@@ -65,7 +65,7 @@ def main():
             volt_levels = np.sort(delta["VOLT_LEVEL"].unique())
             for volt_level in volt_levels:
                 temp_df = delta.loc[(delta.VOLT_LEVEL == volt_level)]
-                temp_df_max = temp_df.groupby("VAR").max()
+                temp_df_max = temp_df.groupby("VAR").max({"key":"abs"})
                 temp_df_mean = temp_df.groupby("VAR").mean()
                 index_list = [
                     "angle",
@@ -102,7 +102,7 @@ def main():
             # print(cont)
             delta = pd.read_csv(filepath, sep=";", index_col=False, compression="infer")
             delta["DIFF"] = delta.VALUE_A - delta.VALUE_B
-            delta_max = delta.groupby("VAR").max()
+            delta_max = delta.groupby("VAR").max({"key":"abs"})
             delta_mean = delta.groupby("VAR").mean()
             res1 = (
                 [cont]
@@ -114,7 +114,7 @@ def main():
             volt_levels = np.sort(delta["VOLT_LEVEL"].unique())
             for volt_level in volt_levels:
                 temp_df = delta.loc[(delta.VOLT_LEVEL == volt_level)]
-                temp_df_max = temp_df.groupby("VAR").max()
+                temp_df_max = temp_df.groupby("VAR").max({"key":"abs"})
                 temp_df_mean = temp_df.groupby("VAR").mean()
                 res2 = (
                     [cont]

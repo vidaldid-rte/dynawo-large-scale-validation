@@ -70,6 +70,14 @@ def do_displaybutton():
     button = widgets.ToggleButton(state, description=button_descriptions[state])
     button.observe(button_action, "value")
     display(button)
+    
+def thresh_coloring(cell):
+    if cell.value == 2:
+        return "red"
+    elif cell.value == 1:
+        return "orange"
+    else:
+        return "green"
 
 
 # Calculate absolute and relative error
@@ -116,6 +124,68 @@ def create_general_trace(data, x, y, DATA_LIMIT):
         name=x + "_" + y,
     )
     return trace
+
+
+# Calculate global contingencies score
+def calc_global_score(df, W_V, W_P, W_Q, W_T, MAX_THRESH, MEAN_THRESH):
+    df_all = df.loc[(df.volt_level == "ALL")]
+    name_score = list(df_all["cont"])
+    score_max = []
+    score_mean = []
+    max_n_pass = []
+    mean_n_pass = []
+    total_n_pass = []
+    for i in range(len(df_all.index)):
+        max_val = (
+            abs(df_all.iloc[i, 3]) * W_P
+            + abs((df_all.iloc[i, 4] * 0.5 + df_all.iloc[i, 5] * 0.5)) * W_P
+            + abs(df_all.iloc[i, 6]) * W_T
+            + abs(df_all.iloc[i, 7]) * W_Q
+            + abs((df_all.iloc[i, 8] * 0.5 + df_all.iloc[i, 9] * 0.5)) * W_Q
+            + abs(df_all.iloc[i, 10]) * W_T
+            + abs(df_all.iloc[i, 11]) * W_V
+        )
+        if max_val > MAX_THRESH:
+            max_n_pass.append(1)
+        else:
+            max_n_pass.append(0)
+        score_max.append(max_val)
+        mean_val = (
+            abs(df_all.iloc[i, 13]) * W_P
+            + abs((df_all.iloc[i, 14] * 0.5 + df_all.iloc[i, 15] * 0.5)) * W_P
+            + abs(df_all.iloc[i, 16]) * W_T
+            + abs(df_all.iloc[i, 17]) * W_Q
+            + abs((df_all.iloc[i, 18] * 0.5 + df_all.iloc[i, 19] * 0.5)) * W_Q
+            + abs(df_all.iloc[i, 20]) * W_T
+            + abs(df_all.iloc[i, 21]) * W_V
+        )
+        if mean_val > MEAN_THRESH:
+            mean_n_pass.append(1)
+        else:
+            mean_n_pass.append(0)
+        score_mean.append(mean_val)
+        
+        if mean_val > MEAN_THRESH and max_val > MAX_THRESH:
+            total_n_pass.append(2)
+        elif mean_val > MEAN_THRESH:
+            total_n_pass.append(1)
+        elif max_val > MAX_THRESH:
+            total_n_pass.append(1)
+        else:
+            total_n_pass.append(0)
+        
+    dict_score = {
+        "CONTG": name_score,
+        "MAX_SCORE": score_max,
+        "MEAN_SCORE": score_mean,
+        "MAX_THRESH": max_n_pass,
+        "MEAN_THRESH": mean_n_pass,
+        "TOTAL_THRESH": total_n_pass,
+    }
+    df_score = pd.DataFrame(dict_score)
+    df_score = df_score.sort_values("MAX_SCORE", axis=0, ascending=False)
+    
+    return df_score, sum(max_n_pass), sum(mean_n_pass)
 
 
 # Create the colors and legends for plot
@@ -1517,6 +1587,9 @@ def show_displays(
     button_aut,
     button_case,
     button_download_data,
+    grid_score,
+    max_n_pass,
+    mean_n_pass,
 ):
     display(
         HTML(
@@ -1529,7 +1602,21 @@ def show_displays(
     """
         )
     )
-
+    display(Markdown("# CONTINGENCIES SCORE"))
+    text_score = widgets.Output()
+    text_score.append_stdout(
+        "Number of cases that have exceeded the max threshold: "
+        + str(max_n_pass)
+        + "\nNumber of cases that have exceeded the mean threshold: "
+        + str(mean_n_pass)
+    )
+    containerscore = widgets.HBox(
+        [
+            grid_score,
+            text_score,
+        ]
+    )
+    display(containerscore)
     aut_diffs = AppLayout(
         left_sidebar=aut_diffs_A, right_sidebar=aut_diffs_B, align_items="center"
     )
@@ -1587,6 +1674,12 @@ def run_all(
     SUBGRAPH_TYPE,
     SUBGRAPH_VALUE,
     DWO_DWO,
+    W_V,
+    W_P,
+    W_Q,
+    W_T,
+    MAX_THRESH,
+    MEAN_THRESH,
 ):
 
     # We have to supress a numpy warning
@@ -2008,6 +2101,28 @@ def run_all(
 
     current_general_trace = create_general_trace(df, varx.value, vary.value, DATA_LIMIT)
 
+    df_score, max_n_pass, mean_n_pass = calc_global_score(
+        df, W_V, W_P, W_Q, W_T, MAX_THRESH, MEAN_THRESH
+    )
+    
+    renderers = {
+    "TOTAL_THRESH": ipydatagrid.TextRenderer(
+        text_color="black", background_color=ipydatagrid.Expr(thresh_coloring)
+    ),
+    "MAX_THRESH": ipydatagrid.TextRenderer(
+        text_color="black", background_color=ipydatagrid.Expr(thresh_coloring)
+    ),
+    "MEAN_THRESH": ipydatagrid.TextRenderer(
+        text_color="black", background_color=ipydatagrid.Expr(thresh_coloring)
+    ),
+    }
+
+    grid_score = ipydatagrid.DataGrid(
+        df_score,
+        base_column_size=int((WIDTH / 2 / 1.1) / len(df_score.columns)),
+        renderers=renderers,
+    )
+
     current_individual_trace = create_individual_trace(
         data_first_case, dropdown1.value, dropdown2.value, DATA_LIMIT
     )
@@ -2211,6 +2326,9 @@ def run_all(
         button_aut,
         button_case,
         button_download_data,
+        grid_score,
+        max_n_pass,
+        mean_n_pass,
     )
 
     # Observe selection events to update graphics
