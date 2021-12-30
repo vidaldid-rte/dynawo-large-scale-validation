@@ -47,16 +47,15 @@ def main():
 
     if args.isout == "0":
         for filepath in tqdm(files):
-            # Depending on the path
-            # cont = filepath.split('_')[3].split('-')[0]
-            cont = filepath.split("_")[2].split("-")[0]
-            # print(cont)
+            # TODO: standardize suffix "-pfsolution_AB.csv" to
+            # "_pfsolutionAB.csv", to robustify and simplify this.
+            contg = filepath.split("_")[-2].split("-")[0]
             delta = pd.read_csv(filepath, sep=";", index_col=False, compression="infer")
             delta["DIFF"] = delta.VALUE_A - delta.VALUE_B
-            delta_max = delta.groupby("VAR").max([{"key":"abs"}])
+            delta_max = delta.groupby("VAR").max([{"key": "abs"}])
             delta_mean = delta.groupby("VAR").mean()
             res1 = (
-                [cont]
+                [contg]
                 + ["ALL"]
                 + list(delta_max["DIFF"].values)
                 + list(delta_mean["DIFF"].values)
@@ -65,7 +64,7 @@ def main():
             volt_levels = np.sort(delta["VOLT_LEVEL"].unique())
             for volt_level in volt_levels:
                 temp_df = delta.loc[(delta.VOLT_LEVEL == volt_level)]
-                temp_df_max = temp_df.groupby("VAR").max({"key":"abs"})
+                temp_df_max = temp_df.groupby("VAR").max({"key": "abs"})
                 temp_df_mean = temp_df.groupby("VAR").mean()
                 index_list = [
                     "angle",
@@ -92,20 +91,21 @@ def main():
 
                 temp_df_max_list = list(temp_df_max_dict["DIFF"])
                 temp_df_mean_list = list(temp_df_mean_dict["DIFF"])
-                res2 = [cont] + [str(volt_level)] + temp_df_max_list + temp_df_mean_list
+                res2 = (
+                    [contg] + [str(volt_level)] + temp_df_max_list + temp_df_mean_list
+                )
                 res = res + [res2]
     else:
         for filepath in files:
-            # Depending on the path
-            # cont = filepath.split('_')[3].split('-')[0]
-            cont = filepath.split("_")[2].split("-")[0]
-            # print(cont)
+            # TODO: standardize suffix "-pfsolution_AB.csv" to
+            # "_pfsolutionAB.csv", to robustify and simplify this.
+            contg = filepath.split("_")[-2].split("-")[0]
             delta = pd.read_csv(filepath, sep=";", index_col=False, compression="infer")
             delta["DIFF"] = delta.VALUE_A - delta.VALUE_B
-            delta_max = delta.groupby("VAR").max({"key":"abs"})
+            delta_max = delta.groupby("VAR").max({"key": "abs"})
             delta_mean = delta.groupby("VAR").mean()
             res1 = (
-                [cont]
+                [contg]
                 + ["ALL"]
                 + list(delta_max["DIFF"].values)
                 + list(delta_mean["DIFF"].values)
@@ -114,10 +114,10 @@ def main():
             volt_levels = np.sort(delta["VOLT_LEVEL"].unique())
             for volt_level in volt_levels:
                 temp_df = delta.loc[(delta.VOLT_LEVEL == volt_level)]
-                temp_df_max = temp_df.groupby("VAR").max({"key":"abs"})
+                temp_df_max = temp_df.groupby("VAR").max({"key": "abs"})
                 temp_df_mean = temp_df.groupby("VAR").mean()
                 res2 = (
-                    [cont]
+                    [contg]
                     + [str(volt_level)]
                     + list(temp_df_max["DIFF"].values)
                     + list(temp_df_mean["DIFF"].values)
@@ -126,7 +126,7 @@ def main():
 
     df = pd.DataFrame(
         res,
-        columns=["cont"]
+        columns=["contg_case"]
         + ["volt_level"]
         + list(delta_max.index + "_max")
         + list(delta_mean.index + "_mean"),

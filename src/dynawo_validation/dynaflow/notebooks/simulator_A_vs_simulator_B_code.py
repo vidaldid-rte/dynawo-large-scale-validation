@@ -70,7 +70,8 @@ def do_displaybutton():
     button = widgets.ToggleButton(state, description=button_descriptions[state])
     button.observe(button_action, "value")
     display(button)
-    
+
+
 def thresh_coloring(cell):
     if cell.value == 2:
         return "red"
@@ -120,7 +121,7 @@ def create_general_trace(data, x, y, DATA_LIMIT):
         x=data[x],
         y=data[y],
         mode="markers",
-        text=data["cont"] + "_(" + data["volt_level"] + ")",
+        text=data["contg_case"] + "_(" + data["volt_level"] + ")",
         name=x + "_" + y,
     )
     return trace
@@ -129,7 +130,7 @@ def create_general_trace(data, x, y, DATA_LIMIT):
 # Calculate global contingencies score
 def calc_global_score(df, W_V, W_P, W_Q, W_T, MAX_THRESH, MEAN_THRESH):
     df_all = df.loc[(df.volt_level == "ALL")]
-    name_score = list(df_all["cont"])
+    name_score = list(df_all["contg_case"])
     score_max = []
     score_mean = []
     max_n_pass = []
@@ -164,7 +165,7 @@ def calc_global_score(df, W_V, W_P, W_Q, W_T, MAX_THRESH, MEAN_THRESH):
         else:
             mean_n_pass.append(0)
         score_mean.append(mean_val)
-        
+
         if mean_val > MEAN_THRESH and max_val > MAX_THRESH:
             total_n_pass.append(2)
         elif mean_val > MEAN_THRESH:
@@ -173,7 +174,7 @@ def calc_global_score(df, W_V, W_P, W_Q, W_T, MAX_THRESH, MEAN_THRESH):
             total_n_pass.append(1)
         else:
             total_n_pass.append(0)
-        
+
     dict_score = {
         "CONTG": name_score,
         "MAX_SCORE": score_max,
@@ -184,7 +185,7 @@ def calc_global_score(df, W_V, W_P, W_Q, W_T, MAX_THRESH, MEAN_THRESH):
     }
     df_score = pd.DataFrame(dict_score)
     df_score = df_score.sort_values("MAX_SCORE", axis=0, ascending=False)
-    
+
     return df_score, sum(max_n_pass), sum(mean_n_pass)
 
 
@@ -339,11 +340,11 @@ def find_launchers(pathtofiles):
         if ".LAUNCHER_A_WAS_" == basefile[:16] and launcherA is None:
             launcherA = basefile[16:]
         elif ".LAUNCHER_A_WAS_" == basefile[:16]:
-            raise ValueError(f"Two or more .LAUNCHER_WAS_A in results dir")
+            raise ValueError("Two or more .LAUNCHER_WAS_A in results dir")
         elif ".LAUNCHER_B_WAS_" == basefile[:16] and launcherB is None:
             launcherB = basefile[16:]
         elif ".LAUNCHER_B_WAS_" == basefile[:16]:
-            raise ValueError(f"Two or more .LAUNCHER_WAS_A in results dir")
+            raise ValueError("Two or more .LAUNCHER_WAS_A in results dir")
     return launcherA, launcherB
 
 
@@ -470,7 +471,7 @@ def create_aut_df(results_dir, A_B, contgcase, prefix, basecase, dwo_dwo, var_va
                     if regleur_id not in hades_regleurs_contg:
                         hades_regleurs_contg[regleur_id] = int(variable.get("plot"))
                     else:
-                        raise ValueError(f"Tap ID repeated")
+                        raise ValueError(f"Tap ID repeated (regleur_id={regleur_id})")
 
             df_hades_regleurs_basecase = pd.read_csv(
                 save_path + "df_hades_regleurs_basecase.csv", sep=";", index_col=0
@@ -524,7 +525,9 @@ def create_aut_df(results_dir, A_B, contgcase, prefix, basecase, dwo_dwo, var_va
                     if dephaseur_id not in hades_dephaseurs_contg:
                         hades_dephaseurs_contg[dephaseur_id] = int(variable.get("plot"))
                     else:
-                        raise ValueError(f"Tap ID repeated")
+                        raise ValueError(
+                            f"Tap ID repeated (dephaseur_id={dephaseur_id})"
+                        )
 
             df_hades_dephaseurs_basecase = pd.read_csv(
                 save_path + "df_hades_dephaseurs_basecase.csv", sep=";", index_col=0
@@ -592,7 +595,7 @@ def create_aut_df(results_dir, A_B, contgcase, prefix, basecase, dwo_dwo, var_va
                         ratioTapChanger.get("tapPosition")
                     )
                 else:
-                    raise ValueError(f"Tap ID repeated")
+                    raise ValueError("Tap ID repeated")
 
             df_dynawo_ratioTapChanger_basecase = pd.read_csv(
                 save_path + "df_dynawo_ratioTapChanger_basecase.csv",
@@ -658,7 +661,7 @@ def create_aut_df(results_dir, A_B, contgcase, prefix, basecase, dwo_dwo, var_va
                         phaseTapChanger.get("tapPosition")
                     )
                 else:
-                    raise ValueError(f"Tap ID repeated")
+                    raise ValueError("Tap ID repeated")
 
             df_dynawo_phaseTapChanger_basecase = pd.read_csv(
                 save_path + "df_dynawo_phaseTapChanger_basecase.csv",
@@ -722,13 +725,13 @@ def create_aut_df(results_dir, A_B, contgcase, prefix, basecase, dwo_dwo, var_va
                     if shunt_id not in dynawo_shunt_contgcase:
                         dynawo_shunt_contgcase[shunt_id] = 1
                     else:
-                        raise ValueError(f"Tap ID repeated")
+                        raise ValueError("Tap ID repeated")
                 else:
                     shunt_id = shunt.get("id")
                     if shunt_id not in dynawo_shunt_contgcase:
                         dynawo_shunt_contgcase[shunt_id] = 0
                     else:
-                        raise ValueError(f"Tap ID repeated")
+                        raise ValueError("Tap ID repeated")
 
             df_dynawo_shunt_basecase = pd.read_csv(
                 save_path + "df_dynawo_shunt_basecase.csv", sep=";", index_col=0
@@ -782,11 +785,11 @@ def create_aut_df(results_dir, A_B, contgcase, prefix, basecase, dwo_dwo, var_va
                 if line_id not in dynawo_branch_contgcase_bus1:
                     dynawo_branch_contgcase_bus1[line_id] = temp[0]
                 else:
-                    raise ValueError(f"Tap ID repeated")
+                    raise ValueError("Tap ID repeated")
                 if line_id not in dynawo_branch_contgcase_bus2:
                     dynawo_branch_contgcase_bus2[line_id] = temp[1]
                 else:
-                    raise ValueError(f"Tap ID repeated")
+                    raise ValueError("Tap ID repeated")
 
             for twoWindingsTransformer in root.iter("{%s}twoWindingsTransformer" % ns):
                 temp = [0, 0]
@@ -798,11 +801,11 @@ def create_aut_df(results_dir, A_B, contgcase, prefix, basecase, dwo_dwo, var_va
                 if twoWindingsTransformer_id not in dynawo_branch_contgcase_bus1:
                     dynawo_branch_contgcase_bus1[twoWindingsTransformer_id] = temp[0]
                 else:
-                    raise ValueError(f"Tap ID repeated")
+                    raise ValueError("Tap ID repeated")
                 if twoWindingsTransformer_id not in dynawo_branch_contgcase_bus2:
                     dynawo_branch_contgcase_bus2[twoWindingsTransformer_id] = temp[1]
                 else:
-                    raise ValueError(f"Tap ID repeated")
+                    raise ValueError("Tap ID repeated")
 
             df_dynawo_branch_basecase_bus1 = pd.read_csv(
                 save_path + "df_dynawo_branch_basecase_bus1.csv", sep=";", index_col=0
@@ -905,11 +908,11 @@ def create_aut_df(results_dir, A_B, contgcase, prefix, basecase, dwo_dwo, var_va
                 if line_id not in dynawo_branch_contgcase_bus1:
                     dynawo_branch_contgcase_bus1[line_id] = temp[0]
                 else:
-                    raise ValueError(f"Tap ID repeated")
+                    raise ValueError("Tap ID repeated")
                 if line_id not in dynawo_branch_contgcase_bus2:
                     dynawo_branch_contgcase_bus2[line_id] = temp[1]
                 else:
-                    raise ValueError(f"Tap ID repeated")
+                    raise ValueError("Tap ID repeated")
 
             for twoWindingsTransformer in root.iter("{%s}twoWindingsTransformer" % ns):
                 temp = [0, 0]
@@ -921,11 +924,11 @@ def create_aut_df(results_dir, A_B, contgcase, prefix, basecase, dwo_dwo, var_va
                 if twoWindingsTransformer_id not in dynawo_branch_contgcase_bus1:
                     dynawo_branch_contgcase_bus1[twoWindingsTransformer_id] = temp[0]
                 else:
-                    raise ValueError(f"Tap ID repeated")
+                    raise ValueError("Tap ID repeated")
                 if twoWindingsTransformer_id not in dynawo_branch_contgcase_bus2:
                     dynawo_branch_contgcase_bus2[twoWindingsTransformer_id] = temp[1]
                 else:
-                    raise ValueError(f"Tap ID repeated")
+                    raise ValueError("Tap ID repeated")
 
             df_dynawo_branch_basecase_bus1 = pd.read_csv(
                 save_path + "df_dynawo_branch_basecase_bus1.csv", sep=";", index_col=0
@@ -1028,11 +1031,11 @@ def create_aut_df(results_dir, A_B, contgcase, prefix, basecase, dwo_dwo, var_va
                 if line_id not in dynawo_branch_contgcase_bus1:
                     dynawo_branch_contgcase_bus1[line_id] = temp[0]
                 else:
-                    raise ValueError(f"Tap ID repeated")
+                    raise ValueError("Tap ID repeated")
                 if line_id not in dynawo_branch_contgcase_bus2:
                     dynawo_branch_contgcase_bus2[line_id] = temp[1]
                 else:
-                    raise ValueError(f"Tap ID repeated")
+                    raise ValueError("Tap ID repeated")
 
             for twoWindingsTransformer in root.iter("{%s}twoWindingsTransformer" % ns):
                 temp = [0, 0]
@@ -1044,11 +1047,11 @@ def create_aut_df(results_dir, A_B, contgcase, prefix, basecase, dwo_dwo, var_va
                 if twoWindingsTransformer_id not in dynawo_branch_contgcase_bus1:
                     dynawo_branch_contgcase_bus1[twoWindingsTransformer_id] = temp[0]
                 else:
-                    raise ValueError(f"Tap ID repeated")
+                    raise ValueError("Tap ID repeated")
                 if twoWindingsTransformer_id not in dynawo_branch_contgcase_bus2:
                     dynawo_branch_contgcase_bus2[twoWindingsTransformer_id] = temp[1]
                 else:
-                    raise ValueError(f"Tap ID repeated")
+                    raise ValueError("Tap ID repeated")
 
             df_dynawo_branch_basecase_bus1 = pd.read_csv(
                 save_path + "df_dynawo_branch_basecase_bus1.csv", sep=";", index_col=0
@@ -1699,13 +1702,13 @@ def run_all(
             g.data[0].x = df1[varx.value]
             g.data[0].y = df1[vary.value]
             g.data[0].name = varx.value + "_" + vary.value
-            g.data[0].text = df1["cont"] + "_(" + df1["volt_level"] + ")"
+            g.data[0].text = df1["contg_case"] + "_(" + df1["volt_level"] + ")"
             g.layout.xaxis.title = varx.value
             g.layout.yaxis.title = vary.value
 
     def individual_case(case):
         if len(sdf.selections) != 0:
-            case = sdf.data.loc[sdf.selections[0]["r1"], "cont"]
+            case = sdf.data.loc[sdf.selections[0]["r1"], "contg_case"]
             sdf.clear_selection()
 
         df1 = read_case(case, PF_SOL_DIR, PREFIX)
@@ -2009,7 +2012,7 @@ def run_all(
     check1a, check1b, check2a, check2b = create_check_box()
 
     # Get list of contingency cases
-    contg_cases = list(df["cont"].unique())
+    contg_cases = list(df["contg_case"].unique())
     contg_case0 = contg_cases[0]
 
     # Read the first contingency to put default data
@@ -2104,17 +2107,17 @@ def run_all(
     df_score, max_n_pass, mean_n_pass = calc_global_score(
         df, W_V, W_P, W_Q, W_T, MAX_THRESH, MEAN_THRESH
     )
-    
+
     renderers = {
-    "TOTAL_THRESH": ipydatagrid.TextRenderer(
-        text_color="black", background_color=ipydatagrid.Expr(thresh_coloring)
-    ),
-    "MAX_THRESH": ipydatagrid.TextRenderer(
-        text_color="black", background_color=ipydatagrid.Expr(thresh_coloring)
-    ),
-    "MEAN_THRESH": ipydatagrid.TextRenderer(
-        text_color="black", background_color=ipydatagrid.Expr(thresh_coloring)
-    ),
+        "TOTAL_THRESH": ipydatagrid.TextRenderer(
+            text_color="black", background_color=ipydatagrid.Expr(thresh_coloring)
+        ),
+        "MAX_THRESH": ipydatagrid.TextRenderer(
+            text_color="black", background_color=ipydatagrid.Expr(thresh_coloring)
+        ),
+        "MEAN_THRESH": ipydatagrid.TextRenderer(
+            text_color="black", background_color=ipydatagrid.Expr(thresh_coloring)
+        ),
     }
 
     grid_score = ipydatagrid.DataGrid(
