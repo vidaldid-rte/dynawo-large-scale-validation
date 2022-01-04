@@ -4,7 +4,7 @@
 # run_all_contg.sh:
 #
 # given a directory containing contingency cases (which can be of
-# EITHER Astre vs. Dynawo OR Dynawo vs. Dynawo type), all of them
+# EITHER Hades vs. Dynawo OR Dynawo vs. Dynawo type), all of them
 # derived from a common BASECASE, this script runs all cases having a
 # given prefix in their name (possibly in parallel, using GNU
 # parallel).
@@ -47,33 +47,29 @@ find_cmd()
 
 
 
-# -allow a command to fail with !’s side effect on errexit
-# -use return value from ${PIPESTATUS[0]}, because ! hosed $?
-! getopt --test > /dev/null 
-if [[ ${PIPESTATUS[0]} -ne 4 ]]; then
+#######################################
+# getopt-like input option processing
+#######################################
+
+# Test for getopt's version (this needs to temporarily deactivate errexit)
+set +e
+getopt --test > /dev/null
+if [[ $? -ne 4 ]]; then
     echo "I’m sorry, 'getopt --test' failed in this environment."
     exit 1
 fi
+set -e
 
 OPTIONS=cdho:vsA:B:
 LONGOPTS=cleanup,debug,help,output:,verbose,sequential,launcherA:,launcherB:
-
-# -regarding ! and PIPESTATUS see above
-# -temporarily store output to be able to check for errors
 # -activate quoting/enhanced mode (e.g. by writing out “--options”)
 # -pass arguments only via   -- "$@"   to separate them correctly
-! PARSED=$(getopt --options=$OPTIONS --longoptions=$LONGOPTS --name "$0" -- "$@")
-if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
-    # e.g. return value is 1
-    #  then getopt has complained about wrong arguments to stdout
-    usage
-    exit 2
-fi
+PARSED=$(getopt --options=$OPTIONS --longoptions=$LONGOPTS --name "$0" -- "$@")
 # read getopt’s output this way to handle the quoting right:
 eval set -- "$PARSED"
 
-c=n d=n h=n outDir="RESULTS" v=n s=n A="dynawo.sh" B="dynawo.sh"
 # now enjoy the options in order and nicely split until we see --
+c=n d=n h=n outDir="RESULTS" v=n s=n A="dynawo.sh" B="dynawo.sh"
 while true; do
     case "$1" in
         -c|--cleanup)
@@ -120,13 +116,17 @@ while true; do
 done
 
 if [ $v = "y" ]; then
-    echo "OPTIONS: cleanup: $c, debug: $d, help: $h, output: $outDir, verbose: $v, sequential: $s, launcherA: $A, launcherB: $B"
-    echo "PARAMS: $*"
+    echo "$0: Called with OPTIONS: cleanup: $c, debug: $d, help: $h, output: $outDir, verbose: $v, sequential: $s, launcherA: $A, launcherB: $B"
+    echo "$0: Called with PARAMS: $*"
 fi
 
 if [ $h = "y" ]; then
     usage
     exit 0
+fi
+
+if [ $d = "y" ]; then
+    set -o xtrace
 fi
 
 # handle non-option arguments
@@ -135,10 +135,6 @@ if [[ $# -ne 3 ]]; then
     echo "$0: please specify the directory containing the cases, the basecase, and a case prefix"
     usage
     exit 4
-fi
-
-if [ $d = "y" ]; then
-    set -o xtrace
 fi
 
 
@@ -178,15 +174,15 @@ fi
 run_case=$(dirname "$0")/run_one_contg.sh
 if [ $s = "y" ] || ! [ -x "$(type -p parallel)" ]; then
     echo "*** Running sequentially"
-    #set +e    # allow to continue if any case fails
-    set -e
+    set +e    # allow the script to continue if any case fails
     find_cmd | while read -r CONTG_CASE; do
 	echo "   $CONTG_CASE"
 	$run_case "${OPTS[@]}" "$CONTG_CASE"	
     done
-    set +e 
+    set -e 
 else
     echo "*** Running in parallel"
+    # no need to use 'set +e', since parallel does the right thing
     find_cmd | parallel -j 50% --verbose "$run_case" "${OPTS[@]}" {}
 fi
 
