@@ -144,7 +144,7 @@ def calc_global_score(df, W_V, W_P, W_Q, W_T, MAX_THRESH, MEAN_THRESH, P95_THRES
             max_n_pass += 1
 
         score_max.append(max_val)
-        
+
         p95_val = (
             abs(df_all.iloc[i, 13]) * W_P
             + abs((df_all.iloc[i, 14] * 0.5 + df_all.iloc[i, 15] * 0.5)) * W_P
@@ -157,7 +157,7 @@ def calc_global_score(df, W_V, W_P, W_Q, W_T, MAX_THRESH, MEAN_THRESH, P95_THRES
         if p95_val > P95_THRESH:
             p95_n_pass += 1
         score_p95.append(p95_val)
-        
+
         mean_val = (
             abs(df_all.iloc[i, 23]) * W_P
             + abs((df_all.iloc[i, 24] * 0.5 + df_all.iloc[i, 25] * 0.5)) * W_P
@@ -1565,8 +1565,6 @@ def paint_graph(C, data, nodetype, nodemetrictype, edgetype, edgemetrictype):
     return C
 
 
-
-
 # Define the structure of the output
 def show_displays(
     aut_diffs_A,
@@ -1615,11 +1613,20 @@ def show_displays(
     text_score = widgets.Output()
     text_score.append_stdout(
         "Number of cases that have exceeded the max threshold: "
-        + str((max_n_pass/total_n_pass)*100) + "% (" + str(max_n_pass) + ")"
+        + str((max_n_pass / total_n_pass) * 100)
+        + "% ("
+        + str(max_n_pass)
+        + ")"
         + "\nNumber of cases that have exceeded the p95 threshold: "
-        + str((p95_n_pass/total_n_pass)*100) + "% (" + str(p95_n_pass) + ")"
+        + str((p95_n_pass / total_n_pass) * 100)
+        + "% ("
+        + str(p95_n_pass)
+        + ")"
         + "\nNumber of cases that have exceeded the mean threshold: "
-        + str((mean_n_pass/total_n_pass)*100) + "% (" + str(mean_n_pass) + ")"
+        + str((mean_n_pass / total_n_pass) * 100)
+        + "% ("
+        + str(mean_n_pass)
+        + ")"
     )
     containerscore = widgets.HBox(
         [
@@ -1706,11 +1713,53 @@ def run_all(
     # Management the selection of dropdown parameters and on_click options
     def response(change):
         if diff_metric_type.value == "max":
-            df2 = df[["contg_case","volt_level","angle_max","p_max","p1_max","p2_max","q_max","q1_max","q2_max","tap_max","v_max"]]
+            df2 = df[
+                [
+                    "contg_case",
+                    "volt_level",
+                    "angle_max",
+                    "p_max",
+                    "p1_max",
+                    "p2_max",
+                    "q_max",
+                    "q1_max",
+                    "q2_max",
+                    "tap_max",
+                    "v_max",
+                ]
+            ]
         elif diff_metric_type.value == "p95":
-            df2 = df[["contg_case","volt_level","angle_p95","p_p95","p1_p95","p2_p95","q_p95","q1_p95","q2_p95","tap_p95","v_p95"]]
+            df2 = df[
+                [
+                    "contg_case",
+                    "volt_level",
+                    "angle_p95",
+                    "p_p95",
+                    "p1_p95",
+                    "p2_p95",
+                    "q_p95",
+                    "q1_p95",
+                    "q2_p95",
+                    "tap_p95",
+                    "v_p95",
+                ]
+            ]
         elif diff_metric_type.value == "mean":
-            df2 = df[["contg_case","volt_level","angle_mean","p_mean","p1_mean","p2_mean","q_mean","q1_mean","q2_mean","tap_mean","v_mean"]]
+            df2 = df[
+                [
+                    "contg_case",
+                    "volt_level",
+                    "angle_mean",
+                    "p_mean",
+                    "p1_mean",
+                    "p2_mean",
+                    "q_mean",
+                    "q1_mean",
+                    "q2_mean",
+                    "tap_mean",
+                    "v_mean",
+                ]
+            ]
         else:
             df2 = df
 
@@ -2136,13 +2185,34 @@ def run_all(
 
     renderers = {
         "MAX_SCORE": ipydatagrid.TextRenderer(
-            text_color="black", background_color=ipydatagrid.Expr('"red" if '+str(MAX_THRESH + (MAX_THRESH * 0.25))+' < cell.value else "orange" if '+ str(MAX_THRESH) +' < cell.value else "green"')
+            text_color="black",
+            background_color=ipydatagrid.Expr(
+                '"red" if '
+                + str(MAX_THRESH + (MAX_THRESH * 0.25))
+                + ' < cell.value else "orange" if '
+                + str(MAX_THRESH)
+                + ' < cell.value else "green"'
+            ),
         ),
         "P95_SCORE": ipydatagrid.TextRenderer(
-            text_color="black", background_color=ipydatagrid.Expr('"red" if '+str(P95_THRESH + (P95_THRESH * 0.25))+' < cell.value else "orange" if '+ str(P95_THRESH) +' < cell.value else "green"')
+            text_color="black",
+            background_color=ipydatagrid.Expr(
+                '"red" if '
+                + str(P95_THRESH + (P95_THRESH * 0.25))
+                + ' < cell.value else "orange" if '
+                + str(P95_THRESH)
+                + ' < cell.value else "green"'
+            ),
         ),
         "MEAN_SCORE": ipydatagrid.TextRenderer(
-            text_color="black", background_color=ipydatagrid.Expr('"red" if '+str(MEAN_THRESH + (MEAN_THRESH * 0.25))+' < cell.value else "orange" if '+ str(MEAN_THRESH) +' < cell.value else "green"')
+            text_color="black",
+            background_color=ipydatagrid.Expr(
+                '"red" if '
+                + str(MEAN_THRESH + (MEAN_THRESH * 0.25))
+                + ' < cell.value else "orange" if '
+                + str(MEAN_THRESH)
+                + ' < cell.value else "green"'
+            ),
         ),
     }
 
@@ -2219,15 +2289,53 @@ def run_all(
 
     # Matching df
     if diff_metric_type.value == "max":
-        df3 = df[["contg_case", "volt_level", "angle_max", "p_max", "p1_max", "p2_max", "q_max", "q1_max", "q2_max",
-                  "tap_max", "v_max"]]
+        df3 = df[
+            [
+                "contg_case",
+                "volt_level",
+                "angle_max",
+                "p_max",
+                "p1_max",
+                "p2_max",
+                "q_max",
+                "q1_max",
+                "q2_max",
+                "tap_max",
+                "v_max",
+            ]
+        ]
     elif diff_metric_type.value == "p95":
-        df3 = df[["contg_case", "volt_level", "angle_p95", "p_p95", "p1_p95", "p2_p95", "q_p95", "q1_p95", "q2_p95",
-                  "tap_p95", "v_p95"]]
+        df3 = df[
+            [
+                "contg_case",
+                "volt_level",
+                "angle_p95",
+                "p_p95",
+                "p1_p95",
+                "p2_p95",
+                "q_p95",
+                "q1_p95",
+                "q2_p95",
+                "tap_p95",
+                "v_p95",
+            ]
+        ]
     elif diff_metric_type.value == "mean":
         df3 = df[
-            ["contg_case", "volt_level", "angle_mean", "p_mean", "p1_mean", "p2_mean", "q_mean", "q1_mean", "q2_mean",
-             "tap_mean", "v_mean"]]
+            [
+                "contg_case",
+                "volt_level",
+                "angle_mean",
+                "p_mean",
+                "p1_mean",
+                "p2_mean",
+                "q_mean",
+                "q1_mean",
+                "q2_mean",
+                "tap_mean",
+                "v_mean",
+            ]
+        ]
     sdf = ipydatagrid.DataGrid(
         df3,
         base_column_size=int((WIDTH / 1.03) / len(df3.columns)),
