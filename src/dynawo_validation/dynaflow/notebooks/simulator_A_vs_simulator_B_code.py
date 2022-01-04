@@ -1281,6 +1281,12 @@ def create_dropdowns(
         description="Aut. var: ",
     )
 
+    diff_metric_type = widgets.Dropdown(
+        options=["max", "p95", "mean", "ALL"],
+        value="max",
+        description="Metric type: ",
+    )
+
     return (
         def_volt_level,
         varx,
@@ -1299,6 +1305,7 @@ def create_dropdowns(
         aut_diff_var_A,
         aut_diff_var_B,
         aut_diff_var_plot,
+        diff_metric_type,
     )
 
 
@@ -1573,6 +1580,7 @@ def show_displays(
     groups_traceA,
     groups_traceB,
     def_volt_level,
+    diff_metric_type,
     sdf,
     container1,
     g,
@@ -1644,7 +1652,13 @@ def show_displays(
         containergroup = widgets.HBox([groups_traceA])
     display(t_r)
     display(containergroup)
-    display(def_volt_level)
+    container_general = widgets.HBox(
+        [
+            def_volt_level,
+            diff_metric_type,
+        ]
+    )
+    display(container_general)
     display(sdf)
     display(button_case)
     display(container1)
@@ -1691,15 +1705,25 @@ def run_all(
 
     # Management the selection of dropdown parameters and on_click options
     def response(change):
-        # PERF: Plotly starts showing horrible performance with more than 5,000 points
+        if diff_metric_type.value == "max":
+            df2 = df[["contg_case","volt_level","angle_max","p_max","p1_max","p2_max","q_max","q1_max","q2_max","tap_max","v_max"]]
+        elif diff_metric_type.value == "p95":
+            df2 = df[["contg_case","volt_level","angle_p95","p_p95","p1_p95","p2_p95","q_p95","q1_p95","q2_p95","tap_p95","v_p95"]]
+        elif diff_metric_type.value == "mean":
+            df2 = df[["contg_case","volt_level","angle_mean","p_mean","p1_mean","p2_mean","q_mean","q1_mean","q2_mean","tap_mean","v_mean"]]
+        else:
+            df2 = df
+
         if def_volt_level.value == "DEFAULT":
             df1 = df
         else:
             df1 = df.loc[(df.volt_level == def_volt_level.value)]
+
+        # PERF: Plotly starts showing horrible performance with more than 5,000 points
         if df1.shape[0] > DATA_LIMIT:
             df1 = df1.sample(DATA_LIMIT)
         with g.batch_update():
-            sdf.data = df1
+            sdf.data = df2
             g.data[0].x = df1[varx.value]
             g.data[0].y = df1[vary.value]
             g.data[0].name = varx.value + "_" + vary.value
@@ -2052,6 +2076,7 @@ def run_all(
         aut_diff_var_A,
         aut_diff_var_B,
         aut_diff_var_plot,
+        diff_metric_type,
     ) = create_dropdowns(
         df,
         contg_cases,
@@ -2193,9 +2218,19 @@ def run_all(
         )
 
     # Matching df
+    if diff_metric_type.value == "max":
+        df3 = df[["contg_case", "volt_level", "angle_max", "p_max", "p1_max", "p2_max", "q_max", "q1_max", "q2_max",
+                  "tap_max", "v_max"]]
+    elif diff_metric_type.value == "p95":
+        df3 = df[["contg_case", "volt_level", "angle_p95", "p_p95", "p1_p95", "p2_p95", "q_p95", "q1_p95", "q2_p95",
+                  "tap_p95", "v_p95"]]
+    elif diff_metric_type.value == "mean":
+        df3 = df[
+            ["contg_case", "volt_level", "angle_mean", "p_mean", "p1_mean", "p2_mean", "q_mean", "q1_mean", "q2_mean",
+             "tap_mean", "v_mean"]]
     sdf = ipydatagrid.DataGrid(
-        df,
-        base_column_size=int((WIDTH / 1.03) / len(df.columns)),
+        df3,
+        base_column_size=int((WIDTH / 1.03) / len(df3.columns)),
         selection_mode="row",
     )
 
@@ -2317,6 +2352,7 @@ def run_all(
         groups_traceA,
         groups_traceB,
         def_volt_level,
+        diff_metric_type,
         sdf,
         container1,
         g,
@@ -2339,6 +2375,7 @@ def run_all(
 
     # Observe selection events to update graphics
     def_volt_level.observe(response, names="value")
+    diff_metric_type.observe(response, names="value")
     varx.observe(response, names="value")
     vary.observe(response, names="value")
 
