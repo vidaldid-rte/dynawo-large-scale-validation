@@ -1195,7 +1195,7 @@ def create_dropdowns(
     def_volt_level = widgets.Dropdown(
         options=["DEFAULT"] + list(df["volt_level"].unique()),
         value="DEFAULT",
-        description="VOLTAGE LEVEL",
+        description="VOLT LEVEL",
     )
 
     varx = widgets.Dropdown(
@@ -1418,7 +1418,7 @@ def create_tap_trace(df, HEIGHT, WIDTH):
     )
 
     layout_temp = go.Layout(
-        title=dict(text="FINAL COMPARISON OF AUT STATES - A vs B"),
+        title=dict(text="Case: [TODO: show value]"),
         xaxis=dict(
             title="SIM_A",
             range=[min_val, max_val],
@@ -1609,56 +1609,107 @@ def show_displays(
     """
         )
     )
-    display(Markdown("# CONTINGENCIES SCORE"))
-    text_score = widgets.Output()
-    text_score.append_stdout(
-        "Number of cases that have exceeded the max threshold: "
-        + str((max_n_pass / total_n_pass) * 100)
-        + "% ("
-        + str(max_n_pass)
-        + ")"
-        + "\nNumber of cases that have exceeded the p95 threshold: "
-        + str((p95_n_pass / total_n_pass) * 100)
-        + "% ("
-        + str(p95_n_pass)
-        + ")"
-        + "\nNumber of cases that have exceeded the mean threshold: "
-        + str((mean_n_pass / total_n_pass) * 100)
-        + "% ("
-        + str(mean_n_pass)
-        + ")"
-    )
-    containerscore = widgets.HBox(
-        [
-            grid_score,
-            text_score,
-        ]
-    )
-    display(containerscore)
-    aut_diffs = AppLayout(
-        left_sidebar=aut_diffs_A, right_sidebar=aut_diffs_B, align_items="center"
-    )
+
     display(
-        Markdown("# GLOBAL AGGREGATE EVENTS W.R.T. BASECASE (CONTINGENCIES SEVERITY)")
+        Markdown(
+            "# RESULTS SUMMARY\n"
+            "  * Number of cases that exceed the MAX threshold: "
+            f"{max_n_pass/total_n_pass:.1%} ({max_n_pass} of {total_n_pass})\n"
+            "  * Number of cases that exceed the P95 threshold: "
+            f"{p95_n_pass/total_n_pass:.1%} ({p95_n_pass} of {total_n_pass})\n"
+            f"  * Number of cases that exceed the MEAN threshold: "
+            f"{mean_n_pass/total_n_pass:.1%} ({mean_n_pass} of {total_n_pass})\n"
+        )
+    )
+
+    display(Markdown("# GLOBAL RANKING OF CONTINGENCY CASES"))
+    display(
+        Markdown(
+            "Contingency cases ranked by **compound score**, which consists in a"
+            " weighted sum of the norms of the differences in several classes of"
+            " variables, between the A and B power flow solutions.  \nSchematically:\n"
+            " > SCORE = W_v * (norm of voltage diffs)"
+            " + W_p * (norm of real power diffs)"
+            " + W_q * (norm of reactive power diffs)"
+            " + W_t * (norm of tap position diffs)\n\n"
+            "The score comes in three flavors, depending on the kind of norm used:\n"
+            "  * **MAX_SCORE**: the maximum of the diffs (a.k.a. L-infinity norm)\n"
+            "  * **P95_SCORE**: the 95% percentile of the diffs\n"
+            "  * **MEAN_SCORE**: average of the diffs (a.k.a. L-1 norm, divided by N)\n"
+        )
+    )
+    display(grid_score)
+
+    display(Markdown("# TAPS AND CONNECTION/DISCONNECTION EVENTS"))
+    display(
+        Markdown(
+            "## Aggregate tap changes and events, compared to the base case\n"
+            "For each contingency case, the table shows the total aggregated"
+            "values of:\n"
+            "  * NUM_CHANGES: total number of elements that have changed\n"
+            "  * ABS_DIFF: total sum of the value differences, in absolute value\n"
+            "  * POS_DIFF, NEG_DIFF: total sum of positive (resp. negative) diffs\n\n"
+            "Simulator A on the left, Simulator B on the right."
+        )
     )
     display(container_aut_gen)
-    display(aut_diffs)
-    display(button_aut)
-    aut_diffs_contgcase = AppLayout(
-        left_sidebar=aut_diff_dfA_contgcase_grid,
-        right_sidebar=aut_diff_dfB_contgcase_grid,
-        align_items="center",
+    display(
+        AppLayout(
+            left_sidebar=aut_diffs_A, right_sidebar=aut_diffs_B, align_items="center"
+        )
     )
-    display(Markdown("# EVENT DETAILS"))
+    display(button_aut)
+
+    display(
+        Markdown(
+            "## Details of tap changes and other events (for a contingency case)\n"
+            "Select a specific contingency case in the combo box below, and"
+            " a variable class, and the grids below will show several measures of"
+            " the differences **with respect to the base case** "
+            "(Simulator A on the left, Simulator B on the right).  \n"
+            "Variable groups:\n"
+            "  * branch_bus1, branch_bus2, branch_topo: branch disconnections on"
+            "    the From, the To, or both ends, respectively\n"
+            "  * ratioTapChanger, phaseTapChanger: changes in tap position\n"
+            "  * shunt: connections and disconnections\n\n"
+            "Table fields:\n"
+            "  * BC_VAL: base case value\n"
+            "  * CG_VAL: contingency case value\n"
+            "  * DIFF, ABS_DIFF: difference and absolute value of difference, resp.\n"
+            "  * HAS_CHANG: whether there has been a change (1) or not (0)\n"
+            "  * POS_DIFF, NEG_DIFF: possitive and negative diff values, resp."
+            " (REDUNDANT, TO BE REMOVED)\n"
+        )
+    )
     display(container_aut)
-    display(aut_diffs_contgcase)
+    display(
+        AppLayout(
+            left_sidebar=aut_diff_dfA_contgcase_grid,
+            right_sidebar=aut_diff_dfB_contgcase_grid,
+            align_items="center",
+        )
+    )
+
+    display(Markdown("## Tap values -- A vs B"))
     display(container_aut_trace)
+    display(t_r)
+
+    display(
+        Markdown(
+            "## Timeline of events: clustering analysis\n"
+            "Events appearing in the Dynawo timeline are analyzed and grouped "
+            "based on their mutual 'distance', where the distance is a combination "
+            "of distance in time and in space (min impedance path)."
+        )
+    )
     if groups_traceB is not None:
         containergroup = widgets.HBox([groups_traceA, groups_traceB])
     else:
         containergroup = widgets.HBox([groups_traceA])
-    display(t_r)
     display(containergroup)
+
+    display(Markdown("# ANALYSIS OF DIFFERENCES BETWEEN A AND B"))
+    display(Markdown("## PF solution diff metrics"))
     container_general = widgets.HBox(
         [
             def_volt_level,
@@ -1668,12 +1719,20 @@ def show_displays(
     display(container_general)
     display(sdf)
     display(button_case)
+
+    display(Markdown("## Configurable X-Y plot of PF solution diff metrics"))
     display(container1)
     display(g)
+
+    display(Markdown("## Configurable X-Y plot for all values of a given case"))
     display(container2)
     display(container0)
+
+    display(Markdown("## All values of a given case (choose above)"))
     display(s)
     display(button_download_data)
+
+    display(Markdown("## Local topology (network graph around a chosen bus)"))
     display(container3)
     html_graph = display(C.show("subgraph.html"), display_id=True)
     print("Node Legend - Edge Legend")
