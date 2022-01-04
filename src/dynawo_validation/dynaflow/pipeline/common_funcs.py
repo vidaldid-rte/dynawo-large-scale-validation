@@ -40,23 +40,24 @@ def check_inputfiles(input_case, dwo_paths, verbose=False):
 
 
 def copy_astdwo_basecase(base_case, dwo_paths, dest_case):
-    # If the destination exists, remove it
+    """Make the subdirs for the Astre and Dynawo cases; then copy all non-changed
+    files using symbolic links
+    """
+    # If the destination exists, first remove it
     if os.path.exists(dest_case):
         remove_case(dest_case)
-    # Make the subdirs for Astre and for the Dynawo job; and copy any non-changed
-    # files (Dynawo's JOB file and the IIDM) using hard links
+    # For Dynawo, obtain most paths from the info in the JOB file
     iidm_dir = os.path.dirname(dwo_paths.iidmFile)
-    dyd_dir = os.path.dirname(dwo_paths.dydFile)  # all these are usually the same
-    par_dir = os.path.dirname(dwo_paths.parFile)  # but we allow themm to be different
+    dyd_dir = os.path.dirname(dwo_paths.dydFile)  # all these are usually the same,
+    par_dir = os.path.dirname(dwo_paths.parFile)  # but we allow themm to be different,
     crv_dir = os.path.dirname(dwo_paths.curves_inputFile)  # just in case
+    # Compose and execute the shell commands
+    full_command = f"mkdir -p '{dest_case}/Astre' '{dest_case}/{iidm_dir}'"
+    f" '{dest_case}/{dyd_dir}' '{dest_case}/{par_dir}' '{dest_case}/{crv_dir}'"
+    f" && ln -s '{dwo_paths.job_file}' '{dest_case}'"
+    f" && ln -s '{base_case}/{dwo_paths.iidmFile}' '{dest_case}/{iidm_dir}'"
     try:
-        retcode = subprocess.call(
-            f"mkdir -p '{dest_case}/Astre' '{dest_case}/{iidm_dir}'"
-            f" '{dest_case}/{dyd_dir}' '{dest_case}/{par_dir}' '{dest_case}/{crv_dir}'"
-            f" && cp -l '{dwo_paths.job_file}' '{dest_case}'"
-            f" && cp -l '{base_case}/{dwo_paths.iidmFile}' '{dest_case}/{iidm_dir}'",
-            shell=True,
-        )
+        retcode = subprocess.call(full_command, shell=True)
         if retcode < 0:
             raise ValueError("Copy operation was terminated by signal: %d" % -retcode)
         elif retcode > 0:
@@ -67,42 +68,46 @@ def copy_astdwo_basecase(base_case, dwo_paths, dest_case):
 
 
 def copy_dwohds_basecase(base_case, dwo_paths, dest_case):
-    # If the destination exists, remove it
+    """Make the subdirs for the Hades and Dynawo cases; then copy all non-changed
+    files using symbolic links
+
+    """
+    # If the destination exists, first remove it
     if os.path.exists(dest_case):
         remove_case(dest_case)
-    # Make the subdirs for Hades and for the Dynawo job; and copy all non-changed
-    # files (Dynawo's JOB, IIDM, Diagrams, solver/network par files) using hard links
+    # For Dynawo, obtain most paths from the info in the JOB file
     spar_dir = os.path.dirname(dwo_paths.solver_parFile)
     npar_dir = os.path.dirname(dwo_paths.network_parFile)
-    iidm_dir = os.path.dirname(dwo_paths.iidmFile)
-    dyd_dir = os.path.dirname(dwo_paths.dydFile)  # all these are usually the same
-    dyd_dir_contg = os.path.dirname(
-        dwo_paths.dydFile_contg
-    )  # all these are usually the same
-    par_dir_contg = os.path.dirname(
-        dwo_paths.parFile_contg
-    )  # all these are usually the same
-    par_dir = os.path.dirname(dwo_paths.parFile)  # but we allow themm to be different
-    crv_dir = os.path.dirname(dwo_paths.curves_inputFile)  # just in case
-    diag_dir = glob.glob(f"{base_case}/*_Diagram")
-    if len(diag_dir) != 0:
-        copy_diags_command = f" && cp -al '{diag_dir[0]}' '{dest_case}'"
+    par_dir = os.path.dirname(dwo_paths.parFile)
+    crv_dir = os.path.dirname(dwo_paths.curves_inputFile)
+    contg_dyd_dir = os.path.dirname(dwo_paths.dydFile_contg)
+    contg_par_dir = os.path.dirname(dwo_paths.parFile_contg)
+    # If base_case path is not absolute, symbolic links need this relative prefix
+    if base_case[0] != "/":
+        p = "../"
     else:
-        copy_diags_command = ""
+        p = ""
+    # Special hard-coded path: the Diagrams directory
+    diagr_dir = glob.glob(f"{base_case}/*_Diagram")
+    if len(diagr_dir) != 0:
+        copy_diagr_command = f" && ln -s '{p}{diagr_dir[0]}' '{dest_case}'"
+    else:
+        copy_diagr_command = ""
+    # Compose and execute the shell commands
+    bc = base_case
+    full_command = (
+        f"mkdir -p '{dest_case}/Hades' '{dest_case}/{spar_dir}'"
+        f" '{dest_case}/{npar_dir}' '{dest_case}/{par_dir}' '{dest_case}/{crv_dir}'"
+        f" && ln -s '{p}{dwo_paths.job_file}' '{dest_case}'"
+        f" && ln -s '{p}{bc}/{dwo_paths.solver_parFile}' '{dest_case}/{spar_dir}'"
+        f" && ln -s '{p}{bc}/{dwo_paths.network_parFile}' '{dest_case}/{npar_dir}'"
+        f" && ln -s '{p}{bc}/{dwo_paths.parFile}' '{dest_case}/{par_dir}'"
+        f" && cp '{bc}/{dwo_paths.dydFile_contg}' '{dest_case}/{contg_dyd_dir}'"
+        f" && cp '{bc}/{dwo_paths.parFile_contg}' '{dest_case}/{contg_par_dir}'"
+        + copy_diagr_command
+    )
     try:
-        retcode = subprocess.call(
-            f"mkdir -p '{dest_case}/Hades' '{dest_case}/{spar_dir}'"
-            f" '{dest_case}/{npar_dir}' '{dest_case}/{par_dir}'"
-            f" '{dest_case}/{crv_dir}'"
-            f" && cp -l '{dwo_paths.job_file}' '{dest_case}'"
-            f" && cp -l '{base_case}/{dwo_paths.solver_parFile}' '{dest_case}/{spar_dir}'"
-            f" && cp -l '{base_case}/{dwo_paths.network_parFile}' '{dest_case}/{npar_dir}'"
-            f" && cp -l '{base_case}/{dwo_paths.parFile}' '{dest_case}/{par_dir}'"
-            f" && cp '{base_case}/{dwo_paths.dydFile_contg}' '{dest_case}/{dyd_dir_contg}'"
-            f" && cp '{base_case}/{dwo_paths.parFile_contg}' '{dest_case}/{par_dir_contg}'"
-            + copy_diags_command,
-            shell=True,
-        )
+        retcode = subprocess.call(full_command, shell=True)
         if retcode < 0:
             raise ValueError("Copy operation was terminated by signal: %d" % -retcode)
         elif retcode > 0:
@@ -113,67 +118,67 @@ def copy_dwohds_basecase(base_case, dwo_paths, dest_case):
 
 
 def copy_dwodwo_basecase(base_case, dwo_pathsA, dwo_pathsB, dest_case):
-    # If the destination exists, remove it
+    """Make the subdirs for the Hades and Dynawo cases; then copy all non-changed
+    files using symbolic links
+
+    """
+    # If the destination exists, first remove it
     if os.path.exists(dest_case):
         remove_case(dest_case)
-    # Make the subdirs for Dynawo cases A & B; and copy any non-changed
-    # files (Dynawo's JOB file and the IIDM) using hard links
+    # For Dynawo A, obtain most paths from the info in the JOB file
     spar_dirA = os.path.dirname(dwo_pathsA.solver_parFile)
     npar_dirA = os.path.dirname(dwo_pathsA.network_parFile)
-    iidm_dirA = os.path.dirname(dwo_pathsA.iidmFile)
-    dyd_dirA = os.path.dirname(dwo_pathsA.dydFile)  # all these are usually the same
-    par_dirA = os.path.dirname(dwo_pathsA.parFile)  # but we allow themm to be different
-    crv_dirA = os.path.dirname(dwo_pathsA.curves_inputFile)  # just in case
-    diag_dirA = glob.glob(f"{base_case}/A/*_Diagram")
+    par_dirA = os.path.dirname(dwo_pathsA.parFile)
+    crv_dirA = os.path.dirname(dwo_pathsA.curves_inputFile)
+    contg_dyd_dirA = os.path.dirname(dwo_pathsA.dydFile_contg)
+    contg_par_dirA = os.path.dirname(dwo_pathsA.parFile_contg)
+    # For Dynawo B, obtain most paths from the info in the JOB file
     spar_dirB = os.path.dirname(dwo_pathsB.solver_parFile)
     npar_dirB = os.path.dirname(dwo_pathsB.network_parFile)
-    iidm_dirB = os.path.dirname(dwo_pathsB.iidmFile)
-    dyd_dirB = os.path.dirname(dwo_pathsB.dydFile)  # all these are usually the same
-    par_dirB = os.path.dirname(dwo_pathsB.parFile)  # but we allow themm to be different
-    crv_dirB = os.path.dirname(dwo_pathsB.curves_inputFile)  # just in case
-    diag_dirB = glob.glob(f"{base_case}/B/*_Diagram")
-    dyd_dir_contgA = os.path.dirname(
-        dwo_pathsA.dydFile_contg
-    )  # all these are usually the same
-    par_dir_contgA = os.path.dirname(
-        dwo_pathsA.parFile_contg
-    )  # all these are usually the same
-    dyd_dir_contgB = os.path.dirname(
-        dwo_pathsB.dydFile_contg
-    )  # all these are usually the same
-    par_dir_contgB = os.path.dirname(
-        dwo_pathsB.parFile_contg
-    )  # all these are usually the same
-    if len(diag_dirA) != 0:
-        copy_diags_commandA = f" && cp -al '{diag_dirA[0]}' '{dest_case}/A'"
+    par_dirB = os.path.dirname(dwo_pathsB.parFile)
+    crv_dirB = os.path.dirname(dwo_pathsB.curves_inputFile)
+    contg_dyd_dirB = os.path.dirname(dwo_pathsB.dydFile_contg)
+    contg_par_dirB = os.path.dirname(dwo_pathsB.parFile_contg)
+    # If base_case path is not absolute, symbolic links need this relative prefix
+    if base_case[0] != "/":
+        p = "../"
     else:
-        copy_diags_commandA = ""
-    if len(diag_dirB) != 0:
-        copy_diags_commandB = f" && cp -al '{diag_dirB[0]}' '{dest_case}/B'"
+        p = ""
+    # Special hard-coded path: the Diagrams directory
+    diagr_dirA = glob.glob(f"{base_case}/A/*_Diagram")
+    diagr_dirB = glob.glob(f"{base_case}/B/*_Diagram")
+    if len(diagr_dirA) != 0:
+        copy_diagr_commandA = f" && ln -s '{p}{diagr_dirA[0]}' '{dest_case}/A'"
     else:
-        copy_diags_commandB = ""
+        copy_diagr_commandA = ""
+    if len(diagr_dirB) != 0:
+        copy_diagr_commandB = f" && ln -s '{p}{diagr_dirB[0]}' '{dest_case}/B'"
+    else:
+        copy_diagr_commandB = ""
+    # Compose and execute the shell commands
+    bc = base_case
+    full_command = (
+        f"mkdir -p '{dest_case}/{par_dirA}' '{dest_case}/{par_dirB}'"
+        f" '{dest_case}/{crv_dirA}' '{dest_case}/{crv_dirB}'"
+        f" '{dest_case}/{spar_dirA}' '{dest_case}/{spar_dirB}'"
+        f" '{dest_case}/{npar_dirA}' '{dest_case}/{npar_dirB}'"
+        f" && ln -s '{p}{dwo_pathsA.job_file}' '{dest_case}'"
+        f" && ln -s '{p}{dwo_pathsB.job_file}' '{dest_case}'"
+        f" && ln -s '{p}{bc}/{dwo_pathsA.parFile}' '{dest_case}/{par_dirA}'"
+        f" && ln -s '{p}{bc}/{dwo_pathsB.parFile}' '{dest_case}/{par_dirB}'"
+        f" && ln -s '{p}{bc}/{dwo_pathsA.solver_parFile}' '{dest_case}/{spar_dirA}'"
+        f" && ln -s '{p}{bc}/{dwo_pathsB.solver_parFile}' '{dest_case}/{spar_dirB}'"
+        f" && ln -s '{p}{bc}/{dwo_pathsA.network_parFile}' '{dest_case}/{npar_dirA}'"
+        f" && ln -s '{p}{bc}/{dwo_pathsB.network_parFile}' '{dest_case}/{npar_dirB}'"
+        f" && cp '{bc}/{dwo_pathsA.dydFile_contg}' '{dest_case}/{contg_dyd_dirA}'"
+        f" && cp '{bc}/{dwo_pathsA.parFile_contg}' '{dest_case}/{contg_par_dirA}'"
+        f" && cp '{bc}/{dwo_pathsB.dydFile_contg}' '{dest_case}/{contg_dyd_dirB}'"
+        f" && cp '{bc}/{dwo_pathsB.parFile_contg}' '{dest_case}/{contg_par_dirB}'"
+        + copy_diagr_commandA
+        + copy_diagr_commandB
+    )
     try:
-        retcode = subprocess.call(
-            f"mkdir -p '{dest_case}/{par_dirA}' '{dest_case}/{par_dirB}'"
-            f" '{dest_case}/{crv_dirA}' '{dest_case}/{crv_dirB}'"
-            f" '{dest_case}/{spar_dirA}' '{dest_case}/{spar_dirB}'"
-            f" '{dest_case}/{npar_dirA}' '{dest_case}/{npar_dirB}'"
-            f" && cp -l '{dwo_pathsA.job_file}' '{dest_case}'"
-            f" && cp -l '{dwo_pathsB.job_file}' '{dest_case}'"
-            f" && cp -l '{base_case}/{dwo_pathsA.parFile}' '{dest_case}/{par_dirA}'"
-            f" && cp -l '{base_case}/{dwo_pathsB.parFile}' '{dest_case}/{par_dirB}'"
-            f" && cp -l '{base_case}/{dwo_pathsA.solver_parFile}' '{dest_case}/{spar_dirA}'"
-            f" && cp -l '{base_case}/{dwo_pathsB.solver_parFile}' '{dest_case}/{spar_dirB}'"
-            f" && cp -l '{base_case}/{dwo_pathsA.network_parFile}' '{dest_case}/{npar_dirA}'"
-            f" && cp -l '{base_case}/{dwo_pathsB.network_parFile}' '{dest_case}/{npar_dirB}'"
-            f" && cp '{base_case}/{dwo_pathsA.dydFile_contg}' '{dest_case}/{dyd_dir_contgA}'"
-            f" && cp '{base_case}/{dwo_pathsA.parFile_contg}' '{dest_case}/{par_dir_contgA}'"
-            f" && cp '{base_case}/{dwo_pathsB.dydFile_contg}' '{dest_case}/{dyd_dir_contgB}'"
-            f" && cp '{base_case}/{dwo_pathsB.parFile_contg}' '{dest_case}/{par_dir_contgB}'"
-            + copy_diags_commandA
-            + copy_diags_commandB,
-            shell=True,
-        )
+        retcode = subprocess.call(full_command, shell=True)
         if retcode < 0:
             raise ValueError("Copy operation was terminated by signal: %d" % -retcode)
         elif retcode > 0:
@@ -210,32 +215,6 @@ def remove_case(dest_case):
             raise ValueError("rm of bad case returned error code: %d" % retcode)
     except OSError as e:
         print("call to rm failed: ", e, file=sys.stderr)
-        raise
-
-
-def dedup_save(basename, edited_case, deduped_case):
-    # If the destination exists, warn and rename it to OLD
-    if os.path.exists(deduped_case):
-        print(
-            "   WARNING: destination %s exists! -- renaming it to *__OLD__"
-            % deduped_case
-        )
-        os.rename(deduped_case, deduped_case + "__OLD__")
-
-    # Save it using "deduplication" (actually, hard links)
-    dedup_cmd = "rsync -a --delete --link-dest='../%s' '%s/' '%s'" % (
-        basename,
-        edited_case,
-        deduped_case,
-    )
-    try:
-        retcode = subprocess.call(dedup_cmd, shell=True)
-        if retcode < 0:
-            raise ValueError("Copy operation was terminated by signal: %d" % -retcode)
-        elif retcode > 0:
-            raise ValueError("Copy operation returned error code: %d" % retcode)
-    except OSError as e:
-        print("Copy operation failed: ", e, file=sys.stderr)
         raise
 
 
