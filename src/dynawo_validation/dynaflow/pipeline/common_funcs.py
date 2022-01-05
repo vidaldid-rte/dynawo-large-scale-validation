@@ -83,6 +83,7 @@ def copy_dwohds_basecase(base_case, dwo_paths, dest_case):
     contg_dyd_dir = os.path.dirname(dwo_paths.dydFile_contg)
     contg_par_dir = os.path.dirname(dwo_paths.parFile_contg)
     # If base_case path is not absolute, symbolic links need this relative prefix
+    # This assumes that if it's not absolute, base_case & dest_case are at same level
     if base_case[0] != "/":
         p = "../"
     else:
@@ -140,6 +141,7 @@ def copy_dwodwo_basecase(base_case, dwo_pathsA, dwo_pathsB, dest_case):
     contg_dyd_dirB = os.path.dirname(dwo_pathsB.dydFile_contg)
     contg_par_dirB = os.path.dirname(dwo_pathsB.parFile_contg)
     # If base_case path is not absolute, symbolic links need this relative prefix
+    # This assumes that if it's not absolute, base_case & dest_case are at same level
     if base_case[0] != "/":
         p = "../"
     else:
@@ -148,11 +150,11 @@ def copy_dwodwo_basecase(base_case, dwo_pathsA, dwo_pathsB, dest_case):
     diagr_dirA = glob.glob(f"{base_case}/A/*_Diagram")
     diagr_dirB = glob.glob(f"{base_case}/B/*_Diagram")
     if len(diagr_dirA) != 0:
-        copy_diagr_commandA = f" && ln -s '{p}{diagr_dirA[0]}' '{dest_case}/A'"
+        copy_diagr_commandA = f" && ln -s '{p}{p}{diagr_dirA[0]}' '{dest_case}/A'"
     else:
         copy_diagr_commandA = ""
     if len(diagr_dirB) != 0:
-        copy_diagr_commandB = f" && ln -s '{p}{diagr_dirB[0]}' '{dest_case}/B'"
+        copy_diagr_commandB = f" && ln -s '{p}{p}{diagr_dirB[0]}' '{dest_case}/B'"
     else:
         copy_diagr_commandB = ""
     # Compose and execute the shell commands
@@ -164,12 +166,12 @@ def copy_dwodwo_basecase(base_case, dwo_pathsA, dwo_pathsB, dest_case):
         f" '{dest_case}/{npar_dirA}' '{dest_case}/{npar_dirB}'"
         f" && ln -s '{p}{dwo_pathsA.job_file}' '{dest_case}'"
         f" && ln -s '{p}{dwo_pathsB.job_file}' '{dest_case}'"
-        f" && ln -s '{p}{bc}/{dwo_pathsA.parFile}' '{dest_case}/{par_dirA}'"
-        f" && ln -s '{p}{bc}/{dwo_pathsB.parFile}' '{dest_case}/{par_dirB}'"
-        f" && ln -s '{p}{bc}/{dwo_pathsA.solver_parFile}' '{dest_case}/{spar_dirA}'"
-        f" && ln -s '{p}{bc}/{dwo_pathsB.solver_parFile}' '{dest_case}/{spar_dirB}'"
-        f" && ln -s '{p}{bc}/{dwo_pathsA.network_parFile}' '{dest_case}/{npar_dirA}'"
-        f" && ln -s '{p}{bc}/{dwo_pathsB.network_parFile}' '{dest_case}/{npar_dirB}'"
+        f" && ln -s '{p}{p}{bc}/{dwo_pathsA.parFile}' '{dest_case}/{par_dirA}'"
+        f" && ln -s '{p}{p}{bc}/{dwo_pathsB.parFile}' '{dest_case}/{par_dirB}'"
+        f" && ln -s '{p}{p}{bc}/{dwo_pathsA.solver_parFile}' '{dest_case}/{spar_dirA}'"
+        f" && ln -s '{p}{p}{bc}/{dwo_pathsB.solver_parFile}' '{dest_case}/{spar_dirB}'"
+        f" && ln -s '{p}{p}{bc}/{dwo_pathsA.network_parFile}' '{dest_case}/{npar_dirA}'"
+        f" && ln -s '{p}{p}{bc}/{dwo_pathsB.network_parFile}' '{dest_case}/{npar_dirB}'"
         f" && cp '{bc}/{dwo_pathsA.dydFile_contg}' '{dest_case}/{contg_dyd_dirA}'"
         f" && cp '{bc}/{dwo_pathsA.parFile_contg}' '{dest_case}/{contg_par_dirA}'"
         f" && cp '{bc}/{dwo_pathsB.dydFile_contg}' '{dest_case}/{contg_dyd_dirB}'"
