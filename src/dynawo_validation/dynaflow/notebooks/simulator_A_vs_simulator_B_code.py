@@ -1269,11 +1269,11 @@ def create_dropdowns(
     b_var = list(set(b_var))
 
     aut_diff_var_A = widgets.Dropdown(
-        options=sorted(a_var), value=a_var[0], description="Aut. var A: "
+        options=sorted(a_var), value="ratioTapChanger", description="Aut. var A: "
     )
 
     aut_diff_var_B = widgets.Dropdown(
-        options=sorted(b_var), value=b_var[0], description="Aut. var B: "
+        options=sorted(b_var), value="ratioTapChanger", description="Aut. var B: "
     )
 
     aut_diff_var_plot = widgets.Dropdown(
@@ -1359,25 +1359,25 @@ def create_containers(
 def create_check_box():
     check1a = widgets.Checkbox(
         value=True,
-        description="Only cntgs with changes in sim A",
+        description="Only cntgs with changes in Sim A",
         disabled=False,
         indent=False,
     )
     check1b = widgets.Checkbox(
         value=True,
-        description="Only cntgs with changes in sim B",
+        description="Only cntgs with changes in Sim B",
         disabled=False,
         indent=False,
     )
     check2a = widgets.Checkbox(
-        value=False,
-        description="Only devices with changes in sim A",
+        value=True,
+        description="Only devices with changes in Sim A",
         disabled=False,
         indent=False,
     )
     check2b = widgets.Checkbox(
-        value=False,
-        description="Only devices with changes in sim B",
+        value=True,
+        description="Only devices with changes in Sim B",
         disabled=False,
         indent=False,
     )
@@ -1649,20 +1649,18 @@ def show_displays(
     #######################################################################
     display(Markdown("# TAPS AND CONNECTION/DISCONNECTION EVENTS"))
 
-    display(Markdown("## Tap values -- A vs B"))
-    display(widgets.HBox([t_r, container_aut_trace]))
-
     display(
         Markdown(
-            "## Aggregate tap changes and events, compared to the base case\n"
+            "## Aggregate tap changes and events per contingency case,"
+            " compared to the base case\n"
             "For each contingency case, the table shows the total aggregated"
             " values of:\n"
             "  * NUM_CHANGES: total number of elements that have changed\n"
             "  * ABS_DIFF: total sum of the value differences, in absolute value\n"
             "  * POS_DIFF, NEG_DIFF: total sum of positive (resp. negative) diffs\n\n"
-            "This provides a rough ranking of **contingencies by severity**, since"
-            " the comparisons are done w.r.t. the base case.  \n"
-            "Simulator A on the left, Simulator B on the right."
+            "Note that the comparisons are done **w.r.t. the base case**."
+            " So this provides a rough ranking of **contingencies by severity**."
+            " Simulator A is on the left, Simulator B on the right.\n"
         )
     )
     display(widgets.HBox([container_aut_gen, button_aut]))
@@ -1671,6 +1669,9 @@ def show_displays(
             left_sidebar=aut_diffs_A, right_sidebar=aut_diffs_B, align_items="center"
         )
     )
+
+    display(Markdown("## Tap values -- A vs. B (for a given contingency case)"))
+    display(widgets.HBox([t_r, container_aut_trace]))
 
     display(
         Markdown(
