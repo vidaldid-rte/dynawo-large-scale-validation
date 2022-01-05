@@ -1199,34 +1199,35 @@ def create_dropdowns(
     )
 
     varx = widgets.Dropdown(
-        options=df.columns[1:], value=df.columns[1], description="X: "
+        options=df.columns[1:], value="volt_level", description="X: "
     )
 
-    vary = widgets.Dropdown(
-        options=df.columns[1:], value=df.columns[2], description="Y: "
-    )
+    vary = widgets.Dropdown(options=df.columns[1:], value="v_p95", description="Y: ")
 
     dev = widgets.Dropdown(
         options=sorted(contg_cases), value=contg_case0, description="Contg. case: "
     )
 
+    reduced_vars_case = list(vars_case)
+    reduced_vars_case.remove("ELEMENT_TYPE")
+    reduced_vars_case.remove("VAR")
     dropdown1 = widgets.Dropdown(
-        options=vars_case, value=vars_case[3], description="X: "
+        options=reduced_vars_case, value="VALUE_A", description="X: "
     )
 
     dropdown2 = widgets.Dropdown(
-        options=vars_case, value=vars_case[4], description="Y: "
+        options=reduced_vars_case, value="ABS_ERR", description="Y: "
     )
 
     dropdown3 = widgets.Dropdown(
         options=["ALL"] + list(set(data_first_case["ELEMENT_TYPE"])),
         value="ALL",
-        description="Element Type: ",
+        description="Elem. type: ",
     )
 
     dropdown4 = widgets.Dropdown(
-        options=["ALL"] + list(set(data_first_case["VAR"])),
-        value="ALL",
+        options=list(set(data_first_case["VAR"])),
+        value="v",
         description="Var: ",
     )
 
@@ -1334,7 +1335,7 @@ def create_containers(
 ):
     container1 = widgets.HBox([varx, vary])
 
-    container2 = widgets.HBox([dev, dropdown1, dropdown2, dropdown3, dropdown4])
+    container2 = widgets.HBox([dev, dropdown3, dropdown4, dropdown1, dropdown2])
 
     container3 = widgets.HBox(
         [graph, nodetype, nodemetrictype, edgetype, edgemetrictype]
@@ -1622,6 +1623,9 @@ def show_displays(
         )
     )
 
+    #######################################################################
+    # Part I: Global ranking
+    #######################################################################
     display(Markdown("# GLOBAL RANKING OF CONTINGENCY CASES"))
     display(
         Markdown(
@@ -1640,25 +1644,33 @@ def show_displays(
     )
     display(grid_score)
 
+    #######################################################################
+    # Part II: Discrete events
+    #######################################################################
     display(Markdown("# TAPS AND CONNECTION/DISCONNECTION EVENTS"))
+
+    display(Markdown("## Tap values -- A vs B"))
+    display(widgets.HBox([t_r, container_aut_trace]))
+
     display(
         Markdown(
             "## Aggregate tap changes and events, compared to the base case\n"
             "For each contingency case, the table shows the total aggregated"
-            "values of:\n"
+            " values of:\n"
             "  * NUM_CHANGES: total number of elements that have changed\n"
             "  * ABS_DIFF: total sum of the value differences, in absolute value\n"
             "  * POS_DIFF, NEG_DIFF: total sum of positive (resp. negative) diffs\n\n"
+            "This provides a rough ranking of **contingencies by severity**, since"
+            " the comparisons are done w.r.t. the base case.  \n"
             "Simulator A on the left, Simulator B on the right."
         )
     )
-    display(container_aut_gen)
+    display(widgets.HBox([container_aut_gen, button_aut]))
     display(
         AppLayout(
             left_sidebar=aut_diffs_A, right_sidebar=aut_diffs_B, align_items="center"
         )
     )
-    display(button_aut)
 
     display(
         Markdown(
@@ -1690,10 +1702,6 @@ def show_displays(
         )
     )
 
-    display(Markdown("## Tap values -- A vs B"))
-    display(container_aut_trace)
-    display(t_r)
-
     display(
         Markdown(
             "## Timeline of events: clustering analysis\n"
@@ -1708,26 +1716,21 @@ def show_displays(
         containergroup = widgets.HBox([groups_traceA])
     display(containergroup)
 
+    #######################################################################
+    # Part III: Detailed metrics
+    #######################################################################
     display(Markdown("# ANALYSIS OF DIFFERENCES BETWEEN A AND B"))
-    display(Markdown("## PF solution diff metrics"))
-    container_general = widgets.HBox(
-        [
-            def_volt_level,
-            diff_metric_type,
-        ]
-    )
-    display(container_general)
-    display(sdf)
-    display(button_case)
 
     display(Markdown("## Configurable X-Y plot of PF solution diff metrics"))
-    display(container1)
+    display(widgets.HBox([def_volt_level, container1]))
     display(g)
+    display(Markdown("## PF solution diff metrics"))
+    display(widgets.HBox([diff_metric_type, button_case]))
+    display(sdf)
 
     display(Markdown("## Configurable X-Y plot for all values of a given case"))
     display(container2)
     display(container0)
-
     display(Markdown("## All values of a given case (choose above)"))
     display(s)
     display(button_download_data)
@@ -1738,8 +1741,8 @@ def show_displays(
     print("Node Legend - Edge Legend")
     display(container4)
     print(
-        "If a node/edge is white it means that the selected metric is not available",
-        "for that node/edge.",
+        "If a node/edge is white, it means that the selected metric is not available"
+        " for that node/edge."
     )
     return html_graph
 
@@ -2493,10 +2496,16 @@ def run_all(
 
     container4 = widgets.HBox([legend1widget, legend2widget])
 
-    button_descriptions_aut = {False: "Apply Selection", True: "Apply Selection"}
+    button_descriptions_aut = {
+        False: "Apply selection below",
+        True: "Apply selection below",
+    }
     button_aut = widgets.ToggleButton(False, description=button_descriptions_aut[False])
 
-    button_descriptions_case = {False: "Apply Selection", True: "Apply Selection"}
+    button_descriptions_case = {
+        False: "Apply selection below",
+        True: "Apply Selection below",
+    }
     button_case = widgets.ToggleButton(
         False, description=button_descriptions_case[False]
     )
