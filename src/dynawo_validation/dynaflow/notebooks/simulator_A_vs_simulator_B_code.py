@@ -84,7 +84,7 @@ def calculate_error(df1):
 
 # Read a specific contingency
 def read_case(name, PF_SOL_DIR, PREFIX):
-    file_name = PF_SOL_DIR + "/pf_sol/" + PREFIX + "_" + name + "-pfsolution_AB.csv.xz"
+    file_name = PF_SOL_DIR + "/pf_sol/" + PREFIX + "_" + name + "_pfsolutionAB.csv.xz"
     data = pd.read_csv(file_name, sep=";", index_col=False, compression="infer")
     data["DIFF"] = data.VALUE_A - data.VALUE_B
     data = calculate_error(data)

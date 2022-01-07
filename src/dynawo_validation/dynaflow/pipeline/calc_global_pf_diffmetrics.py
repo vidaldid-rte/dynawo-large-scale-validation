@@ -37,7 +37,7 @@ def main():
 
     PREFIX = args.prefix
 
-    files = list(glob.iglob(PF_SOL_DIR + "/" + PREFIX + "*-pfsolution_AB.csv.xz"))
+    files = list(glob.iglob(PF_SOL_DIR + "/" + PREFIX + "*_pfsolutionAB.csv.xz"))
     print(f"Processing {len(files)} cases.")
     res = []
 
@@ -47,25 +47,23 @@ def main():
 
     if args.isout == "0":
         for filepath in tqdm(files):
-            # TODO: standardize suffix "-pfsolution_AB.csv" to
-            # "_pfsolutionAB.csv", to robustify and simplify this.
-            contg = filepath.split("_")[-2].split("-")[0]
+            contg = filepath.split("_")[-2]
             delta = pd.read_csv(filepath, sep=";", index_col=False, compression="infer")
             delta["DIFF"] = delta.VALUE_A - delta.VALUE_B
-            
+
             max_dict = {
-                    "angle":None,
-                    "p":None,
-                    "p1":None,
-                    "p2":None,
-                    "pstap":None,
-                    "q":None,
-                    "q1":None,
-                    "q2":None,
-                    "tap":None,
-                    "v":None,
-                }
-            
+                "angle": None,
+                "p": None,
+                "p1": None,
+                "p2": None,
+                "pstap": None,
+                "q": None,
+                "q1": None,
+                "q2": None,
+                "tap": None,
+                "v": None,
+            }
+
             # Get abs max value with sign
             temp_var = list(delta["VAR"])
             temp_diff = list(delta["DIFF"])
@@ -77,13 +75,13 @@ def main():
                 else:
                     if abs(max_dict[x]) < abs(y):
                         max_dict[x] = y
-            
+
             temp_df_max_list = []
             for i in max_dict.values():
                 temp_df_max_list.append(i)
-                
+
             delta_mean = delta.groupby("VAR").mean()
-            delta_p95 = delta.groupby("VAR").quantile(.95)
+            delta_p95 = delta.groupby("VAR").quantile(0.95)
             res1 = (
                 [contg]
                 + ["ALL"]
@@ -92,9 +90,9 @@ def main():
                 + list(delta_mean["DIFF"].values)
             )
             res = res + [res1]
-            
+
             volt_levels = np.sort(delta["VOLT_LEVEL"].unique())
-            
+
             for volt_level in volt_levels:
                 index_list = [
                     "angle",
@@ -109,19 +107,19 @@ def main():
                     "v",
                 ]
                 max_dict = {
-                    "angle":None,
-                    "p":None,
-                    "p1":None,
-                    "p2":None,
-                    "pstap":None,
-                    "q":None,
-                    "q1":None,
-                    "q2":None,
-                    "tap":None,
-                    "v":None,
+                    "angle": None,
+                    "p": None,
+                    "p1": None,
+                    "p2": None,
+                    "pstap": None,
+                    "q": None,
+                    "q1": None,
+                    "q2": None,
+                    "tap": None,
+                    "v": None,
                 }
                 temp_df = delta.loc[(delta.VOLT_LEVEL == volt_level)]
-                
+
                 # Get abs max value with sign
                 temp_var = list(temp_df["VAR"])
                 temp_diff = list(temp_df["DIFF"])
@@ -133,14 +131,14 @@ def main():
                     else:
                         if abs(max_dict[x]) < abs(y):
                             max_dict[x] = y
-                
+
                 temp_df_max_list = []
                 for i in max_dict.values():
                     temp_df_max_list.append(i)
-                
+
                 # temp_df_max = temp_df.groupby("VAR").max({"key": "abs"})
                 temp_df_mean = temp_df.groupby("VAR").mean()
-                temp_df_p95 = temp_df.groupby("VAR").quantile(.95)
+                temp_df_p95 = temp_df.groupby("VAR").quantile(0.95)
                 real_index_list = list(temp_df_mean.index.values)
                 # temp_df_max_dict = temp_df_max.to_dict("list")
                 temp_df_mean_dict = temp_df_mean.to_dict("list")
@@ -153,36 +151,38 @@ def main():
                         # temp_df_max_dict["DIFF"].insert(i, None)
                         temp_df_p95_dict["DIFF"].insert(i, None)
                         temp_df_mean_dict["DIFF"].insert(i, None)
-                        
+
                 # temp_df_max_list = list(temp_df_max_dict["DIFF"])
                 temp_df_p95_list = list(temp_df_p95_dict["DIFF"])
                 temp_df_mean_list = list(temp_df_mean_dict["DIFF"])
-                
+
                 res2 = (
-                    [contg] + [str(volt_level)] + temp_df_max_list + temp_df_p95_list + temp_df_mean_list
+                    [contg]
+                    + [str(volt_level)]
+                    + temp_df_max_list
+                    + temp_df_p95_list
+                    + temp_df_mean_list
                 )
                 res = res + [res2]
     else:
         for filepath in files:
-            # TODO: standardize suffix "-pfsolution_AB.csv" to
-            # "_pfsolutionAB.csv", to robustify and simplify this.
-            contg = filepath.split("_")[-2].split("-")[0]
+            contg = filepath.split("_")[-2]
             delta = pd.read_csv(filepath, sep=";", index_col=False, compression="infer")
             delta["DIFF"] = delta.VALUE_A - delta.VALUE_B
-            
+
             max_dict = {
-                    "angle":None,
-                    "p":None,
-                    "p1":None,
-                    "p2":None,
-                    "pstap":None,
-                    "q":None,
-                    "q1":None,
-                    "q2":None,
-                    "tap":None,
-                    "v":None,
-                }
-            
+                "angle": None,
+                "p": None,
+                "p1": None,
+                "p2": None,
+                "pstap": None,
+                "q": None,
+                "q1": None,
+                "q2": None,
+                "tap": None,
+                "v": None,
+            }
+
             # Get abs max value with sign
             temp_var = list(delta["VAR"])
             temp_diff = list(delta["DIFF"])
@@ -194,13 +194,13 @@ def main():
                 else:
                     if abs(max_dict[x]) < abs(y):
                         max_dict[x] = y
-            
+
             temp_df_max_list = []
             for i in max_dict.values():
                 temp_df_max_list.append(i)
-                
+
             delta_mean = delta.groupby("VAR").mean()
-            delta_p95 = delta.groupby("VAR").quantile(.95)
+            delta_p95 = delta.groupby("VAR").quantile(0.95)
             res1 = (
                 [contg]
                 + ["ALL"]
@@ -209,9 +209,9 @@ def main():
                 + list(delta_mean["DIFF"].values)
             )
             res = res + [res1]
-            
+
             volt_levels = np.sort(delta["VOLT_LEVEL"].unique())
-            
+
             for volt_level in volt_levels:
                 index_list = [
                     "angle",
@@ -226,19 +226,19 @@ def main():
                     "v",
                 ]
                 max_dict = {
-                    "angle":None,
-                    "p":None,
-                    "p1":None,
-                    "p2":None,
-                    "pstap":None,
-                    "q":None,
-                    "q1":None,
-                    "q2":None,
-                    "tap":None,
-                    "v":None,
+                    "angle": None,
+                    "p": None,
+                    "p1": None,
+                    "p2": None,
+                    "pstap": None,
+                    "q": None,
+                    "q1": None,
+                    "q2": None,
+                    "tap": None,
+                    "v": None,
                 }
                 temp_df = delta.loc[(delta.VOLT_LEVEL == volt_level)]
-                
+
                 # Get abs max value with sign
                 temp_var = list(temp_df["VAR"])
                 temp_diff = list(temp_df["DIFF"])
@@ -250,14 +250,14 @@ def main():
                     else:
                         if abs(max_dict[x]) < abs(y):
                             max_dict[x] = y
-                
+
                 temp_df_max_list = []
                 for i in max_dict.values():
                     temp_df_max_list.append(i)
-                
+
                 # temp_df_max = temp_df.groupby("VAR").max({"key": "abs"})
                 temp_df_mean = temp_df.groupby("VAR").mean()
-                temp_df_p95 = temp_df.groupby("VAR").quantile(.95)
+                temp_df_p95 = temp_df.groupby("VAR").quantile(0.95)
                 real_index_list = list(temp_df_mean.index.values)
                 # temp_df_max_dict = temp_df_max.to_dict("list")
                 temp_df_mean_dict = temp_df_mean.to_dict("list")
@@ -270,13 +270,17 @@ def main():
                         # temp_df_max_dict["DIFF"].insert(i, None)
                         temp_df_p95_dict["DIFF"].insert(i, None)
                         temp_df_mean_dict["DIFF"].insert(i, None)
-                        
+
                 # temp_df_max_list = list(temp_df_max_dict["DIFF"])
                 temp_df_p95_list = list(temp_df_p95_dict["DIFF"])
                 temp_df_mean_list = list(temp_df_mean_dict["DIFF"])
-                
+
                 res2 = (
-                    [contg] + [str(volt_level)] + temp_df_max_list + temp_df_p95_list + temp_df_mean_list
+                    [contg]
+                    + [str(volt_level)]
+                    + temp_df_max_list
+                    + temp_df_p95_list
+                    + temp_df_mean_list
                 )
                 res = res + [res2]
 
@@ -284,7 +288,7 @@ def main():
         res,
         columns=["contg_case"]
         + ["volt_level"]
-        + list(delta_mean.index + "_max") # We assume that they have the same vars
+        + list(delta_mean.index + "_max")  # We assume that they have the same vars
         + list(delta_p95.index + "_p95")
         + list(delta_mean.index + "_mean"),
     )

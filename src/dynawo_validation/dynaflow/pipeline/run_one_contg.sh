@@ -346,7 +346,7 @@ echo "Extracting the powerflow solutions for case: $CONTG_CASE"
 python3 "$scripts_basedir"/extract_powerflow_values.py "$CONTG_CASE" "$outDir"/..
 
 # Collect and compress all results
-xz -c9 "$CONTG_CASE"/pfsolution_AB.csv > "$outDir"/pf_sol/"$prefix"-pfsolution_AB.csv.xz
+xz -c9 "$CONTG_CASE"/pfsolution_AB.csv > "$outDir"/pf_sol/"$prefix"_pfsolutionAB.csv.xz
 for error_file in "elements_not_in_caseA.csv" "elements_not_in_caseB.csv"; do 
     if [ -f "$CONTG_CASE"/"$error_file" ]; then
         xz -c9 "$CONTG_CASE"/"$error_file" > "$outDir"/pf_sol/"$prefix"-"$error_file".xz

@@ -43,7 +43,7 @@ def main():
     data_files_list = []
     for i in data_files:
         for j in args.regex:
-            if i not in data_files_list and re.match(j + "-pfsolution_AB.csv.xz", i):
+            if i not in data_files_list and re.match(j + "_pfsolutionAB.csv.xz", i):
                 data_files_list.append(i)
 
     for i in data_files_list:
