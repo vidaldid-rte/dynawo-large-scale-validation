@@ -1181,7 +1181,7 @@ def create_aut_df(results_dir, A_B, contgcase, prefix, basecase, dwo_dwo, var_va
 def create_dropdowns(
     df,
     contg_cases,
-    contg_case0,
+    contg_case_init,
     data_first_case,
     vars_case,
     bus_list,
@@ -1205,7 +1205,7 @@ def create_dropdowns(
     vary = widgets.Dropdown(options=df.columns[1:], value="v_p95", description="Y: ")
 
     dev = widgets.Dropdown(
-        options=sorted(contg_cases), value=contg_case0, description="Contg. case: "
+        options=sorted(contg_cases), value=contg_case_init, description="Contg. case: "
     )
 
     reduced_vars_case = list(vars_case)
@@ -1255,7 +1255,7 @@ def create_dropdowns(
         description="Edge metric var: ",
     )
     aut_diff_case = widgets.Dropdown(
-        options=sorted(contg_cases), value=contg_case0, description="Contg. case: "
+        options=sorted(contg_cases), value=contg_case_init, description="Contg. case: "
     )
 
     a_var = list(aut_diffs_A.index)
@@ -1438,7 +1438,7 @@ def create_tap_trace(df, HEIGHT, WIDTH):
 
 
 # Create all the layouts of the output
-def create_layouts(varx, vary, HEIGHT, WIDTH, contg_case0, dropdown1, dropdown2):
+def create_layouts(varx, vary, HEIGHT, WIDTH, contg_case_init, dropdown1, dropdown2):
     layout1 = go.Layout(
         title=dict(text="Global differences between simulator A and simulator B"),
         xaxis=dict(title=varx.value),
@@ -1448,7 +1448,7 @@ def create_layouts(varx, vary, HEIGHT, WIDTH, contg_case0, dropdown1, dropdown2)
     )
 
     layout2 = go.Layout(
-        title=dict(text="Case: " + contg_case0),
+        title=dict(text="Case: " + contg_case_init),
         xaxis=dict(title=dropdown1.value),
         yaxis=dict(title=dropdown2.value),
         height=HEIGHT,
@@ -1456,7 +1456,7 @@ def create_layouts(varx, vary, HEIGHT, WIDTH, contg_case0, dropdown1, dropdown2)
     )
 
     layout3 = go.Layout(
-        title=dict(text="Case: " + contg_case0),
+        title=dict(text="Case: " + contg_case_init),
         xaxis=dict(title="TIME", range=[0, 200]),
         yaxis=dict(title="EVENT"),
         height=HEIGHT,
@@ -1746,6 +1746,88 @@ def show_displays(
         " for that node/edge."
     )
     return html_graph
+
+
+def get_renderers(MAX_THRESH, P95_THRESH, MEAN_THRESH):
+    renderers = {
+        "MAX_SCORE": ipydatagrid.TextRenderer(
+            text_color="black",
+            background_color=ipydatagrid.Expr(
+                '"red" if '
+                + str(MAX_THRESH + (MAX_THRESH * 0.25))
+                + ' < cell.value else "orange" if '
+                + str(MAX_THRESH)
+                + ' < cell.value else "green"'
+            ),
+        ),
+        "P95_SCORE": ipydatagrid.TextRenderer(
+            text_color="black",
+            background_color=ipydatagrid.Expr(
+                '"red" if '
+                + str(P95_THRESH + (P95_THRESH * 0.25))
+                + ' < cell.value else "orange" if '
+                + str(P95_THRESH)
+                + ' < cell.value else "green"'
+            ),
+        ),
+        "MEAN_SCORE": ipydatagrid.TextRenderer(
+            text_color="black",
+            background_color=ipydatagrid.Expr(
+                '"red" if '
+                + str(MEAN_THRESH + (MEAN_THRESH * 0.25))
+                + ' < cell.value else "orange" if '
+                + str(MEAN_THRESH)
+                + ' < cell.value else "green"'
+            ),
+        ),
+    }
+    return renderers
+
+
+def get_iidm_file(DWO_DWO, RESULTS_DIR, BASECASE):
+    if DWO_DWO == 0:
+        tree = etree.parse(
+            RESULTS_DIR + BASECASE + "/JOB.xml", etree.XMLParser(remove_blank_text=True)
+        )
+        root = tree.getroot()
+        ns = etree.QName(root).namespace
+        jobs = root.findall("{%s}job" % ns)
+        last_job = jobs[-1]
+        modeler = last_job.find("{%s}modeler" % ns)
+        network = modeler.find("{%s}network" % ns)
+        xiidm_file = network.get("iidmFile")
+        xiidm_file = RESULTS_DIR + BASECASE + "/" + xiidm_file
+    else:
+        if DWO_DWO == 1:
+            tree = etree.parse(
+                RESULTS_DIR + BASECASE + "/JOB_A.xml",
+                etree.XMLParser(remove_blank_text=True),
+            )
+            root = tree.getroot()
+            ns = etree.QName(root).namespace
+            jobs = root.findall("{%s}job" % ns)
+            last_job = jobs[-1]
+            modeler = last_job.find("{%s}modeler" % ns)
+            network = modeler.find("{%s}network" % ns)
+            xiidm_file = network.get("iidmFile")
+            xiidm_file = RESULTS_DIR + BASECASE + "/" + xiidm_file
+        else:
+            if DWO_DWO == 2:
+                tree = etree.parse(
+                    RESULTS_DIR + BASECASE + "/JOB_B.xml",
+                    etree.XMLParser(remove_blank_text=True),
+                )
+                root = tree.getroot()
+                ns = etree.QName(root).namespace
+                jobs = root.findall("{%s}job" % ns)
+                last_job = jobs[-1]
+                modeler = last_job.find("{%s}modeler" % ns)
+                network = modeler.find("{%s}network" % ns)
+                xiidm_file = network.get("iidmFile")
+                xiidm_file = RESULTS_DIR + BASECASE + "/" + xiidm_file
+            else:
+                raise Exception("No valid DWO_DWO option")
+    return xiidm_file
 
 
 # Run the program
@@ -2135,6 +2217,57 @@ def run_all(
             legend1widget.value = legend1
             legend2widget.value = legend2
 
+    def get_matching_df():
+        if diff_metric_type.value == "max":
+            matching_df = df[
+                [
+                    "contg_case",
+                    "volt_level",
+                    "angle_max",
+                    "p_max",
+                    "p1_max",
+                    "p2_max",
+                    "q_max",
+                    "q1_max",
+                    "q2_max",
+                    "tap_max",
+                    "v_max",
+                ]
+            ]
+        elif diff_metric_type.value == "p95":
+            matching_df = df[
+                [
+                    "contg_case",
+                    "volt_level",
+                    "angle_p95",
+                    "p_p95",
+                    "p1_p95",
+                    "p2_p95",
+                    "q_p95",
+                    "q1_p95",
+                    "q2_p95",
+                    "tap_p95",
+                    "v_p95",
+                ]
+            ]
+        elif diff_metric_type.value == "mean":
+            matching_df = df[
+                [
+                    "contg_case",
+                    "volt_level",
+                    "angle_mean",
+                    "p_mean",
+                    "p1_mean",
+                    "p2_mean",
+                    "q_mean",
+                    "q1_mean",
+                    "q2_mean",
+                    "tap_mean",
+                    "v_mean",
+                ]
+            ]
+        return matching_df
+
     nodetypes = ["v", "angle", "p", "q"]
     nodemetrictypes = ["DIFF", "ABS_ERR", "REL_ERR", "VALUE_A", "VALUE_B"]
     edgetypes = ["p1", "p2", "q1", "q2"]
@@ -2150,13 +2283,14 @@ def run_all(
 
     # Get list of contingency cases
     contg_cases = list(df["contg_case"].unique())
-    contg_case0 = contg_cases[0]
+    contg_case_init = contg_cases[0]
 
     # Read the first contingency to put default data
-    data_first_case = read_case(contg_case0, PF_SOL_DIR, PREFIX)
+    data_first_case = read_case(contg_case_init, PF_SOL_DIR, PREFIX)
 
+    # Read the groups of the different automatas
     aut_group_data_first_caseA, aut_group_data_first_caseB = read_aut_group(
-        contg_case0, PF_SOL_DIR, DWO_DWO, PREFIX
+        contg_case_init, PF_SOL_DIR, DWO_DWO, PREFIX
     )
 
     vars_case = data_first_case.columns[1:]
@@ -2192,7 +2326,7 @@ def run_all(
     ) = create_dropdowns(
         df,
         contg_cases,
-        contg_case0,
+        contg_case_init,
         data_first_case,
         vars_case,
         bus_list,
@@ -2237,7 +2371,7 @@ def run_all(
 
     # Get all the layouts
     layout1, layout2, layout3 = create_layouts(
-        varx, vary, HEIGHT, WIDTH, contg_case0, dropdown1, dropdown2
+        varx, vary, HEIGHT, WIDTH, contg_case_init, dropdown1, dropdown2
     )
 
     current_general_trace = create_general_trace(df, varx.value, vary.value, DATA_LIMIT)
@@ -2246,38 +2380,8 @@ def run_all(
         df, W_V, W_P, W_Q, W_T, MAX_THRESH, MEAN_THRESH, P95_THRESH
     )
 
-    renderers = {
-        "MAX_SCORE": ipydatagrid.TextRenderer(
-            text_color="black",
-            background_color=ipydatagrid.Expr(
-                '"red" if '
-                + str(MAX_THRESH + (MAX_THRESH * 0.25))
-                + ' < cell.value else "orange" if '
-                + str(MAX_THRESH)
-                + ' < cell.value else "green"'
-            ),
-        ),
-        "P95_SCORE": ipydatagrid.TextRenderer(
-            text_color="black",
-            background_color=ipydatagrid.Expr(
-                '"red" if '
-                + str(P95_THRESH + (P95_THRESH * 0.25))
-                + ' < cell.value else "orange" if '
-                + str(P95_THRESH)
-                + ' < cell.value else "green"'
-            ),
-        ),
-        "MEAN_SCORE": ipydatagrid.TextRenderer(
-            text_color="black",
-            background_color=ipydatagrid.Expr(
-                '"red" if '
-                + str(MEAN_THRESH + (MEAN_THRESH * 0.25))
-                + ' < cell.value else "orange" if '
-                + str(MEAN_THRESH)
-                + ' < cell.value else "green"'
-            ),
-        ),
-    }
+    # Paint score grid
+    renderers = get_renderers(MAX_THRESH, P95_THRESH, MEAN_THRESH)
 
     grid_score = ipydatagrid.DataGrid(
         df_score,
@@ -2351,57 +2455,11 @@ def run_all(
         )
 
     # Matching df
-    if diff_metric_type.value == "max":
-        df3 = df[
-            [
-                "contg_case",
-                "volt_level",
-                "angle_max",
-                "p_max",
-                "p1_max",
-                "p2_max",
-                "q_max",
-                "q1_max",
-                "q2_max",
-                "tap_max",
-                "v_max",
-            ]
-        ]
-    elif diff_metric_type.value == "p95":
-        df3 = df[
-            [
-                "contg_case",
-                "volt_level",
-                "angle_p95",
-                "p_p95",
-                "p1_p95",
-                "p2_p95",
-                "q_p95",
-                "q1_p95",
-                "q2_p95",
-                "tap_p95",
-                "v_p95",
-            ]
-        ]
-    elif diff_metric_type.value == "mean":
-        df3 = df[
-            [
-                "contg_case",
-                "volt_level",
-                "angle_mean",
-                "p_mean",
-                "p1_mean",
-                "p2_mean",
-                "q_mean",
-                "q1_mean",
-                "q2_mean",
-                "tap_mean",
-                "v_mean",
-            ]
-        ]
+    matching_df = get_matching_df()
+
     sdf = ipydatagrid.DataGrid(
-        df3,
-        base_column_size=int((WIDTH / 1.03) / len(df3.columns)),
+        matching_df,
+        base_column_size=int((WIDTH / 1.03) / len(matching_df.columns)),
         selection_mode="row",
     )
 
@@ -2427,48 +2485,7 @@ def run_all(
     )
 
     # Get iidm file
-    if DWO_DWO == 0:
-        tree = etree.parse(
-            RESULTS_DIR + BASECASE + "/JOB.xml", etree.XMLParser(remove_blank_text=True)
-        )
-        root = tree.getroot()
-        ns = etree.QName(root).namespace
-        jobs = root.findall("{%s}job" % ns)
-        last_job = jobs[-1]
-        modeler = last_job.find("{%s}modeler" % ns)
-        network = modeler.find("{%s}network" % ns)
-        xiidm_file = network.get("iidmFile")
-        xiidm_file = RESULTS_DIR + BASECASE + "/" + xiidm_file
-    else:
-        if DWO_DWO == 1:
-            tree = etree.parse(
-                RESULTS_DIR + BASECASE + "/JOB_A.xml",
-                etree.XMLParser(remove_blank_text=True),
-            )
-            root = tree.getroot()
-            ns = etree.QName(root).namespace
-            jobs = root.findall("{%s}job" % ns)
-            last_job = jobs[-1]
-            modeler = last_job.find("{%s}modeler" % ns)
-            network = modeler.find("{%s}network" % ns)
-            xiidm_file = network.get("iidmFile")
-            xiidm_file = RESULTS_DIR + BASECASE + "/" + xiidm_file
-        else:
-            if DWO_DWO == 2:
-                tree = etree.parse(
-                    RESULTS_DIR + BASECASE + "/JOB_B.xml",
-                    etree.XMLParser(remove_blank_text=True),
-                )
-                root = tree.getroot()
-                ns = etree.QName(root).namespace
-                jobs = root.findall("{%s}job" % ns)
-                last_job = jobs[-1]
-                modeler = last_job.find("{%s}modeler" % ns)
-                network = modeler.find("{%s}network" % ns)
-                xiidm_file = network.get("iidmFile")
-                xiidm_file = RESULTS_DIR + BASECASE + "/" + xiidm_file
-            else:
-                raise Exception("No valid DWO_DWO option")
+    xiidm_file = get_iidm_file(DWO_DWO, RESULTS_DIR, BASECASE)
 
     # Get default graph
     G, C = get_initial_graph(xiidm_file, graph.value, SUBGRAPH_TYPE, SUBGRAPH_VALUE)
