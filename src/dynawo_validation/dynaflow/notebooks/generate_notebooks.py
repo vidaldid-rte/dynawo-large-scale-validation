@@ -15,6 +15,7 @@ import argparse
 import os
 from pathlib import Path
 import re
+import pandas as pd
 
 sys.path.insert(
     1, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -25,6 +26,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("case_dir", help="enter case directory")
 parser.add_argument("base_case", help="enter base case directory")
 parser.add_argument("contg_type", help="enter contingency type")
+parser.add_argument("csv_weights", help="enter csv to extract weights")
 
 args = parser.parse_args()
 
@@ -49,10 +51,26 @@ def is_dwodwo(case):
     return len(match_A) == 1 and len(match_B) == 1
 
 
+def get_weights(csv_weights):
+    df_weights = pd.read_csv(csv_weights, sep=";")
+    w_V = df_weights["W_V"].to_list()[0]
+    w_P = df_weights["W_P"].to_list()[0]
+    w_Q = df_weights["W_Q"].to_list()[0]
+    w_T = df_weights["W_T"].to_list()[0]
+    max_THRESH = df_weights["MAX_THRESH"].to_list()[0]
+    p95_THRESH = df_weights["P95_THRESH"].to_list()[0]
+    mean_THRESH = df_weights["MEAN_THRESH"].to_list()[0]
+    
+    return w_V, w_P, w_Q, w_T, max_THRESH, p95_THRESH, mean_THRESH
+
+
+
 def main():
     case_dir = args.case_dir
     base_case = args.base_case
     contg_type = args.contg_type
+    csv_weights = args.csv_weights
+    w_V, w_P, w_Q, w_T, max_THRESH, p95_THRESH, mean_THRESH = get_weights(csv_weights)
 
     if is_dwohds(base_case):
         dwo_dwo = "0"
@@ -82,6 +100,20 @@ def main():
             fout.write(line.replace("PLACEHOLDER_PREFIX", contg_type))
         elif "PLACEHOLDER_DWO_DWO" in line:
             fout.write(line.replace("PLACEHOLDER_DWO_DWO", dwo_dwo))
+        elif "PLACEHOLDER_W_V" in line:
+            fout.write(line.replace("PLACEHOLDER_W_V", str(w_V)))
+        elif "PLACEHOLDER_W_P" in line:
+            fout.write(line.replace("PLACEHOLDER_W_P", str(w_P)))
+        elif "PLACEHOLDER_W_Q" in line:
+            fout.write(line.replace("PLACEHOLDER_W_Q", str(w_Q)))  
+        elif "PLACEHOLDER_W_T" in line:
+            fout.write(line.replace("PLACEHOLDER_W_T", str(w_T)))
+        elif "PLACEHOLDER_MAX_THRESH" in line:
+            fout.write(line.replace("PLACEHOLDER_MAX_THRESH", str(max_THRESH)))
+        elif "PLACEHOLDER_P95_THRESH" in line:
+            fout.write(line.replace("PLACEHOLDER_P95_THRESH", str(p95_THRESH)))
+        elif "PLACEHOLDER_MEAN_THRESH" in line:
+            fout.write(line.replace("PLACEHOLDER_MEAN_THRESH", str(mean_THRESH))) 
         else:
             fout.write(line)
     # close input and output files

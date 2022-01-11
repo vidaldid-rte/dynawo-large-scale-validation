@@ -81,6 +81,7 @@ Usage: $0 [OPTIONS] BASECASE RESULTS_DIR
     -s | --sequential Run jobs sequentially (defult is parallel)
     -a | --allcontg   Run all the contingencies
     -l | --regexlist  Run all the contingencies of a .txt file
+    -w | --weights    Calculate scores with weights
     -r | --random     Run a different random sample of contingencies
     -p | --prandom    Run a different random sample of contingencies with defined seed
     -h | --help       This help message
@@ -107,8 +108,8 @@ if [[ ${PIPESTATUS[0]} -ne 4 ]]; then
 fi
 
 
-OPTIONS=A:B:hal:rsdcp:
-LONGOPTS=launcherB:,launcherA:,help,allcontg,regexlist:,random,sequential,debug,cleanup,prandom:
+OPTIONS=A:B:hal:rsdcp:w:
+LONGOPTS=launcherB:,launcherA:,help,allcontg,regexlist:,random,sequential,debug,cleanup,prandom:,weights:
 
 # -regarding ! and PIPESTATUS see above
 # -temporarily store output to be able to check for errors
@@ -124,7 +125,7 @@ fi
 # read getopt’s output this way to handle the quoting right:
 eval set -- "$PARSED"
 
-A="dynawo.sh" B="dynawo.sh" h=n allcontg=n regexlist="None" random=n sequential=n debug=n cleanup=n prandom="None"
+A="dynawo.sh" B="dynawo.sh" h=n allcontg=n regexlist="None" random=n sequential=n debug=n cleanup=n prandom="None" weightslist="None"
 # now enjoy the options in order and nicely split until we see --
 while true; do
     case "$1" in
@@ -149,6 +150,11 @@ while true; do
         -l|--regexlist)
             regexlist="$2"
             echo "Read regex from $2 file"
+            shift 2
+            ;;
+        -w|--weights)
+            weightslist="$2"
+            echo "Read weights from $2 file"
             shift 2
             ;;   
         -r|--random)
@@ -272,6 +278,14 @@ fi
 echo "Generating results under directory: $RESULTS_BASEDIR"
 mkdir -p "$RESULTS_BASEDIR"
 
+if [ "$weightslist" != "None" ]; then
+   echo "Reading the scores from the file"
+   python3 "$CONTG_SRC"/get_and_define_weights.py "-w" "$weightslist" "$RESULTS_BASEDIR"
+else
+   echo "Defining the default scores"
+   python3 "$CONTG_SRC"/get_and_define_weights.py "$RESULTS_BASEDIR"
+fi
+
 colormsg "*** COPYING BASECASE:" 
 
 REAL_BASECASE=$(realpath "$BASECASE/..")
@@ -377,7 +391,7 @@ for DEVICE in "${!create_contg[@]}"; do
        
        colormsg "*** CREATING NOTEBOOK:" 
        # Create notebook
-       python3 "$DWO_VALIDATION_SRC"/notebooks/generate_notebooks.py "$(cd "$(dirname "$RESULTS_DIR")"; pwd)/" "$BASECASE" "$DEVICE"
+       python3 "$DWO_VALIDATION_SRC"/notebooks/generate_notebooks.py "$(cd "$(dirname "$RESULTS_DIR")"; pwd)/" "$BASECASE" "$DEVICE" "$RESULTS_BASEDIR"/score_weights.csv
        mkdir -p "$RESULTS_DIR"/notebooks
        cp "$DWO_VALIDATION_SRC"/notebooks/simulator_A_vs_simulator_B_final.ipynb "$RESULTS_DIR"/notebooks
        rm "$DWO_VALIDATION_SRC"/notebooks/simulator_A_vs_simulator_B_final.ipynb

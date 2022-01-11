@@ -57,6 +57,12 @@ parser.add_argument(
     "otherwise a random sample is generated)",
 )
 parser.add_argument(
+    "-w",
+    "--weights",
+    default=None,
+    help="enter personalized weights to calcule score following the template",
+)
+parser.add_argument(
     "-r",
     "--random",
     action="store_true",
@@ -86,6 +92,7 @@ def main():
         args.debug,
         args.cleanup,
         args.randomseed,
+        args.weights,
     )
 
 

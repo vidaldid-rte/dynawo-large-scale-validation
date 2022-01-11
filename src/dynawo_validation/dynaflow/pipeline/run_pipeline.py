@@ -21,6 +21,7 @@ def run_pipeline(
     debug=False,
     cleanup=False,
     randomseed=None,
+    weights=None,
 ):
     file_path = os.path.abspath(os.path.dirname(__file__))
     runallopts = ""
@@ -35,6 +36,9 @@ def run_pipeline(
 
     if random:
         runallopts += "-r "
+    
+    if weights is not None:
+        runallopts += "-w %s " % (weights)
 
     if allcontg:
         if regexlist is None:

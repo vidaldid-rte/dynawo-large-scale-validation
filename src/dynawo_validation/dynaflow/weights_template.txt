@@ -1,0 +1,9 @@
+# Weights to calculate scores
+W_V = 0.5 
+W_P = 0.2
+W_Q = 0.1
+W_T = 0.3333333333333333
+# Thresholds that indicate whether a case passes or not 
+MAX_THRESH = 10
+P95_THRESH = 0.1
+MEAN_THRESH = 0.01
