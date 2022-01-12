@@ -333,8 +333,8 @@ def parse_basecase(base_case, dwo_paths, asthds_path, dwo_pathsA, dwo_pathsB):
         )
 
         return Parsed_dwodwo_case(A=parsed_caseA, B=parsed_caseB)
-        
-        
+
+
 def calc_global_score(df, W_V, W_P, W_Q, W_T, MAX_THRESH, MEAN_THRESH, P95_THRESH):
     df_all = df.loc[(df.volt_level == "ALL")]
     name_score = list(df_all["contg_case"])
