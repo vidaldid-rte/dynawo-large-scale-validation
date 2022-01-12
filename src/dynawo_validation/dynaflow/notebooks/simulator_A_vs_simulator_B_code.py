@@ -1,6 +1,7 @@
 import pandas as pd
 import plotly.graph_objects as go
 from dynawo_validation.dynaflow.notebooks import create_graph
+from dynawo_validation.dynaflow.pipeline.common_funcs import calc_global_score
 from IPython.display import display, HTML, Markdown
 import ipydatagrid
 from ipywidgets import widgets, AppLayout
@@ -116,71 +117,6 @@ def create_general_trace(data, x, y, DATA_LIMIT):
         name=x + "_" + y,
     )
     return trace
-
-
-# Calculate global contingencies score
-def calc_global_score(df, W_V, W_P, W_Q, W_T, MAX_THRESH, MEAN_THRESH, P95_THRESH):
-    df_all = df.loc[(df.volt_level == "ALL")]
-    name_score = list(df_all["contg_case"])
-    score_max = []
-    score_mean = []
-    score_p95 = []
-    max_n_pass = 0
-    mean_n_pass = 0
-    p95_n_pass = 0
-    total_n_pass = len(df_all.index)
-
-    for i in range(len(df_all.index)):
-        max_val = (
-            abs(df_all.iloc[i, 3]) * W_P
-            + abs((df_all.iloc[i, 4] * 0.5 + df_all.iloc[i, 5] * 0.5)) * W_P
-            + abs(df_all.iloc[i, 6]) * W_T
-            + abs(df_all.iloc[i, 7]) * W_Q
-            + abs((df_all.iloc[i, 8] * 0.5 + df_all.iloc[i, 9] * 0.5)) * W_Q
-            + abs(df_all.iloc[i, 10]) * W_T
-            + abs(df_all.iloc[i, 11]) * W_V
-        )
-        if max_val > MAX_THRESH:
-            max_n_pass += 1
-
-        score_max.append(max_val)
-
-        p95_val = (
-            abs(df_all.iloc[i, 13]) * W_P
-            + abs((df_all.iloc[i, 14] * 0.5 + df_all.iloc[i, 15] * 0.5)) * W_P
-            + abs(df_all.iloc[i, 16]) * W_T
-            + abs(df_all.iloc[i, 17]) * W_Q
-            + abs((df_all.iloc[i, 18] * 0.5 + df_all.iloc[i, 19] * 0.5)) * W_Q
-            + abs(df_all.iloc[i, 20]) * W_T
-            + abs(df_all.iloc[i, 21]) * W_V
-        )
-        if p95_val > P95_THRESH:
-            p95_n_pass += 1
-        score_p95.append(p95_val)
-
-        mean_val = (
-            abs(df_all.iloc[i, 23]) * W_P
-            + abs((df_all.iloc[i, 24] * 0.5 + df_all.iloc[i, 25] * 0.5)) * W_P
-            + abs(df_all.iloc[i, 26]) * W_T
-            + abs(df_all.iloc[i, 27]) * W_Q
-            + abs((df_all.iloc[i, 28] * 0.5 + df_all.iloc[i, 29] * 0.5)) * W_Q
-            + abs(df_all.iloc[i, 30]) * W_T
-            + abs(df_all.iloc[i, 31]) * W_V
-        )
-        if mean_val > MEAN_THRESH:
-            mean_n_pass += 1
-        score_mean.append(mean_val)
-
-    dict_score = {
-        "CONTG": name_score,
-        "MAX_SCORE": score_max,
-        "P95_SCORE": score_p95,
-        "MEAN_SCORE": score_mean,
-    }
-    df_score = pd.DataFrame(dict_score)
-    df_score = df_score.sort_values("MAX_SCORE", axis=0, ascending=False)
-
-    return df_score, max_n_pass, p95_n_pass, mean_n_pass, total_n_pass
 
 
 # Create the colors and legends for plot

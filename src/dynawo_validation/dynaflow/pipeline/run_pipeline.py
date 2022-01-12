@@ -36,7 +36,7 @@ def run_pipeline(
 
     if random:
         runallopts += "-r "
-    
+
     if weights is not None:
         runallopts += "-w %s " % (weights)
 

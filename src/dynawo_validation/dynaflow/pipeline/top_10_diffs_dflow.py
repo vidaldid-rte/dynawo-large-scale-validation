@@ -17,10 +17,12 @@ import re
 import sys
 import pandas as pd
 import argparse
+from dynawo_validation.dynaflow.pipeline.common_funcs import calc_global_score
 
 
 parser = argparse.ArgumentParser()
 parser.add_argument("pf_solutions_dir", help="enter pf_solutions_dir directory")
+parser.add_argument("pf_metrics_dir", help="enter pf_metrics_dir directory")
 parser.add_argument("--regex", nargs="+", help="enter prefix name", default=[".*"])
 args = parser.parse_args()
 
@@ -35,6 +37,11 @@ def main():
 
     if pf_solutions_dir[-1] != "/":
         pf_solutions_dir = pf_solutions_dir + "/"
+        
+    pf_metrics_dir = args.pf_metrics_dir
+
+    if pf_metrics_dir[-1] != "/":
+        pf_metrics_dir = pf_metrics_dir + "/"
 
     data_files = os.listdir(pf_solutions_dir)
     first_iteration = True
@@ -222,8 +229,32 @@ def main():
             f"Neither regular expression matches or there are no cases defined"
         )
 
+    df_metrics = pd.read_csv(pf_metrics_dir + "metrics.csv.xz", index_col=0)
+    df_weights = pd.read_csv(pf_metrics_dir + "../../score_weights.csv", sep=";", index_col=0)
+
+    datascore, max_n_pass, p95_n_pass, mean_n_pass, total_n_pass = calc_global_score(df_metrics, df_weights["W_V"].to_list()[0], df_weights["W_P"].to_list()[0], df_weights["W_Q"].to_list()[0], df_weights["W_T"].to_list()[0], df_weights["MAX_THRESH"].to_list()[0], df_weights["MEAN_THRESH"].to_list()[0], df_weights["P95_THRESH"].to_list()[0])
+    
+    datascore_max = datascore.sort_values("MAX_SCORE", ascending=False)
+    datascore_p95 = datascore.sort_values("P95_SCORE", ascending=False)  
+    datascore_mean = datascore.sort_values("MEAN_SCORE", ascending=False)
+    
+    if len(datascore.index) < 10:
+        datascore_max_total = datascore_max
+        datascore_p95_total = datascore_p95 
+        datascore_mean_total = datascore_mean
+    else:
+        datascore_max_total = datascore_max[:10]
+        datascore_p95_total = datascore_p95[:10]
+        datascore_mean_total = datascore_mean[:10]
+
     # Print results on screen
-    print("TOP 10 VALUES BUS-V OF ABS_ERR\n")
+    print("TOP 10 SCORES OF MAX --- Thresholds exceeded = " + str(max_n_pass) + "\n")
+    print(datascore_max_total.to_string(index=False))
+    print("\n\nTOP 10 SCORES OF P95 --- Thresholds exceeded = " + str(p95_n_pass) + "\n")
+    print(datascore_p95_total.to_string(index=False))
+    print("\n\nTOP 10 SCORES OF MEAN --- Thresholds exceeded = " + str(mean_n_pass) + "\n")
+    print(datascore_mean_total.to_string(index=False))
+    print("\n\n\n\nTOP 10 VALUES BUS-V OF ABS_ERR\n")
     print(databusvoltsortedabstotal.to_string(index=False))
     print("\n\nTOP 10 VALUES BUS-V OF REL_ERR\n")
     print(databusvoltsortedreltotal.to_string(index=False))
