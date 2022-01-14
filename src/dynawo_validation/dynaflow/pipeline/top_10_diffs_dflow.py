@@ -259,14 +259,40 @@ def main():
         datascore_mean_total = datascore_mean[:10]
 
     # Print results on screen
-    print("TOP 10 SCORES OF MAX --- Thresholds exceeded = " + str(max_n_pass) + "\n")
+    print("WEIGHTS AND THRESHOLDS USED FOR SCORE CALCULATIONS:")
+    print(
+        "\nW_V = "
+        + str(df_weights["W_V"].to_list()[0])
+        + "\nW_P = "
+        + str(df_weights["W_P"].to_list()[0])
+        + "\nW_Q = "
+        + str(df_weights["W_Q"].to_list()[0])
+        + "\nW_T = "
+        + str(df_weights["W_T"].to_list()[0])
+        + "\nMAX_THRESH = "
+        + str(df_weights["MAX_THRESH"].to_list()[0])
+        + "\nMEAN_THRESH = "
+        + str(df_weights["MEAN_THRESH"].to_list()[0])
+        + "\nP95_THRESH = "
+        + str(df_weights["P95_THRESH"].to_list()[0])
+        + "\n"
+    )
+    print(
+        "\n\nCOMPOUND SCORES: TOP 10 MAX METRIC --- # of cases exceeding threshold = "
+        + str(max_n_pass)
+        + "\n"
+    )
     print(datascore_max_total.to_string(index=False))
     print(
-        "\n\nTOP 10 SCORES OF P95 --- Thresholds exceeded = " + str(p95_n_pass) + "\n"
+        "\n\nCOMPOUND SCORES: TOP 10 P95 METRIC --- # of cases exceeding threshold = "
+        + str(p95_n_pass)
+        + "\n"
     )
     print(datascore_p95_total.to_string(index=False))
     print(
-        "\n\nTOP 10 SCORES OF MEAN --- Thresholds exceeded = " + str(mean_n_pass) + "\n"
+        "\n\nCOMPOUND SCORES: TOP 10 MEAN METRIC --- # of cases exceeding threshold = "
+        + str(mean_n_pass)
+        + "\n"
     )
     print(datascore_mean_total.to_string(index=False))
     print("\n\n\n\nTOP 10 VALUES BUS-V OF ABS_ERR\n")

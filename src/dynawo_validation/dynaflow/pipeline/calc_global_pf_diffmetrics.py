@@ -12,6 +12,9 @@ import sys
 from pathlib import Path
 import argparse
 import numpy as np
+import warnings
+
+warnings.simplefilter(action="ignore", category=FutureWarning)
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
