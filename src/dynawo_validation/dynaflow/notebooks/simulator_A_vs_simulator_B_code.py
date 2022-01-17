@@ -38,8 +38,8 @@ def read_aut_case(aut_dir, var):
 
 
 # Create the first graph
-def get_initial_graph(xiidm_file, value, t, c):
-    return create_graph.get_graph(xiidm_file, value, t, c)
+def get_initial_graph(netwgraph_iidm_file, value, t, c):
+    return create_graph.get_graph(netwgraph_iidm_file, value, t, c)
 
 
 # For hiding code cells
@@ -163,11 +163,17 @@ def create_colors(data):
     )
     pyplot.savefig("legend0.png")
     pyplot.close()
-    legend0 = pl.imread("legend0.png")[40:170, 300:385, :]
-    addwhite0 = np.zeros((100, legend0.shape[1], legend0.shape[2]))
-    addwhite1 = np.zeros((300, legend0.shape[1], legend0.shape[2]))
-    legend0 = np.concatenate((addwhite0, legend0, addwhite1), axis=0)
-    pl.imsave("legend0.png", legend0)
+    contgcasediffs_legend = pl.imread("legend0.png")[40:170, 300:385, :]
+    addwhite0 = np.zeros(
+        (100, contgcasediffs_legend.shape[1], contgcasediffs_legend.shape[2])
+    )
+    addwhite1 = np.zeros(
+        (300, contgcasediffs_legend.shape[1], contgcasediffs_legend.shape[2])
+    )
+    contgcasediffs_legend = np.concatenate(
+        (addwhite0, contgcasediffs_legend, addwhite1), axis=0
+    )
+    pl.imsave("legend0.png", contgcasediffs_legend)
     return colordata
 
 
@@ -1117,207 +1123,278 @@ def create_aut_df(results_dir, A_B, contgcase, prefix, basecase, dwo_dwo, var_va
 def create_dropdowns(
     df,
     contg_cases,
-    contg_case_init,
-    data_first_case,
-    vars_case,
-    bus_list,
-    nodetypes,
-    nodemetrictypes,
-    edgetypes,
-    edgemetrictypes,
-    aut_diffs_A,
-    aut_diffs_B,
+    contgcasediffs_contgcaseinit,
+    contgcasediffs_data_first_case,
+    contgcasediffs_vars_case,
+    netwgraph_bus_list,
+    netwgraph_nodetypes,
+    netwgraph_nodemetrictypes,
+    netwgraph_edgetypes,
+    netwgraph_edgemetrictype,
+    globaltap_aut_diffs_A,
+    globaltap_aut_diffs_B,
 ):
-    def_volt_level = widgets.Dropdown(
+    globaldiffs_def_volt_level = widgets.Dropdown(
         options=["DEFAULT"] + list(df["volt_level"].unique()),
         value="DEFAULT",
         description="VOLT LEVEL",
     )
 
-    varx = widgets.Dropdown(
+    globaldiffs_dropdownvarx = widgets.Dropdown(
         options=df.columns[1:], value="volt_level", description="X: "
     )
 
-    vary = widgets.Dropdown(options=df.columns[1:], value="v_p95", description="Y: ")
-
-    dev = widgets.Dropdown(
-        options=sorted(contg_cases), value=contg_case_init, description="Contg. case: "
+    globaldiffs_dropdownvary = widgets.Dropdown(
+        options=df.columns[1:], value="v_p95", description="Y: "
     )
 
-    reduced_vars_case = list(vars_case)
-    reduced_vars_case.remove("ELEMENT_TYPE")
-    reduced_vars_case.remove("VAR")
-    dropdown1 = widgets.Dropdown(
-        options=reduced_vars_case, value="VALUE_A", description="X: "
+    contgcasediffs_dropdowndev = widgets.Dropdown(
+        options=sorted(contg_cases),
+        value=contgcasediffs_contgcaseinit,
+        description="Contg. case: ",
     )
 
-    dropdown2 = widgets.Dropdown(
-        options=reduced_vars_case, value="ABS_ERR", description="Y: "
+    reduced_contgcasediffs_vars_case = list(contgcasediffs_vars_case)
+    reduced_contgcasediffs_vars_case.remove("ELEMENT_TYPE")
+    reduced_contgcasediffs_vars_case.remove("VAR")
+    contgcasediffs_dropdownx = widgets.Dropdown(
+        options=reduced_contgcasediffs_vars_case, value="VALUE_A", description="X: "
     )
 
-    dropdown3 = widgets.Dropdown(
-        options=["ALL"] + list(set(data_first_case["ELEMENT_TYPE"])),
+    contgcasediffs_dropdowny = widgets.Dropdown(
+        options=reduced_contgcasediffs_vars_case, value="VALUE_B", description="Y: "
+    )
+
+    contgcasediffs_elementdropdown = widgets.Dropdown(
+        options=["ALL"] + list(set(contgcasediffs_data_first_case["ELEMENT_TYPE"])),
         value="ALL",
         description="Elem. type: ",
     )
 
-    dropdown4 = widgets.Dropdown(
-        options=list(set(data_first_case["VAR"])),
+    contgcasediffs_vardropdown = widgets.Dropdown(
+        options=list(set(contgcasediffs_data_first_case["VAR"])),
         value="v",
         description="Var: ",
     )
 
-    graph = widgets.Dropdown(
-        options=bus_list, value=bus_list[0], description="Node ID: "
+    netwgraph_graph = widgets.Dropdown(
+        options=netwgraph_bus_list, value=netwgraph_bus_list[0], description="Node ID: "
     )
 
-    nodetype = widgets.Dropdown(
-        options=nodetypes, value=nodetypes[0], description="Node var: "
+    netwgraph_nodetype_drop = widgets.Dropdown(
+        options=netwgraph_nodetypes,
+        value=netwgraph_nodetypes[0],
+        description="Node var: ",
     )
 
-    nodemetrictype = widgets.Dropdown(
-        options=nodemetrictypes,
-        value=nodemetrictypes[0],
+    netwgraph_nodemetrictype_drop = widgets.Dropdown(
+        options=netwgraph_nodemetrictypes,
+        value=netwgraph_nodemetrictypes[0],
         description="Node metric var: ",
     )
 
-    edgetype = widgets.Dropdown(
-        options=edgetypes, value=edgetypes[0], description="Edge var: "
+    netwgraph_edgetype_drop = widgets.Dropdown(
+        options=netwgraph_edgetypes,
+        value=netwgraph_edgetypes[0],
+        description="Edge var: ",
     )
 
-    edgemetrictype = widgets.Dropdown(
-        options=edgemetrictypes,
-        value=edgemetrictypes[0],
+    netwgraph_edgemetrictype_drop = widgets.Dropdown(
+        options=netwgraph_edgemetrictype,
+        value=netwgraph_edgemetrictype[0],
         description="Edge metric var: ",
     )
-    aut_diff_case = widgets.Dropdown(
-        options=sorted(contg_cases), value=contg_case_init, description="Contg. case: "
+    contgcasetap_aut_diff_case = widgets.Dropdown(
+        options=sorted(contg_cases),
+        value=contgcasediffs_contgcaseinit,
+        description="Contg. case: ",
     )
 
-    a_var = list(aut_diffs_A.index)
+    a_var = list(globaltap_aut_diffs_A.index)
     for i in range(len(a_var)):
         a_var[i] = a_var[i].split("-")[-1]
     a_var = list(set(a_var))
 
-    b_var = list(aut_diffs_B.index)
+    b_var = list(globaltap_aut_diffs_B.index)
     for i in range(len(b_var)):
         b_var[i] = b_var[i].split("-")[-1]
     b_var = list(set(b_var))
 
-    aut_diff_var_A = widgets.Dropdown(
+    contgcasetap_aut_diff_var_A = widgets.Dropdown(
         options=sorted(a_var), value="ratioTapChanger", description="Aut. var A: "
     )
 
-    aut_diff_var_B = widgets.Dropdown(
+    contgcasetap_aut_diff_var_B = widgets.Dropdown(
         options=sorted(b_var), value="ratioTapChanger", description="Aut. var B: "
     )
 
-    aut_diff_var_plot = widgets.Dropdown(
+    globaltap_aut_diff_var_plot = widgets.Dropdown(
         options=["ratioTapChanger", "phaseTapChanger"],
         value="ratioTapChanger",
         description="Aut. var: ",
     )
 
-    diff_metric_type = widgets.Dropdown(
+    globaldiffs_diff_metric_type = widgets.Dropdown(
         options=["max", "p95", "mean", "ALL"],
         value="max",
         description="Metric type: ",
     )
 
     return (
-        def_volt_level,
-        varx,
-        vary,
-        dev,
-        dropdown1,
-        dropdown2,
-        dropdown3,
-        dropdown4,
-        graph,
-        nodetype,
-        nodemetrictype,
-        edgetype,
-        edgemetrictype,
-        aut_diff_case,
-        aut_diff_var_A,
-        aut_diff_var_B,
-        aut_diff_var_plot,
-        diff_metric_type,
+        globaldiffs_def_volt_level,
+        globaldiffs_dropdownvarx,
+        globaldiffs_dropdownvary,
+        contgcasediffs_dropdowndev,
+        contgcasediffs_dropdownx,
+        contgcasediffs_dropdowny,
+        contgcasediffs_elementdropdown,
+        contgcasediffs_vardropdown,
+        netwgraph_graph,
+        netwgraph_nodetype_drop,
+        netwgraph_nodemetrictype_drop,
+        netwgraph_edgetype_drop,
+        netwgraph_edgemetrictype_drop,
+        contgcasetap_aut_diff_case,
+        contgcasetap_aut_diff_var_A,
+        contgcasetap_aut_diff_var_B,
+        globaltap_aut_diff_var_plot,
+        globaldiffs_diff_metric_type,
     )
 
 
 # Create all the containers of the output
 def create_containers(
-    varx,
-    vary,
-    dev,
-    dropdown1,
-    dropdown2,
-    dropdown3,
-    dropdown4,
-    graph,
-    nodetype,
-    nodemetrictype,
-    edgetype,
-    edgemetrictype,
-    aut_diff_case,
-    aut_diff_var_A,
-    aut_diff_var_B,
-    check1a,
-    check1b,
-    check2a,
-    check2b,
-    aut_trace,
+    globaldiffs_dropdownvarx,
+    globaldiffs_dropdownvary,
+    contgcasediffs_dropdowndev,
+    contgcasediffs_dropdownx,
+    contgcasediffs_dropdowny,
+    contgcasediffs_elementdropdown,
+    contgcasediffs_vardropdown,
+    netwgraph_graph,
+    netwgraph_nodetype_drop,
+    netwgraph_nodemetrictype_drop,
+    netwgraph_edgetype_drop,
+    netwgraph_edgemetrictype_drop,
+    contgcasetap_aut_diff_case,
+    contgcasetap_aut_diff_var_A,
+    contgcasetap_aut_diff_var_B,
+    globaltap_checka,
+    globaltap_checkb,
+    contgcasetap_checka,
+    contgcasetap_checkb,
+    globaltap_aut_trace,
+    contgcasediffs_individualtrace,
+    contgcasediffs_legendwidget,
+    netwgraph_legend1widget,
+    netwgraph_legend2widget,
 ):
-    container1 = widgets.HBox([varx, vary])
-
-    container2 = widgets.HBox([dev, dropdown3, dropdown4, dropdown1, dropdown2])
-
-    container3 = widgets.HBox(
-        [graph, nodetype, nodemetrictype, edgetype, edgemetrictype]
+    globaldiffs_container = widgets.HBox(
+        [globaldiffs_dropdownvarx, globaldiffs_dropdownvary]
     )
 
-    container_aut_gen = widgets.HBox([check1a, check1b])
-    container_aut = widgets.HBox(
-        [aut_diff_case, aut_diff_var_A, check2a, aut_diff_var_B, check2b]
+    contgcasediffs_container = widgets.HBox(
+        [
+            contgcasediffs_dropdowndev,
+            contgcasediffs_elementdropdown,
+            contgcasediffs_vardropdown,
+            contgcasediffs_dropdownx,
+            contgcasediffs_dropdowny,
+        ]
     )
-    container_aut_trace = widgets.HBox([aut_trace])
+
+    netwgraph_container = widgets.HBox(
+        [
+            netwgraph_graph,
+            netwgraph_nodetype_drop,
+            netwgraph_nodemetrictype_drop,
+            netwgraph_edgetype_drop,
+            netwgraph_edgemetrictype_drop,
+        ]
+    )
+
+    globaltap_container_aut = widgets.HBox([globaltap_checka, globaltap_checkb])
+    contgcasetap_container_aut = widgets.HBox(
+        [
+            contgcasetap_aut_diff_case,
+            contgcasetap_aut_diff_var_A,
+            contgcasetap_checka,
+            contgcasetap_aut_diff_var_B,
+            contgcasetap_checkb,
+        ]
+    )
+
+    globaltap_container_aut_trace = widgets.HBox([globaltap_aut_trace])
+
+    contgcasediffs_individualtracecontainer = widgets.HBox(
+        [contgcasediffs_individualtrace, contgcasediffs_legendwidget]
+    )
+
+    netwgraph_legendcontainer = widgets.HBox(
+        [netwgraph_legend1widget, netwgraph_legend2widget]
+    )
     return (
-        container1,
-        container2,
-        container3,
-        container_aut_gen,
-        container_aut,
-        container_aut_trace,
+        globaldiffs_container,
+        contgcasediffs_container,
+        netwgraph_container,
+        globaltap_container_aut,
+        contgcasetap_container_aut,
+        globaltap_container_aut_trace,
+        contgcasediffs_individualtracecontainer,
+        netwgraph_legendcontainer,
     )
+
+
+def create_buttons():
+    button_descriptions_aut = {
+        False: "Apply selection below",
+        True: "Apply selection below",
+    }
+    globaltap_button_aut = widgets.ToggleButton(
+        False, description=button_descriptions_aut[False]
+    )
+
+    button_descriptions_case = {
+        False: "Apply selection below",
+        True: "Apply Selection below",
+    }
+    globaldiffs_button_case = widgets.ToggleButton(
+        False, description=button_descriptions_case[False]
+    )
+
+    button_download_data_opts = {False: "Download Data", True: "Download Data"}
+    button_download_data = widgets.ToggleButton(
+        False, description=button_download_data_opts[False]
+    )
+    return globaltap_button_aut, globaldiffs_button_case, button_download_data
 
 
 def create_check_box():
-    check1a = widgets.Checkbox(
+    globaltap_checka = widgets.Checkbox(
         value=True,
         description="Only cntgs with changes in Sim A",
         disabled=False,
         indent=False,
     )
-    check1b = widgets.Checkbox(
+    globaltap_checkb = widgets.Checkbox(
         value=True,
         description="Only cntgs with changes in Sim B",
         disabled=False,
         indent=False,
     )
-    check2a = widgets.Checkbox(
+    contgcasetap_checka = widgets.Checkbox(
         value=True,
         description="Only devices with changes in Sim A",
         disabled=False,
         indent=False,
     )
-    check2b = widgets.Checkbox(
+    contgcasetap_checkb = widgets.Checkbox(
         value=True,
         description="Only devices with changes in Sim B",
         disabled=False,
         indent=False,
     )
-    return check1a, check1b, check2a, check2b
+    return globaltap_checka, globaltap_checkb, contgcasetap_checka, contgcasetap_checkb
 
 
 def create_tap_trace(df, HEIGHT, WIDTH):
@@ -1374,46 +1451,71 @@ def create_tap_trace(df, HEIGHT, WIDTH):
 
 
 # Create all the layouts of the output
-def create_layouts(varx, vary, HEIGHT, WIDTH, contg_case_init, dropdown1, dropdown2):
-    layout1 = go.Layout(
+def create_layouts(
+    globaldiffs_dropdownvarx,
+    globaldiffs_dropdownvary,
+    HEIGHT,
+    WIDTH,
+    contgcasediffs_contgcaseinit,
+    contgcasediffs_dropdownx,
+    contgcasediffs_dropdowny,
+):
+    globaldiffs_layout = go.Layout(
         title=dict(text="Global differences between simulator A and simulator B"),
-        xaxis=dict(title=varx.value),
-        yaxis=dict(title=vary.value),
+        xaxis=dict(title=globaldiffs_dropdownvarx.value),
+        yaxis=dict(title=globaldiffs_dropdownvary.value),
         height=HEIGHT,
         width=WIDTH,
     )
 
-    layout2 = go.Layout(
-        title=dict(text="Case: " + contg_case_init),
-        xaxis=dict(title=dropdown1.value),
-        yaxis=dict(title=dropdown2.value),
+    contgcasediffs_layout = go.Layout(
+        title=dict(text="Case: " + contgcasediffs_contgcaseinit),
+        xaxis=dict(title=contgcasediffs_dropdownx.value),
+        yaxis=dict(title=contgcasediffs_dropdowny.value),
         height=HEIGHT,
         width=WIDTH,
     )
 
-    layout3 = go.Layout(
-        title=dict(text="Case: " + contg_case_init),
+    contgcasetap_layout = go.Layout(
+        title=dict(text="Case: " + contgcasediffs_contgcaseinit),
         xaxis=dict(title="TIME", range=[0, 200]),
         yaxis=dict(title="EVENT"),
         height=HEIGHT,
         width=WIDTH / 2,
     )
 
-    return layout1, layout2, layout3
+    return globaldiffs_layout, contgcasediffs_layout, contgcasetap_layout
 
 
 # Paint the node colors of the graph
-def paint_graph(C, data, nodetype, nodemetrictype, edgetype, edgemetrictype):
+def paint_graph(
+    C,
+    data,
+    nodetype,
+    netwgraph_nodemetrictype_drop,
+    netwgraph_edgetype_drop,
+    netwgraph_edgemetrictype_drop,
+):
     # Node color
     data1 = data.loc[(data.VAR == nodetype) & (data.ELEMENT_TYPE == "bus")]
-    data1_max = data1[nodemetrictype].max()
-    data1_min = data1[nodemetrictype].min()
+    data1_max = data1[netwgraph_nodemetrictype_drop].max()
+    data1_min = data1[netwgraph_nodemetrictype_drop].min()
 
     data1_max -= data1_min
     for node in C.nodes:
-        if len(list(data1.loc[(data1.ID == node["id"])][nodemetrictype])) != 0:
+        if (
+            len(
+                list(data1.loc[(data1.ID == node["id"])][netwgraph_nodemetrictype_drop])
+            )
+            != 0
+        ):
             plasma = cm.get_cmap("plasma", 12)
-            c = list(data1.loc[(data1.ID == node["id"])][nodemetrictype])[0] - data1_min
+            c = (
+                list(
+                    data1.loc[(data1.ID == node["id"])][netwgraph_nodemetrictype_drop]
+                )[0]
+                - data1_min
+            )
             c = c / data1_max
             r = plasma(c)[0] * 256
             g = plasma(c)[1] * 256
@@ -1435,15 +1537,27 @@ def paint_graph(C, data, nodetype, nodemetrictype, edgetype, edgemetrictype):
     pl.close()
 
     # Edge color
-    data2 = data.loc[(data.VAR == edgetype) & (data.ELEMENT_TYPE != "bus")]
-    data2_max = data2[edgemetrictype].max()
-    data2_min = data2[edgemetrictype].min()
+    data2 = data.loc[
+        (data.VAR == netwgraph_edgetype_drop) & (data.ELEMENT_TYPE != "bus")
+    ]
+    data2_max = data2[netwgraph_edgemetrictype_drop].max()
+    data2_min = data2[netwgraph_edgemetrictype_drop].min()
 
     data2_max -= data2_min
     for edge in C.edges:
-        if len(list(data2.loc[(data2.ID == edge["id"])][edgemetrictype])) != 0:
+        if (
+            len(
+                list(data2.loc[(data2.ID == edge["id"])][netwgraph_edgemetrictype_drop])
+            )
+            != 0
+        ):
             viridis = cm.get_cmap("viridis", 12)
-            c = list(data2.loc[(data2.ID == edge["id"])][edgemetrictype])[0] - data2_min
+            c = (
+                list(
+                    data2.loc[(data2.ID == edge["id"])][netwgraph_edgemetrictype_drop]
+                )[0]
+                - data2_min
+            )
             c = c / data2_max
             r = viridis(c)[0] * 256
             g = viridis(c)[1] * 256
@@ -1456,12 +1570,27 @@ def paint_graph(C, data, nodetype, nodemetrictype, edgetype, edgemetrictype):
                 max_edge = 0
                 enter = False
                 for edge_sp in edge_split:
-                    if len(list(data2.loc[(data2.ID == edge_sp)][edgemetrictype])) != 0:
+                    if (
+                        len(
+                            list(
+                                data2.loc[(data2.ID == edge_sp)][
+                                    netwgraph_edgemetrictype_drop
+                                ]
+                            )
+                        )
+                        != 0
+                    ):
                         if abs(max_edge) < abs(
-                            list(data2.loc[(data2.ID == edge_sp)][edgemetrictype])[0]
+                            list(
+                                data2.loc[(data2.ID == edge_sp)][
+                                    netwgraph_edgemetrictype_drop
+                                ]
+                            )[0]
                         ):
                             max_edge = list(
-                                data2.loc[(data2.ID == edge_sp)][edgemetrictype]
+                                data2.loc[(data2.ID == edge_sp)][
+                                    netwgraph_edgemetrictype_drop
+                                ]
                             )[0]
                             enter = True
                 if enter:
@@ -1504,36 +1633,35 @@ def paint_graph(C, data, nodetype, nodemetrictype, edgetype, edgemetrictype):
 
 # Define the structure of the output
 def show_displays(
-    aut_diffs_A,
-    aut_diffs_B,
-    container_aut_gen,
-    container_aut,
-    container_aut_trace,
-    aut_diff_dfA_contgcase_grid,
-    aut_diff_dfB_contgcase_grid,
-    t_r,
-    groups_traceA,
-    groups_traceB,
-    def_volt_level,
-    diff_metric_type,
-    sdf,
-    container1,
-    g,
-    container2,
-    container0,
-    s,
-    container3,
-    C,
-    dev,
-    container4,
-    button_aut,
-    button_case,
+    globaltap_aut_diffs_A,
+    globaltap_aut_diffs_B,
+    globaltap_container_aut,
+    contgcasetap_container_aut,
+    globaltap_container_aut_trace,
+    contgcasetap_aut_diff_dfA_grid,
+    contgcasetap_aut_diff_dfB_grid,
+    globaltap_trace,
+    contgcasetap_groups_traceA,
+    contgcasetap_groups_traceB,
+    globaldiffs_def_volt_level,
+    globaldiffs_diff_metric_type,
+    globaldiffs_dfgrid,
+    globaldiffs_container,
+    globaldiffs_generaltrace,
+    contgcasediffs_container,
+    contgcasediffs_individualtracecontainer,
+    contgcasediffs_individualgrid,
+    netwgraph_container,
+    netwgraph_C,
+    netwgraph_legendcontainer,
+    globaltap_button_aut,
+    globaldiffs_button_case,
     button_download_data,
-    grid_score,
-    max_n_pass,
-    p95_n_pass,
-    mean_n_pass,
-    total_n_pass,
+    compscore_grid_score,
+    compscore_max_n_pass,
+    compscore_p95_n_pass,
+    compscore_mean_n_pass,
+    compscore_total_n_pass,
 ):
     display(
         HTML(
@@ -1551,11 +1679,11 @@ def show_displays(
         Markdown(
             "# RESULTS SUMMARY\n"
             "  * Number of cases that exceed the MAX threshold: "
-            f"{max_n_pass/total_n_pass:.1%} ({max_n_pass} of {total_n_pass})\n"
+            f"{compscore_max_n_pass/compscore_total_n_pass:.1%} ({compscore_max_n_pass} of {compscore_total_n_pass})\n"
             "  * Number of cases that exceed the P95 threshold: "
-            f"{p95_n_pass/total_n_pass:.1%} ({p95_n_pass} of {total_n_pass})\n"
+            f"{compscore_p95_n_pass/compscore_total_n_pass:.1%} ({compscore_p95_n_pass} of {compscore_total_n_pass})\n"
             f"  * Number of cases that exceed the MEAN threshold: "
-            f"{mean_n_pass/total_n_pass:.1%} ({mean_n_pass} of {total_n_pass})\n"
+            f"{compscore_mean_n_pass/compscore_total_n_pass:.1%} ({compscore_mean_n_pass} of {compscore_total_n_pass})\n"
         )
     )
 
@@ -1578,7 +1706,7 @@ def show_displays(
             "  * **MEAN_SCORE**: average of the diffs (a.k.a. L-1 norm, divided by N)\n"
         )
     )
-    display(grid_score)
+    display(compscore_grid_score)
 
     #######################################################################
     # Part II: Discrete events
@@ -1599,15 +1727,17 @@ def show_displays(
             " Simulator A is on the left, Simulator B on the right.\n"
         )
     )
-    display(widgets.HBox([container_aut_gen, button_aut]))
+    display(widgets.HBox([globaltap_container_aut, globaltap_button_aut]))
     display(
         AppLayout(
-            left_sidebar=aut_diffs_A, right_sidebar=aut_diffs_B, align_items="center"
+            left_sidebar=globaltap_aut_diffs_A,
+            right_sidebar=globaltap_aut_diffs_B,
+            align_items="center",
         )
     )
 
     display(Markdown("## Tap values -- A vs. B (for a given contingency case)"))
-    display(widgets.HBox([t_r, container_aut_trace]))
+    display(widgets.HBox([globaltap_trace, globaltap_container_aut_trace]))
 
     display(
         Markdown(
@@ -1630,11 +1760,11 @@ def show_displays(
             " (REDUNDANT, TO BE REMOVED)\n"
         )
     )
-    display(container_aut)
+    display(contgcasetap_container_aut)
     display(
         AppLayout(
-            left_sidebar=aut_diff_dfA_contgcase_grid,
-            right_sidebar=aut_diff_dfB_contgcase_grid,
+            left_sidebar=contgcasetap_aut_diff_dfA_grid,
+            right_sidebar=contgcasetap_aut_diff_dfB_grid,
             align_items="center",
         )
     )
@@ -1647,10 +1777,12 @@ def show_displays(
             "of distance in time and in space (min impedance path)."
         )
     )
-    if groups_traceB is not None:
-        containergroup = widgets.HBox([groups_traceA, groups_traceB])
+    if contgcasetap_groups_traceB is not None:
+        containergroup = widgets.HBox(
+            [contgcasetap_groups_traceA, contgcasetap_groups_traceB]
+        )
     else:
-        containergroup = widgets.HBox([groups_traceA])
+        containergroup = widgets.HBox([contgcasetap_groups_traceA])
     display(containergroup)
 
     #######################################################################
@@ -1659,33 +1791,33 @@ def show_displays(
     display(Markdown("# ANALYSIS OF DIFFERENCES BETWEEN A AND B"))
 
     display(Markdown("## Configurable X-Y plot of PF solution diff metrics"))
-    display(widgets.HBox([def_volt_level, container1]))
-    display(g)
+    display(widgets.HBox([globaldiffs_def_volt_level, globaldiffs_container]))
+    display(globaldiffs_generaltrace)
     display(Markdown("## PF solution diff metrics"))
-    display(widgets.HBox([diff_metric_type, button_case]))
-    display(sdf)
+    display(widgets.HBox([globaldiffs_diff_metric_type, globaldiffs_button_case]))
+    display(globaldiffs_dfgrid)
 
     display(Markdown("## Configurable X-Y plot for all values of a given case"))
-    display(container2)
-    display(container0)
+    display(contgcasediffs_container)
+    display(contgcasediffs_individualtracecontainer)
     display(Markdown("## All values of a given case (choose above)"))
-    display(s)
+    display(contgcasediffs_individualgrid)
     display(button_download_data)
 
     display(Markdown("## Local topology (network graph around a chosen bus)"))
-    display(container3)
-    html_graph = display(C.show("subgraph.html"), display_id=True)
+    display(netwgraph_container)
+    netwgraph_html_graph = display(netwgraph_C.show("subgraph.html"), display_id=True)
     print("Node Legend - Edge Legend")
-    display(container4)
+    display(netwgraph_legendcontainer)
     print(
         "If a node/edge is white, it means that the selected metric is not available"
         " for that node/edge."
     )
-    return html_graph
+    return netwgraph_html_graph
 
 
 def get_renderers(MAX_THRESH, P95_THRESH, MEAN_THRESH):
-    renderers = {
+    compscore_renderers = {
         "MAX_SCORE": ipydatagrid.TextRenderer(
             text_color="black",
             background_color=ipydatagrid.Expr(
@@ -1717,7 +1849,7 @@ def get_renderers(MAX_THRESH, P95_THRESH, MEAN_THRESH):
             ),
         ),
     }
-    return renderers
+    return compscore_renderers
 
 
 def get_iidm_file(DWO_DWO, RESULTS_DIR, BASECASE):
@@ -1731,8 +1863,8 @@ def get_iidm_file(DWO_DWO, RESULTS_DIR, BASECASE):
         last_job = jobs[-1]
         modeler = last_job.find("{%s}modeler" % ns)
         network = modeler.find("{%s}network" % ns)
-        xiidm_file = network.get("iidmFile")
-        xiidm_file = RESULTS_DIR + BASECASE + "/" + xiidm_file
+        netwgraph_iidm_file = network.get("iidmFile")
+        netwgraph_iidm_file = RESULTS_DIR + BASECASE + "/" + netwgraph_iidm_file
     else:
         if DWO_DWO == 1:
             tree = etree.parse(
@@ -1745,8 +1877,8 @@ def get_iidm_file(DWO_DWO, RESULTS_DIR, BASECASE):
             last_job = jobs[-1]
             modeler = last_job.find("{%s}modeler" % ns)
             network = modeler.find("{%s}network" % ns)
-            xiidm_file = network.get("iidmFile")
-            xiidm_file = RESULTS_DIR + BASECASE + "/" + xiidm_file
+            netwgraph_iidm_file = network.get("iidmFile")
+            netwgraph_iidm_file = RESULTS_DIR + BASECASE + "/" + netwgraph_iidm_file
         else:
             if DWO_DWO == 2:
                 tree = etree.parse(
@@ -1759,11 +1891,11 @@ def get_iidm_file(DWO_DWO, RESULTS_DIR, BASECASE):
                 last_job = jobs[-1]
                 modeler = last_job.find("{%s}modeler" % ns)
                 network = modeler.find("{%s}network" % ns)
-                xiidm_file = network.get("iidmFile")
-                xiidm_file = RESULTS_DIR + BASECASE + "/" + xiidm_file
+                netwgraph_iidm_file = network.get("iidmFile")
+                netwgraph_iidm_file = RESULTS_DIR + BASECASE + "/" + netwgraph_iidm_file
             else:
                 raise Exception("No valid DWO_DWO option")
-    return xiidm_file
+    return netwgraph_iidm_file
 
 
 # Run the program
@@ -1787,14 +1919,13 @@ def run_all(
     P95_THRESH,
     MEAN_THRESH,
 ):
-
     # We have to supress a numpy warning
     warnings.simplefilter(action="ignore", category=FutureWarning)
 
     # Management the selection of dropdown parameters and on_click options
-    def response(change):
-        if diff_metric_type.value == "max":
-            df2 = df[
+    def globaldiffs_response(change):
+        if globaldiffs_diff_metric_type.value == "max":
+            df2 = globaldiffs_df[
                 [
                     "contg_case",
                     "volt_level",
@@ -1809,8 +1940,8 @@ def run_all(
                     "v_max",
                 ]
             ]
-        elif diff_metric_type.value == "p95":
-            df2 = df[
+        elif globaldiffs_diff_metric_type.value == "p95":
+            df2 = globaldiffs_df[
                 [
                     "contg_case",
                     "volt_level",
@@ -1825,8 +1956,8 @@ def run_all(
                     "v_p95",
                 ]
             ]
-        elif diff_metric_type.value == "mean":
-            df2 = df[
+        elif globaldiffs_diff_metric_type.value == "mean":
+            df2 = globaldiffs_df[
                 [
                     "contg_case",
                     "volt_level",
@@ -1842,61 +1973,91 @@ def run_all(
                 ]
             ]
         else:
-            df2 = df
+            df2 = globaldiffs_df
 
-        if def_volt_level.value == "DEFAULT":
-            df1 = df
+        if globaldiffs_def_volt_level.value == "DEFAULT":
+            df1 = globaldiffs_df
         else:
-            df1 = df.loc[(df.volt_level == def_volt_level.value)]
+            df1 = globaldiffs_df.loc[
+                (globaldiffs_df.volt_level == globaldiffs_def_volt_level.value)
+            ]
 
         # PERF: Plotly starts showing horrible performance with more than 5,000 points
         if df1.shape[0] > DATA_LIMIT:
             df1 = df1.sample(DATA_LIMIT)
-        with g.batch_update():
-            sdf.data = df2
-            g.data[0].x = df1[varx.value]
-            g.data[0].y = df1[vary.value]
-            g.data[0].name = varx.value + "_" + vary.value
-            g.data[0].text = df1["contg_case"] + "_(" + df1["volt_level"] + ")"
-            g.layout.xaxis.title = varx.value
-            g.layout.yaxis.title = vary.value
+        with globaldiffs_generaltrace.batch_update():
+            globaldiffs_dfgrid.data = df2
+            globaldiffs_generaltrace.data[0].x = df1[globaldiffs_dropdownvarx.value]
+            globaldiffs_generaltrace.data[0].y = df1[globaldiffs_dropdownvary.value]
+            globaldiffs_generaltrace.data[0].name = (
+                globaldiffs_dropdownvarx.value + "_" + globaldiffs_dropdownvary.value
+            )
+            globaldiffs_generaltrace.data[0].text = (
+                df1["contg_case"] + "_(" + df1["volt_level"] + ")"
+            )
+            globaldiffs_generaltrace.layout.xaxis.title = globaldiffs_dropdownvarx.value
+            globaldiffs_generaltrace.layout.yaxis.title = globaldiffs_dropdownvary.value
 
-    def individual_case(case):
-        if len(sdf.selections) != 0:
-            case = sdf.data.loc[sdf.selections[0]["r1"], "contg_case"]
-            sdf.clear_selection()
+    def contgcasediffs_individual_case(case):
+        if len(globaldiffs_dfgrid.selections) != 0:
+            case = globaldiffs_dfgrid.data.loc[
+                globaldiffs_dfgrid.selections[0]["r1"], "contg_case"
+            ]
+            globaldiffs_dfgrid.clear_selection()
 
         df1 = read_case(case, PF_SOL_DIR, PREFIX)
         # PERF: Plotly starts showing horrible performance with more than 5,000 points
-        with c.batch_update():
-            if dropdown3.value != "ALL" and dropdown4.value != "ALL":
+        with contgcasediffs_individualtrace.batch_update():
+            if (
+                contgcasediffs_elementdropdown.value != "ALL"
+                and contgcasediffs_vardropdown.value != "ALL"
+            ):
                 df1 = df1.loc[
-                    (df1.ELEMENT_TYPE == dropdown3.value) & (df1.VAR == dropdown4.value)
+                    (df1.ELEMENT_TYPE == contgcasediffs_elementdropdown.value)
+                    & (df1.VAR == contgcasediffs_vardropdown.value)
                 ]
             else:
-                if dropdown3.value != "ALL" and dropdown4.value == "ALL":
-                    df1 = df1.loc[(df1.ELEMENT_TYPE == dropdown3.value)]
+                if (
+                    contgcasediffs_elementdropdown.value != "ALL"
+                    and contgcasediffs_vardropdown.value == "ALL"
+                ):
+                    df1 = df1.loc[
+                        (df1.ELEMENT_TYPE == contgcasediffs_elementdropdown.value)
+                    ]
                 else:
-                    if dropdown3.value == "ALL" and dropdown4.value != "ALL":
-                        df1 = df1.loc[(df1.VAR == dropdown4.value)]
+                    if (
+                        contgcasediffs_elementdropdown.value == "ALL"
+                        and contgcasediffs_vardropdown.value != "ALL"
+                    ):
+                        df1 = df1.loc[(df1.VAR == contgcasediffs_vardropdown.value)]
             if df1.shape[0] > DATA_LIMIT:
                 df1 = df1.sample(DATA_LIMIT)
-            s.data = df1.sort_values("ID")
-            c.data[0].x = df1[dropdown1.value]
-            c.data[0].y = df1[dropdown2.value]
-            c.data[0].name = dropdown1.value + "_" + dropdown2.value
-            c.data[0].text = df1["ID"]
+            contgcasediffs_individualgrid.data = df1.sort_values("ID")
+            contgcasediffs_individualtrace.data[0].x = df1[
+                contgcasediffs_dropdownx.value
+            ]
+            contgcasediffs_individualtrace.data[0].y = df1[
+                contgcasediffs_dropdowny.value
+            ]
+            contgcasediffs_individualtrace.data[0].name = (
+                contgcasediffs_dropdownx.value + "_" + contgcasediffs_dropdowny.value
+            )
+            contgcasediffs_individualtrace.data[0].text = df1["ID"]
             colordata = create_colors(df1)
-            c.data[0].marker = dict(color=colordata)
-            c.layout.xaxis.title = dropdown1.value
-            c.layout.yaxis.title = dropdown2.value
-            c.layout.title.text = "Case: " + case
-            dev.value = case
+            contgcasediffs_individualtrace.data[0].marker = dict(color=colordata)
+            contgcasediffs_individualtrace.layout.xaxis.title = (
+                contgcasediffs_dropdownx.value
+            )
+            contgcasediffs_individualtrace.layout.yaxis.title = (
+                contgcasediffs_dropdowny.value
+            )
+            contgcasediffs_individualtrace.layout.title.text = "Case: " + case
+            contgcasediffs_dropdowndev.value = case
 
-    def individual_aut_group(case):
+    def contgcasetap_individual_aut_group(case):
         df1, df2 = read_aut_group(case, PF_SOL_DIR, DWO_DWO, PREFIX)
         # PERF: Plotly starts showing horrible performance with more than 5,000 points
-        with groups_traceA.batch_update():
+        with contgcasetap_groups_traceA.batch_update():
             df1 = df1.sort_values("GROUP", axis=0)
             color = list(df1["GROUP"])
             if len(color) != 0:
@@ -1910,14 +2071,14 @@ def run_all(
                 g = plasma(color[i])[1] * 256
                 b = plasma(color[i])[2] * 256
                 color[i] = "rgb(" + str(r) + "," + str(g) + "," + str(b) + ")"
-            groups_traceA.data[0].x = df1["TIME"]
-            groups_traceA.data[0].y = df1["DEVICE"]
-            groups_traceA.data[0].text = df1["EVENT_MESSAGE"]
-            groups_traceA.data[0].marker = dict(color=color)
-            groups_traceA.layout.xaxis.range = [0, 200]
-            groups_traceA.layout.title.text = "Case: " + case
+            contgcasetap_groups_traceA.data[0].x = df1["TIME"]
+            contgcasetap_groups_traceA.data[0].y = df1["DEVICE"]
+            contgcasetap_groups_traceA.data[0].text = df1["EVENT_MESSAGE"]
+            contgcasetap_groups_traceA.data[0].marker = dict(color=color)
+            contgcasetap_groups_traceA.layout.xaxis.range = [0, 200]
+            contgcasetap_groups_traceA.layout.title.text = "Case: " + case
         if df2 is not None:
-            with groups_traceB.batch_update():
+            with contgcasetap_groups_traceB.batch_update():
                 df2 = df2.sort_values("GROUP", axis=0)
                 color = list(df2["GROUP"])
                 if len(color) != 0:
@@ -1931,231 +2092,245 @@ def run_all(
                     g = plasma(color[i])[1] * 256
                     b = plasma(color[i])[2] * 256
                     color[i] = "rgb(" + str(r) + "," + str(g) + "," + str(b) + ")"
-                groups_traceB.data[0].x = df2["TIME"]
-                groups_traceB.data[0].y = df2["DEVICE"]
-                groups_traceB.data[0].text = df2["EVENT_MESSAGE"]
-                groups_traceB.data[0].marker = dict(color=color)
-                groups_traceB.layout.xaxis.range = [0, 200]
-                groups_traceB.layout.title.text = "Case: " + case
+                contgcasetap_groups_traceB.data[0].x = df2["TIME"]
+                contgcasetap_groups_traceB.data[0].y = df2["DEVICE"]
+                contgcasetap_groups_traceB.data[0].text = df2["EVENT_MESSAGE"]
+                contgcasetap_groups_traceB.data[0].marker = dict(color=color)
+                contgcasetap_groups_traceB.layout.xaxis.range = [0, 200]
+                contgcasetap_groups_traceB.layout.title.text = "Case: " + case
 
-    def update_case(trace, points, selector):
+    def contgcasediffs_update_case(trace, points, selector):
         name = trace.text[points.point_inds[0]].split("_(")
-        individual_case(name[0])
+        contgcasediffs_individual_case(name[0])
 
-    def response2(change):
-        individual_case(dev.value)
+    def contgcasediffs_response(change):
+        contgcasediffs_individual_case(contgcasediffs_dropdowndev.value)
 
-    def response_autA(change):
-        with c.batch_update():
-            aut_diff_dfA_contgcase = create_aut_df(
+    def contgcasetap_response_autA(change):
+        with contgcasetap_aut_diff_dfA_grid.batch_update():
+            contgcasetap_aut_diff_dfA_contgcase = create_aut_df(
                 RESULTS_DIR,
                 1,
-                aut_diff_case.value,
+                contgcasetap_aut_diff_case.value,
                 PREFIX,
                 BASECASE,
                 DWO_DWO,
-                aut_diff_var_A.value,
+                contgcasetap_aut_diff_var_A.value,
             )
 
-            if check2a.value:
-                aut_diff_dfA_contgcase = aut_diff_dfA_contgcase.loc[
-                    (aut_diff_dfA_contgcase.HAS_CHANGED != 0)
-                ]
-                aut_diff_dfA_contgcase = aut_diff_dfA_contgcase.drop(
-                    columns=["HAS_CHANGED"]
+            if contgcasetap_checka.value:
+                contgcasetap_aut_diff_dfA_contgcase = (
+                    contgcasetap_aut_diff_dfA_contgcase.loc[
+                        (contgcasetap_aut_diff_dfA_contgcase.HAS_CHANGED != 0)
+                    ]
+                )
+                contgcasetap_aut_diff_dfA_contgcase = (
+                    contgcasetap_aut_diff_dfA_contgcase.drop(columns=["HAS_CHANGED"])
                 )
 
-            aut_diff_dfA_contgcase_grid.data = aut_diff_dfA_contgcase
-            aut_diff_dfA_contgcase_grid.base_column_size = int(
-                (WIDTH / 2 / 1.1) / len(aut_diff_dfA_contgcase.columns)
+            contgcasetap_aut_diff_dfA_grid.data = contgcasetap_aut_diff_dfA_contgcase
+            contgcasetap_aut_diff_dfA_grid.base_column_size = int(
+                (WIDTH / 2 / 1.1) / len(contgcasetap_aut_diff_dfA_contgcase.columns)
             )
 
-    def response_autB(change):
-        with c.batch_update():
-            aut_diff_dfB_contgcase = create_aut_df(
+    def contgcasetap_response_autB(change):
+        with contgcasetap_aut_diff_dfB_grid.batch_update():
+            contgcasetap_aut_diff_dfB_contgcase = create_aut_df(
                 RESULTS_DIR,
                 2,
-                aut_diff_case.value,
+                contgcasetap_aut_diff_case.value,
                 PREFIX,
                 BASECASE,
                 DWO_DWO,
-                aut_diff_var_B.value,
+                contgcasetap_aut_diff_var_B.value,
             )
 
-            if check2b.value:
-                aut_diff_dfB_contgcase = aut_diff_dfB_contgcase.loc[
-                    (aut_diff_dfB_contgcase.HAS_CHANGED != 0)
-                ]
-                aut_diff_dfB_contgcase = aut_diff_dfB_contgcase.drop(
-                    columns=["HAS_CHANGED"]
+            if contgcasetap_checkb.value:
+                contgcasetap_aut_diff_dfB_contgcase = (
+                    contgcasetap_aut_diff_dfB_contgcase.loc[
+                        (contgcasetap_aut_diff_dfB_contgcase.HAS_CHANGED != 0)
+                    ]
+                )
+                contgcasetap_aut_diff_dfB_contgcase = (
+                    contgcasetap_aut_diff_dfB_contgcase.drop(columns=["HAS_CHANGED"])
                 )
 
-            aut_diff_dfB_contgcase_grid.data = aut_diff_dfB_contgcase
-            aut_diff_dfB_contgcase_grid.base_column_size = int(
-                (WIDTH / 2 / 1.1) / len(aut_diff_dfB_contgcase.columns)
+            contgcasetap_aut_diff_dfB_grid.data = contgcasetap_aut_diff_dfB_contgcase
+            contgcasetap_aut_diff_dfB_grid.base_column_size = int(
+                (WIDTH / 2 / 1.1) / len(contgcasetap_aut_diff_dfB_contgcase.columns)
             )
 
-    def response_aut(change):
-        with c.batch_update():
-            if len(aut_diffs_A_grid.selections) != 0:
-                aut_diff_case.value = aut_diffs_A_grid.data.iloc[
-                    aut_diffs_A_grid.selections[0]["r1"], 4
+    def contgcasetap_response_aut(change):
+        with contgcasetap_aut_diff_dfA_grid.batch_update():
+            if len(globaltap_aut_diffs_A_grid.selections) != 0:
+                contgcasetap_aut_diff_case.value = globaltap_aut_diffs_A_grid.data.iloc[
+                    globaltap_aut_diffs_A_grid.selections[0]["r1"], 4
                 ][len(PREFIX) + 1 :]
-                aut_diffs_A_grid.clear_selection()
-                aut_diffs_B_grid.clear_selection()
+                globaltap_aut_diffs_A_grid.clear_selection()
+                globaltap_aut_diffs_B_grid.clear_selection()
 
-            elif len(aut_diffs_B_grid.selections) != 0:
-                aut_diff_case.value = aut_diffs_B_grid.data.iloc[
-                    aut_diffs_B_grid.selections[0]["r1"], 4
+            elif len(globaltap_aut_diffs_B_grid.selections) != 0:
+                contgcasetap_aut_diff_case.value = globaltap_aut_diffs_B_grid.data.iloc[
+                    globaltap_aut_diffs_B_grid.selections[0]["r1"], 4
                 ][len(PREFIX) + 1 :]
-                aut_diffs_A_grid.clear_selection()
-                aut_diffs_B_grid.clear_selection()
+                globaltap_aut_diffs_A_grid.clear_selection()
+                globaltap_aut_diffs_B_grid.clear_selection()
 
-            aut_diff_dfA_contgcase = create_aut_df(
+            contgcasetap_aut_diff_dfA_contgcase = create_aut_df(
                 RESULTS_DIR,
                 1,
-                aut_diff_case.value,
+                contgcasetap_aut_diff_case.value,
                 PREFIX,
                 BASECASE,
                 DWO_DWO,
-                aut_diff_var_A.value,
+                contgcasetap_aut_diff_var_A.value,
             )
-            aut_diff_dfB_contgcase = create_aut_df(
+            contgcasetap_aut_diff_dfB_contgcase = create_aut_df(
                 RESULTS_DIR,
                 2,
-                aut_diff_case.value,
+                contgcasetap_aut_diff_case.value,
                 PREFIX,
                 BASECASE,
                 DWO_DWO,
-                aut_diff_var_B.value,
+                contgcasetap_aut_diff_var_B.value,
             )
 
-            if check2a.value:
-                aut_diff_dfA_contgcase = aut_diff_dfA_contgcase.loc[
-                    (aut_diff_dfA_contgcase.HAS_CHANGED != 0)
-                ]
-                aut_diff_dfA_contgcase = aut_diff_dfA_contgcase.drop(
-                    columns=["HAS_CHANGED"]
+            if contgcasetap_checka.value:
+                contgcasetap_aut_diff_dfA_contgcase = (
+                    contgcasetap_aut_diff_dfA_contgcase.loc[
+                        (contgcasetap_aut_diff_dfA_contgcase.HAS_CHANGED != 0)
+                    ]
+                )
+                contgcasetap_aut_diff_dfA_contgcase = (
+                    contgcasetap_aut_diff_dfA_contgcase.drop(columns=["HAS_CHANGED"])
                 )
 
-            if check2b.value:
-                aut_diff_dfB_contgcase = aut_diff_dfB_contgcase.loc[
-                    (aut_diff_dfB_contgcase.HAS_CHANGED != 0)
-                ]
-                aut_diff_dfB_contgcase = aut_diff_dfB_contgcase.drop(
-                    columns=["HAS_CHANGED"]
+            if contgcasetap_checkb.value:
+                contgcasetap_aut_diff_dfB_contgcase = (
+                    contgcasetap_aut_diff_dfB_contgcase.loc[
+                        (contgcasetap_aut_diff_dfB_contgcase.HAS_CHANGED != 0)
+                    ]
+                )
+                contgcasetap_aut_diff_dfB_contgcase = (
+                    contgcasetap_aut_diff_dfB_contgcase.drop(columns=["HAS_CHANGED"])
                 )
 
-            aut_diff_dfA_contgcase_grid.data = aut_diff_dfA_contgcase
-            aut_diff_dfA_contgcase_grid.base_column_size = int(
-                (WIDTH / 2 / 1.1) / len(aut_diff_dfA_contgcase.columns)
+            contgcasetap_aut_diff_dfA_grid.data = contgcasetap_aut_diff_dfA_contgcase
+            contgcasetap_aut_diff_dfA_grid.base_column_size = int(
+                (WIDTH / 2 / 1.1) / len(contgcasetap_aut_diff_dfA_contgcase.columns)
             )
-            aut_diff_dfB_contgcase_grid.data = aut_diff_dfB_contgcase
-            aut_diff_dfB_contgcase_grid.base_column_size = int(
-                (WIDTH / 2 / 1.1) / len(aut_diff_dfB_contgcase.columns)
+            contgcasetap_aut_diff_dfB_grid.data = contgcasetap_aut_diff_dfB_contgcase
+            contgcasetap_aut_diff_dfB_grid.base_column_size = int(
+                (WIDTH / 2 / 1.1) / len(contgcasetap_aut_diff_dfB_contgcase.columns)
             )
-            individual_aut_group(aut_diff_case.value)
+            contgcasetap_individual_aut_group(contgcasetap_aut_diff_case.value)
 
     def response_download_data(change):
         temp_dict = {
-            "text": list(t_r.data[0].text),
-            "x": list(t_r.data[0].x),
-            "y": list(t_r.data[0].y),
+            "text": list(globaltap_trace.data[0].text),
+            "x": list(globaltap_trace.data[0].x),
+            "y": list(globaltap_trace.data[0].y),
         }
         pd.DataFrame(temp_dict).to_csv("comparison_aut_states.csv", sep=";")
         temp_dict = {
-            "text": list(c.data[0].text),
-            "x": list(c.data[0].x),
-            "y": list(c.data[0].y),
+            "text": list(contgcasediffs_individualtrace.data[0].text),
+            "x": list(contgcasediffs_individualtrace.data[0].x),
+            "y": list(contgcasediffs_individualtrace.data[0].y),
         }
         pd.DataFrame(temp_dict).to_csv("indv_case_diffs.csv", sep=";")
         temp_dict = {
-            "text": list(g.data[0].text),
-            "x": list(g.data[0].x),
-            "y": list(g.data[0].y),
+            "text": list(globaldiffs_generaltrace.data[0].text),
+            "x": list(globaldiffs_generaltrace.data[0].x),
+            "y": list(globaldiffs_generaltrace.data[0].y),
         }
         pd.DataFrame(temp_dict).to_csv("global_case_diffs.csv", sep=";")
 
-    def response_general_aut_A(change):
-        aut_diffs_A, aut_diffs_B = read_csv_aut_diffs(
+    def globaltap_response_general_aut_A(change):
+        globaltap_aut_diffs_A, globaltap_aut_diffs_B = read_csv_aut_diffs(
             RESULTS_DIR + "/" + PREFIX + "/aut/"
         )
-        if check1a.value:
-            aut_diffs_A = aut_diffs_A.loc[(aut_diffs_A.NUM_CHANGES != 0)]
-        aut_diffs_A_grid.data = aut_diffs_A
-        aut_diffs_A_grid.base_column_size = int(
-            (WIDTH / 2 / 1.1) / len(aut_diffs_A.columns)
+        if globaltap_checka.value:
+            globaltap_aut_diffs_A = globaltap_aut_diffs_A.loc[
+                (globaltap_aut_diffs_A.NUM_CHANGES != 0)
+            ]
+        globaltap_aut_diffs_A_grid.data = globaltap_aut_diffs_A
+        globaltap_aut_diffs_A_grid.base_column_size = int(
+            (WIDTH / 2 / 1.1) / len(globaltap_aut_diffs_A.columns)
         )
 
-    def response_general_aut_B(change):
-        aut_diffs_A, aut_diffs_B = read_csv_aut_diffs(
+    def globaltap_response_general_aut_B(change):
+        globaltap_aut_diffs_A, globaltap_aut_diffs_B = read_csv_aut_diffs(
             RESULTS_DIR + "/" + PREFIX + "/aut/"
         )
-        if check1b.value:
-            aut_diffs_B = aut_diffs_B.loc[(aut_diffs_B.NUM_CHANGES != 0)]
-        aut_diffs_B_grid.data = aut_diffs_B
-        aut_diffs_B_grid.base_column_size = int(
-            (WIDTH / 2 / 1.1) / len(aut_diffs_B.columns)
+        if globaltap_checkb.value:
+            globaltap_aut_diffs_B = globaltap_aut_diffs_B.loc[
+                (globaltap_aut_diffs_B.NUM_CHANGES != 0)
+            ]
+        globaltap_aut_diffs_B_grid.data = globaltap_aut_diffs_B
+        globaltap_aut_diffs_B_grid.base_column_size = int(
+            (WIDTH / 2 / 1.1) / len(globaltap_aut_diffs_B.columns)
         )
 
-    def response_aut_plot(change):
-        df_aut = read_aut_case(
-            RESULTS_DIR + "/" + PREFIX + "/aut/", aut_diff_var_plot.value
+    def globaltap_response_aut_plot(change):
+        globaltap_df_aut = read_aut_case(
+            RESULTS_DIR + "/" + PREFIX + "/aut/", globaltap_aut_diff_var_plot.value
         )
-        with t_r.batch_update():
-            temp_sim_A = min(df_aut["sim_A"], default=None)
-            temp_sim_B = min(df_aut["sim_B"], default=None)
+        with globaltap_trace.batch_update():
+            temp_sim_A = min(globaltap_df_aut["sim_A"], default=None)
+            temp_sim_B = min(globaltap_df_aut["sim_B"], default=None)
             if temp_sim_A is None and temp_sim_B is None:
                 min_val = 0
             else:
                 min_val = min([temp_sim_A, temp_sim_B]) - 1
 
-            temp_sim_A = max(df_aut["sim_A"], default=None)
-            temp_sim_B = max(df_aut["sim_B"], default=None)
+            temp_sim_A = max(globaltap_df_aut["sim_A"], default=None)
+            temp_sim_B = max(globaltap_df_aut["sim_B"], default=None)
             if temp_sim_A is None and temp_sim_B is None:
                 max_val = 1
             else:
                 max_val = max([temp_sim_A, temp_sim_B]) + 1
 
-            t_r.data[0].x = df_aut["sim_A"]
-            t_r.data[0].y = df_aut["sim_B"]
-            t_r.data[0].text = list(df_aut.index)
-            t_r.layout.xaxis = dict(
+            globaltap_trace.data[0].x = globaltap_df_aut["sim_A"]
+            globaltap_trace.data[0].y = globaltap_df_aut["sim_B"]
+            globaltap_trace.data[0].text = list(globaltap_df_aut.index)
+            globaltap_trace.layout.xaxis = dict(
                 title="SIM_A",
                 range=[min_val, max_val],
                 tickmode="linear",
             )
-            t_r.layout.yaxis = dict(
+            globaltap_trace.layout.yaxis = dict(
                 title="SIM_B",
                 range=[min_val, max_val],
                 tickmode="linear",
             )
 
-            t_r.data[1].x = [min_val, max_val]
-            t_r.data[1].y = [min_val, max_val]
+            globaltap_trace.data[1].x = [min_val, max_val]
+            globaltap_trace.data[1].y = [min_val, max_val]
 
-    def response3(change):
-        with c.batch_update():
-            C = create_graph.get_subgraph(G, graph.value, SUBGRAPH_TYPE, SUBGRAPH_VALUE)
+    def netwgraph_response(change):
+        with contgcasediffs_individualtrace.batch_update():
+            C = create_graph.get_subgraph(
+                netwgraph_G, netwgraph_graph.value, SUBGRAPH_TYPE, SUBGRAPH_VALUE
+            )
             C = paint_graph(
                 C,
-                data_first_case,
-                nodetype.value,
-                nodemetrictype.value,
-                edgetype.value,
-                edgemetrictype.value,
+                contgcasediffs_data_first_case,
+                netwgraph_nodetype_drop.value,
+                netwgraph_nodemetrictype_drop.value,
+                netwgraph_edgetype_drop.value,
+                netwgraph_edgemetrictype_drop.value,
             )
-            html_graph.update(C.show("subgraph.html"))
-            file1 = open("legend1.png", "rb")
-            legend1 = file1.read()
-            file2 = open("legend2.png", "rb")
-            legend2 = file2.read()
-            legend1widget.value = legend1
-            legend2widget.value = legend2
+            netwgraph_html_graph.update(C.show("subgraph.html"))
+            netwgraph_file1 = open("legend1.png", "rb")
+            netwgraph_legend1 = netwgraph_file1.read()
+            netwgraph_file2 = open("legend2.png", "rb")
+            netwgraph_legend2 = netwgraph_file2.read()
+            netwgraph_legend1widget.value = netwgraph_legend1
+            netwgraph_legend2widget.value = netwgraph_legend2
 
     def get_matching_df():
-        if diff_metric_type.value == "max":
-            matching_df = df[
+        if globaldiffs_diff_metric_type.value == "max":
+            globaldiffs_matching_df = globaldiffs_df[
                 [
                     "contg_case",
                     "volt_level",
@@ -2170,8 +2345,8 @@ def run_all(
                     "v_max",
                 ]
             ]
-        elif diff_metric_type.value == "p95":
-            matching_df = df[
+        elif globaldiffs_diff_metric_type.value == "p95":
+            globaldiffs_matching_df = globaldiffs_df[
                 [
                     "contg_case",
                     "volt_level",
@@ -2186,8 +2361,8 @@ def run_all(
                     "v_p95",
                 ]
             ]
-        elif diff_metric_type.value == "mean":
-            matching_df = df[
+        elif globaldiffs_diff_metric_type.value == "mean":
+            globaldiffs_matching_df = globaldiffs_df[
                 [
                     "contg_case",
                     "volt_level",
@@ -2202,340 +2377,420 @@ def run_all(
                     "v_mean",
                 ]
             ]
-        return matching_df
+        return globaldiffs_matching_df
 
-    nodetypes = ["v", "angle", "p", "q"]
-    nodemetrictypes = ["DIFF", "ABS_ERR", "REL_ERR", "VALUE_A", "VALUE_B"]
-    edgetypes = ["p1", "p2", "q1", "q2"]
-    edgemetrictypes = ["DIFF", "ABS_ERR", "REL_ERR", "VALUE_A", "VALUE_B"]
+    # This notebook is divided in four sections:
+    # - compscore
+    # - globaltap
+    # - contgcasetap
+    # - globaldiffs
+    # - contgcasediffs
+    # - netwgraph
+
+    # Define const values
+    netwgraph_nodetypes = ["v", "angle", "p", "q"]
+    netwgraph_nodemetrictypes = ["DIFF", "ABS_ERR", "REL_ERR", "VALUE_A", "VALUE_B"]
+    netwgraph_edgetypes = ["p1", "p2", "q1", "q2"]
+    netwgraph_edgemetrictype = ["DIFF", "ABS_ERR", "REL_ERR", "VALUE_A", "VALUE_B"]
 
     do_displaybutton()
 
-    df = read_csv_metrics(PF_SOL_DIR)
+    # Get aut diffs
+    globaltap_aut_diffs_A, globaltap_aut_diffs_B = read_csv_aut_diffs(
+        RESULTS_DIR + "/" + PREFIX + "/aut/"
+    )
 
-    aut_diffs_A, aut_diffs_B = read_csv_aut_diffs(RESULTS_DIR + "/" + PREFIX + "/aut/")
+    # Get global diffs
+    globaldiffs_df = read_csv_metrics(PF_SOL_DIR)
 
-    check1a, check1b, check2a, check2b = create_check_box()
+    # Create all the checkboxes
+    (
+        globaltap_checka,
+        globaltap_checkb,
+        contgcasetap_checka,
+        contgcasetap_checkb,
+    ) = create_check_box()
 
     # Get list of contingency cases
-    contg_cases = list(df["contg_case"].unique())
-    contg_case_init = contg_cases[0]
+    contg_cases = list(globaldiffs_df["contg_case"].unique())
+    contgcasediffs_contgcaseinit = contg_cases[0]
 
     # Read the first contingency to put default data
-    data_first_case = read_case(contg_case_init, PF_SOL_DIR, PREFIX)
+    contgcasediffs_data_first_case = read_case(
+        contgcasediffs_contgcaseinit, PF_SOL_DIR, PREFIX
+    )
 
     # Read the groups of the different automatas
-    aut_group_data_first_caseA, aut_group_data_first_caseB = read_aut_group(
-        contg_case_init, PF_SOL_DIR, DWO_DWO, PREFIX
-    )
+    (
+        contgcasetap_aut_group_data_first_caseA,
+        contgcasetap_aut_group_data_first_caseB,
+    ) = read_aut_group(contgcasediffs_contgcaseinit, PF_SOL_DIR, DWO_DWO, PREFIX)
 
-    vars_case = data_first_case.columns[1:]
+    contgcasediffs_vars_case = contgcasediffs_data_first_case.columns[1:]
 
     # Get the bus list for subgraph selection
-    bus_list = sorted(
-        list(set(data_first_case.loc[(data_first_case.ELEMENT_TYPE == "bus")]["ID"]))
+    netwgraph_bus_list = sorted(
+        list(
+            set(
+                contgcasediffs_data_first_case.loc[
+                    (contgcasediffs_data_first_case.ELEMENT_TYPE == "bus")
+                ]["ID"]
+            )
+        )
     )
 
-    df_aut = read_aut_case(RESULTS_DIR + "/" + PREFIX + "/aut/", "ratioTapChanger")
-    t_r = create_tap_trace(df_aut, HEIGHT, WIDTH)
+    globaltap_df_aut = read_aut_case(
+        RESULTS_DIR + "/" + PREFIX + "/aut/", "ratioTapChanger"
+    )
+    globaltap_trace = create_tap_trace(globaltap_df_aut, HEIGHT, WIDTH)
 
     # Get all the dropdowns
     (
-        def_volt_level,
-        varx,
-        vary,
-        dev,
-        dropdown1,
-        dropdown2,
-        dropdown3,
-        dropdown4,
-        graph,
-        nodetype,
-        nodemetrictype,
-        edgetype,
-        edgemetrictype,
-        aut_diff_case,
-        aut_diff_var_A,
-        aut_diff_var_B,
-        aut_diff_var_plot,
-        diff_metric_type,
+        globaldiffs_def_volt_level,
+        globaldiffs_dropdownvarx,
+        globaldiffs_dropdownvary,
+        contgcasediffs_dropdowndev,
+        contgcasediffs_dropdownx,
+        contgcasediffs_dropdowny,
+        contgcasediffs_elementdropdown,
+        contgcasediffs_vardropdown,
+        netwgraph_graph,
+        netwgraph_nodetype_drop,
+        netwgraph_nodemetrictype_drop,
+        netwgraph_edgetype_drop,
+        netwgraph_edgemetrictype_drop,
+        contgcasetap_aut_diff_case,
+        contgcasetap_aut_diff_var_A,
+        contgcasetap_aut_diff_var_B,
+        globaltap_aut_diff_var_plot,
+        globaldiffs_diff_metric_type,
     ) = create_dropdowns(
-        df,
+        globaldiffs_df,
         contg_cases,
-        contg_case_init,
-        data_first_case,
-        vars_case,
-        bus_list,
-        nodetypes,
-        nodemetrictypes,
-        edgetypes,
-        edgemetrictypes,
-        aut_diffs_A,
-        aut_diffs_B,
-    )
-
-    # Get all the containers
-    (
-        container1,
-        container2,
-        container3,
-        container_aut_gen,
-        container_aut,
-        container_aut_trace,
-    ) = create_containers(
-        varx,
-        vary,
-        dev,
-        dropdown1,
-        dropdown2,
-        dropdown3,
-        dropdown4,
-        graph,
-        nodetype,
-        nodemetrictype,
-        edgetype,
-        edgemetrictype,
-        aut_diff_case,
-        aut_diff_var_A,
-        aut_diff_var_B,
-        check1a,
-        check1b,
-        check2a,
-        check2b,
-        aut_diff_var_plot,
+        contgcasediffs_contgcaseinit,
+        contgcasediffs_data_first_case,
+        contgcasediffs_vars_case,
+        netwgraph_bus_list,
+        netwgraph_nodetypes,
+        netwgraph_nodemetrictypes,
+        netwgraph_edgetypes,
+        netwgraph_edgemetrictype,
+        globaltap_aut_diffs_A,
+        globaltap_aut_diffs_B,
     )
 
     # Get all the layouts
-    layout1, layout2, layout3 = create_layouts(
-        varx, vary, HEIGHT, WIDTH, contg_case_init, dropdown1, dropdown2
+    globaldiffs_layout, contgcasediffs_layout, contgcasetap_layout = create_layouts(
+        globaldiffs_dropdownvarx,
+        globaldiffs_dropdownvary,
+        HEIGHT,
+        WIDTH,
+        contgcasediffs_contgcaseinit,
+        contgcasediffs_dropdownx,
+        contgcasediffs_dropdowny,
     )
 
-    current_general_trace = create_general_trace(df, varx.value, vary.value, DATA_LIMIT)
+    globaldiffs_current_general_trace = create_general_trace(
+        globaldiffs_df,
+        globaldiffs_dropdownvarx.value,
+        globaldiffs_dropdownvary.value,
+        DATA_LIMIT,
+    )
 
-    df_score, max_n_pass, p95_n_pass, mean_n_pass, total_n_pass = calc_global_score(
-        df, W_V, W_P, W_Q, W_T, MAX_THRESH, MEAN_THRESH, P95_THRESH
+    (
+        compscore_df_score,
+        compscore_max_n_pass,
+        compscore_p95_n_pass,
+        compscore_mean_n_pass,
+        compscore_total_n_pass,
+    ) = calc_global_score(
+        globaldiffs_df, W_V, W_P, W_Q, W_T, MAX_THRESH, MEAN_THRESH, P95_THRESH
     )
 
     # Paint score grid
-    renderers = get_renderers(MAX_THRESH, P95_THRESH, MEAN_THRESH)
+    compscore_renderers = get_renderers(MAX_THRESH, P95_THRESH, MEAN_THRESH)
 
-    grid_score = ipydatagrid.DataGrid(
-        df_score,
-        base_column_size=int((WIDTH / 2 / 1.1) / len(df_score.columns)),
-        renderers=renderers,
+    compscore_grid_score = ipydatagrid.DataGrid(
+        compscore_df_score,
+        base_column_size=int((WIDTH / 2 / 1.1) / len(compscore_df_score.columns)),
+        renderers=compscore_renderers,
     )
 
-    current_individual_trace = create_individual_trace(
-        data_first_case, dropdown1.value, dropdown2.value, DATA_LIMIT
+    # Individual trace for contingency diffs
+    contgcasediffs_current_individual_trace = create_individual_trace(
+        contgcasediffs_data_first_case,
+        contgcasediffs_dropdownx.value,
+        contgcasediffs_dropdowny.value,
+        DATA_LIMIT,
     )
 
-    current_aut_group_traceA, current_aut_group_traceB = create_aut_group_trace(
-        aut_group_data_first_caseA, aut_group_data_first_caseB, DATA_LIMIT
+    # Individual trace for contingency taps
+    (
+        contgcasetap_current_aut_group_traceA,
+        contgcasetap_current_aut_group_traceB,
+    ) = create_aut_group_trace(
+        contgcasetap_aut_group_data_first_caseA,
+        contgcasetap_aut_group_data_first_caseB,
+        DATA_LIMIT,
     )
 
-    aut_diff_dfA_contgcase = create_aut_df(
+    # Individual grid for contingency taps
+    contgcasetap_aut_diff_dfA_contgcase = create_aut_df(
         RESULTS_DIR,
         1,
-        aut_diff_case.value,
+        contgcasetap_aut_diff_case.value,
         PREFIX,
         BASECASE,
         DWO_DWO,
-        aut_diff_var_A.value,
+        contgcasetap_aut_diff_var_A.value,
     )
 
-    aut_diff_dfB_contgcase = create_aut_df(
+    contgcasetap_aut_diff_dfB_contgcase = create_aut_df(
         RESULTS_DIR,
         2,
-        aut_diff_case.value,
+        contgcasetap_aut_diff_case.value,
         PREFIX,
         BASECASE,
         DWO_DWO,
-        aut_diff_var_B.value,
+        contgcasetap_aut_diff_var_B.value,
     )
 
-    if check2a.value:
-        aut_diff_dfA_contgcase = aut_diff_dfA_contgcase.loc[
-            (aut_diff_dfA_contgcase.HAS_CHANGED != 0)
+    if contgcasetap_checka.value:
+        contgcasetap_aut_diff_dfA_contgcase = contgcasetap_aut_diff_dfA_contgcase.loc[
+            (contgcasetap_aut_diff_dfA_contgcase.HAS_CHANGED != 0)
         ]
-        aut_diff_dfA_contgcase = aut_diff_dfA_contgcase.drop(columns=["HAS_CHANGED"])
-    aut_diff_dfA_contgcase_grid = ipydatagrid.DataGrid(
-        aut_diff_dfA_contgcase,
-        base_column_size=int((WIDTH / 2 / 1.1) / len(aut_diff_dfA_contgcase.columns)),
+        contgcasetap_aut_diff_dfA_contgcase = contgcasetap_aut_diff_dfA_contgcase.drop(
+            columns=["HAS_CHANGED"]
+        )
+    contgcasetap_aut_diff_dfA_grid = ipydatagrid.DataGrid(
+        contgcasetap_aut_diff_dfA_contgcase,
+        base_column_size=int(
+            (WIDTH / 2 / 1.1) / len(contgcasetap_aut_diff_dfA_contgcase.columns)
+        ),
     )
 
-    if check2b.value:
-        aut_diff_dfB_contgcase = aut_diff_dfB_contgcase.loc[
-            (aut_diff_dfB_contgcase.HAS_CHANGED != 0)
+    if contgcasetap_checkb.value:
+        contgcasetap_aut_diff_dfB_contgcase = contgcasetap_aut_diff_dfB_contgcase.loc[
+            (contgcasetap_aut_diff_dfB_contgcase.HAS_CHANGED != 0)
         ]
-        aut_diff_dfB_contgcase = aut_diff_dfB_contgcase.drop(columns=["HAS_CHANGED"])
-    aut_diff_dfB_contgcase_grid = ipydatagrid.DataGrid(
-        aut_diff_dfB_contgcase,
-        base_column_size=int((WIDTH / 2 / 1.1) / len(aut_diff_dfB_contgcase.columns)),
+        contgcasetap_aut_diff_dfB_contgcase = contgcasetap_aut_diff_dfB_contgcase.drop(
+            columns=["HAS_CHANGED"]
+        )
+    contgcasetap_aut_diff_dfB_grid = ipydatagrid.DataGrid(
+        contgcasetap_aut_diff_dfB_contgcase,
+        base_column_size=int(
+            (WIDTH / 2 / 1.1) / len(contgcasetap_aut_diff_dfB_contgcase.columns)
+        ),
     )
 
-    # Create the required widgets for visualization
-    if check1a.value:
-        aut_diffs_A = aut_diffs_A.loc[(aut_diffs_A.NUM_CHANGES != 0)]
-        aut_diffs_A_grid = ipydatagrid.DataGrid(
-            aut_diffs_A,
-            base_column_size=int((WIDTH / 2 / 1.1) / len(aut_diffs_A.columns)),
+    # Global grid for contingency taps
+    if globaltap_checka.value:
+        globaltap_aut_diffs_A = globaltap_aut_diffs_A.loc[
+            (globaltap_aut_diffs_A.NUM_CHANGES != 0)
+        ]
+        globaltap_aut_diffs_A_grid = ipydatagrid.DataGrid(
+            globaltap_aut_diffs_A,
+            base_column_size=int(
+                (WIDTH / 2 / 1.1) / len(globaltap_aut_diffs_A.columns)
+            ),
             selection_mode="row",
         )
 
-    if check1b.value:
-        aut_diffs_B = aut_diffs_B.loc[(aut_diffs_B.NUM_CHANGES != 0)]
-        aut_diffs_B_grid = ipydatagrid.DataGrid(
-            aut_diffs_B,
-            base_column_size=int((WIDTH / 2 / 1.1) / len(aut_diffs_B.columns)),
+    if globaltap_checkb.value:
+        globaltap_aut_diffs_B = globaltap_aut_diffs_B.loc[
+            (globaltap_aut_diffs_B.NUM_CHANGES != 0)
+        ]
+        globaltap_aut_diffs_B_grid = ipydatagrid.DataGrid(
+            globaltap_aut_diffs_B,
+            base_column_size=int(
+                (WIDTH / 2 / 1.1) / len(globaltap_aut_diffs_B.columns)
+            ),
             selection_mode="row",
         )
 
-    # Matching df
-    matching_df = get_matching_df()
+    # Match globaldiffs_df with diffs type and creation of grid
+    globaldiffs_matching_df = get_matching_df()
 
-    sdf = ipydatagrid.DataGrid(
-        matching_df,
-        base_column_size=int((WIDTH / 1.03) / len(matching_df.columns)),
+    globaldiffs_dfgrid = ipydatagrid.DataGrid(
+        globaldiffs_matching_df,
+        base_column_size=int((WIDTH / 1.03) / len(globaldiffs_matching_df.columns)),
         selection_mode="row",
     )
 
-    g = go.FigureWidget(data=[current_general_trace], layout=layout1)
-
-    c = go.FigureWidget(data=[current_individual_trace], layout=layout2)
-
-    groups_traceA = go.FigureWidget(data=[current_aut_group_traceA], layout=layout3)
-    if current_aut_group_traceB is not None:
-        groups_traceB = go.FigureWidget(data=[current_aut_group_traceB], layout=layout3)
-    else:
-        groups_traceB = None
-
-    file0 = open("legend0.png", "rb")
-    legend0 = file0.read()
-    legend0widget = widgets.Image(value=legend0, format="png")
-
-    container0 = widgets.HBox([c, legend0widget])
-
-    s = ipydatagrid.DataGrid(
-        data_first_case,
-        base_column_size=int((WIDTH / 1.03) / len(data_first_case.columns)),
+    # Create global and individual diffs trace widget
+    globaldiffs_generaltrace = go.FigureWidget(
+        data=[globaldiffs_current_general_trace], layout=globaldiffs_layout
     )
 
+    contgcasediffs_individualtrace = go.FigureWidget(
+        data=[contgcasediffs_current_individual_trace], layout=contgcasediffs_layout
+    )
+
+    # Create individual tap trace widget
+    contgcasetap_groups_traceA = go.FigureWidget(
+        data=[contgcasetap_current_aut_group_traceA], layout=contgcasetap_layout
+    )
+    if contgcasetap_current_aut_group_traceB is not None:
+        contgcasetap_groups_traceB = go.FigureWidget(
+            data=[contgcasetap_current_aut_group_traceB], layout=contgcasetap_layout
+        )
+    else:
+        contgcasetap_groups_traceB = None
+
+    # Get manual legend for contgcasediffs_individualtrace
+    contgcasediffs_filelegend = open("legend0.png", "rb")
+    contgcasediffs_legend = contgcasediffs_filelegend.read()
+    contgcasediffs_legendwidget = widgets.Image(
+        value=contgcasediffs_legend, format="png"
+    )
+
+    contgcasediffs_individualgrid = ipydatagrid.DataGrid(
+        contgcasediffs_data_first_case,
+        base_column_size=int(
+            (WIDTH / 1.03) / len(contgcasediffs_data_first_case.columns)
+        ),
+    )
+
+    # Graph creation
     # Get iidm file
-    xiidm_file = get_iidm_file(DWO_DWO, RESULTS_DIR, BASECASE)
+    netwgraph_iidm_file = get_iidm_file(DWO_DWO, RESULTS_DIR, BASECASE)
 
     # Get default graph
-    G, C = get_initial_graph(xiidm_file, graph.value, SUBGRAPH_TYPE, SUBGRAPH_VALUE)
-
-    C = paint_graph(
-        C,
-        data_first_case,
-        nodetype.value,
-        nodemetrictype.value,
-        edgetype.value,
-        edgemetrictype.value,
+    netwgraph_G, netwgraph_C = get_initial_graph(
+        netwgraph_iidm_file, netwgraph_graph.value, SUBGRAPH_TYPE, SUBGRAPH_VALUE
     )
 
-    file1 = open("legend1.png", "rb")
-    legend1 = file1.read()
-    file2 = open("legend2.png", "rb")
-    legend2 = file2.read()
-
-    legend1widget = widgets.Image(
-        value=legend1, format="png", width=WIDTH / 2, height=HEIGHT / 2
+    netwgraph_C = paint_graph(
+        netwgraph_C,
+        contgcasediffs_data_first_case,
+        netwgraph_nodetype_drop.value,
+        netwgraph_nodemetrictype_drop.value,
+        netwgraph_edgetype_drop.value,
+        netwgraph_edgemetrictype_drop.value,
     )
 
-    legend2widget = widgets.Image(
-        value=legend2, format="png", width=WIDTH / 2, height=HEIGHT / 2
+    # Create manual legends for graph
+    netwgraph_file1 = open("legend1.png", "rb")
+    netwgraph_legend1 = netwgraph_file1.read()
+    netwgraph_file2 = open("legend2.png", "rb")
+    netwgraph_legend2 = netwgraph_file2.read()
+
+    netwgraph_legend1widget = widgets.Image(
+        value=netwgraph_legend1, format="png", width=WIDTH / 2, height=HEIGHT / 2
     )
 
-    container4 = widgets.HBox([legend1widget, legend2widget])
-
-    button_descriptions_aut = {
-        False: "Apply selection below",
-        True: "Apply selection below",
-    }
-    button_aut = widgets.ToggleButton(False, description=button_descriptions_aut[False])
-
-    button_descriptions_case = {
-        False: "Apply selection below",
-        True: "Apply Selection below",
-    }
-    button_case = widgets.ToggleButton(
-        False, description=button_descriptions_case[False]
+    netwgraph_legend2widget = widgets.Image(
+        value=netwgraph_legend2, format="png", width=WIDTH / 2, height=HEIGHT / 2
     )
 
-    button_download_data_opts = {False: "Download Data", True: "Download Data"}
-    button_download_data = widgets.ToggleButton(
-        False, description=button_download_data_opts[False]
+    # Create all the buttons
+    (
+        globaltap_button_aut,
+        globaldiffs_button_case,
+        button_download_data,
+    ) = create_buttons()
+
+    # Get all the containers
+    (
+        globaldiffs_container,
+        contgcasediffs_container,
+        netwgraph_container,
+        globaltap_container_aut,
+        contgcasetap_container_aut,
+        globaltap_container_aut_trace,
+        contgcasediffs_individualtracecontainer,
+        netwgraph_legendcontainer,
+    ) = create_containers(
+        globaldiffs_dropdownvarx,
+        globaldiffs_dropdownvary,
+        contgcasediffs_dropdowndev,
+        contgcasediffs_dropdownx,
+        contgcasediffs_dropdowny,
+        contgcasediffs_elementdropdown,
+        contgcasediffs_vardropdown,
+        netwgraph_graph,
+        netwgraph_nodetype_drop,
+        netwgraph_nodemetrictype_drop,
+        netwgraph_edgetype_drop,
+        netwgraph_edgemetrictype_drop,
+        contgcasetap_aut_diff_case,
+        contgcasetap_aut_diff_var_A,
+        contgcasetap_aut_diff_var_B,
+        globaltap_checka,
+        globaltap_checkb,
+        contgcasetap_checka,
+        contgcasetap_checkb,
+        globaltap_aut_diff_var_plot,
+        contgcasediffs_individualtrace,
+        contgcasediffs_legendwidget,
+        netwgraph_legend1widget,
+        netwgraph_legend2widget,
     )
 
     # Display all the objects and get html subgraph id
-    html_graph = show_displays(
-        aut_diffs_A_grid,
-        aut_diffs_B_grid,
-        container_aut_gen,
-        container_aut,
-        container_aut_trace,
-        aut_diff_dfA_contgcase_grid,
-        aut_diff_dfB_contgcase_grid,
-        t_r,
-        groups_traceA,
-        groups_traceB,
-        def_volt_level,
-        diff_metric_type,
-        sdf,
-        container1,
-        g,
-        container2,
-        container0,
-        s,
-        container3,
-        C,
-        dev,
-        container4,
-        button_aut,
-        button_case,
+    netwgraph_html_graph = show_displays(
+        globaltap_aut_diffs_A_grid,
+        globaltap_aut_diffs_B_grid,
+        globaltap_container_aut,
+        contgcasetap_container_aut,
+        globaltap_container_aut_trace,
+        contgcasetap_aut_diff_dfA_grid,
+        contgcasetap_aut_diff_dfB_grid,
+        globaltap_trace,
+        contgcasetap_groups_traceA,
+        contgcasetap_groups_traceB,
+        globaldiffs_def_volt_level,
+        globaldiffs_diff_metric_type,
+        globaldiffs_dfgrid,
+        globaldiffs_container,
+        globaldiffs_generaltrace,
+        contgcasediffs_container,
+        contgcasediffs_individualtracecontainer,
+        contgcasediffs_individualgrid,
+        netwgraph_container,
+        netwgraph_C,
+        netwgraph_legendcontainer,
+        globaltap_button_aut,
+        globaldiffs_button_case,
         button_download_data,
-        grid_score,
-        max_n_pass,
-        p95_n_pass,
-        mean_n_pass,
-        total_n_pass,
+        compscore_grid_score,
+        compscore_max_n_pass,
+        compscore_p95_n_pass,
+        compscore_mean_n_pass,
+        compscore_total_n_pass,
     )
 
     # Observe selection events to update graphics
-    def_volt_level.observe(response, names="value")
-    diff_metric_type.observe(response, names="value")
-    varx.observe(response, names="value")
-    vary.observe(response, names="value")
+    globaldiffs_def_volt_level.observe(globaldiffs_response, names="value")
+    globaldiffs_diff_metric_type.observe(globaldiffs_response, names="value")
+    globaldiffs_dropdownvarx.observe(globaldiffs_response, names="value")
+    globaldiffs_dropdownvary.observe(globaldiffs_response, names="value")
 
-    scatter = g.data[0]
-    scatter.on_click(update_case)
+    globaldiffs_scatter = globaldiffs_generaltrace.data[0]
+    globaldiffs_scatter.on_click(contgcasediffs_update_case)
 
-    dev.observe(response2, names="value")
+    contgcasediffs_dropdowndev.observe(contgcasediffs_response, names="value")
+    contgcasediffs_dropdownx.observe(contgcasediffs_response, names="value")
+    contgcasediffs_dropdowny.observe(contgcasediffs_response, names="value")
+    contgcasediffs_elementdropdown.observe(contgcasediffs_response, names="value")
+    contgcasediffs_vardropdown.observe(contgcasediffs_response, names="value")
 
-    dropdown1.observe(response2, names="value")
-    dropdown2.observe(response2, names="value")
-    dropdown3.observe(response2, names="value")
-    dropdown4.observe(response2, names="value")
+    netwgraph_graph.observe(netwgraph_response, names="value")
+    netwgraph_nodetype_drop.observe(netwgraph_response, names="value")
+    netwgraph_nodemetrictype_drop.observe(netwgraph_response, names="value")
+    netwgraph_edgetype_drop.observe(netwgraph_response, names="value")
+    netwgraph_edgemetrictype_drop.observe(netwgraph_response, names="value")
 
-    graph.observe(response3, names="value")
+    contgcasetap_aut_diff_var_A.observe(contgcasetap_response_autA, names="value")
+    contgcasetap_aut_diff_var_B.observe(contgcasetap_response_autB, names="value")
+    contgcasetap_aut_diff_case.observe(contgcasetap_response_aut, names="value")
 
-    nodetype.observe(response3, names="value")
-    nodemetrictype.observe(response3, names="value")
-    edgetype.observe(response3, names="value")
-    edgemetrictype.observe(response3, names="value")
-
-    aut_diff_var_A.observe(response_autA, names="value")
-    aut_diff_var_B.observe(response_autB, names="value")
-    aut_diff_case.observe(response_aut, names="value")
-
-    button_case.observe(response2, "value")
-    button_aut.observe(response_aut, "value")
+    globaldiffs_button_case.observe(contgcasediffs_response, "value")
+    globaltap_button_aut.observe(contgcasetap_response_aut, "value")
     button_download_data.observe(response_download_data, "value")
 
-    aut_diff_var_plot.observe(response_aut_plot, names="value")
-    check1a.observe(response_general_aut_A, names="value")
-    check1b.observe(response_general_aut_B, names="value")
-    check2a.observe(response_autA, names="value")
-    check2b.observe(response_autB, names="value")
+    globaltap_aut_diff_var_plot.observe(globaltap_response_aut_plot, names="value")
+    globaltap_checka.observe(globaltap_response_general_aut_A, names="value")
+    globaltap_checkb.observe(globaltap_response_general_aut_B, names="value")
+    contgcasetap_checka.observe(contgcasetap_response_autA, names="value")
+    contgcasetap_checkb.observe(contgcasetap_response_autB, names="value")
