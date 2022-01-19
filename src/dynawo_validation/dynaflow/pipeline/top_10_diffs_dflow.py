@@ -59,7 +59,8 @@ def main():
             first_iteration = False
             # Reading the cases and ordering the values ​​according to the metrics
             data = read_case(pf_solutions_dir + i)
-            data.insert(0, "CONTG_ID", i[:-21])
+            split_contg = i[:-20].split("#")[-1]
+            data.insert(0, "CONTG_ID", split_contg)
             databusvolt = data.loc[(data.VAR == "v") & (data.ELEMENT_TYPE == "bus")]
             databusvoltsortedabs = databusvolt.sort_values("ABS_ERR", ascending=False)
             databusvoltsortedrel = databusvolt.sort_values("REL_ERR", ascending=False)
@@ -89,7 +90,8 @@ def main():
         else:
             # Reading the cases and ordering the values ​​according to the metrics
             data = read_case(pf_solutions_dir + i)
-            data.insert(0, "CONTG_ID", i[:-21])
+            split_contg = i[:-20].split("#")[-1]
+            data.insert(0, "CONTG_ID", split_contg)
             databusvolt = data.loc[(data.VAR == "v") & (data.ELEMENT_TYPE == "bus")]
             databusvoltsortedabs = databusvolt.sort_values("ABS_ERR", ascending=False)
             databusvoltsortedrel = databusvolt.sort_values("REL_ERR", ascending=False)

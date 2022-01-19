@@ -85,7 +85,7 @@ def calculate_error(df1):
 
 # Read a specific contingency
 def read_case(name, PF_SOL_DIR, PREFIX):
-    file_name = PF_SOL_DIR + "/pf_sol/" + PREFIX + "_" + name + "_pfsolutionAB.csv.xz"
+    file_name = PF_SOL_DIR + "/pf_sol/" + PREFIX + "#" + name + "_pfsolutionAB.csv.xz"
     data = pd.read_csv(file_name, sep=";", index_col=False, compression="infer")
     data["DIFF"] = data.VALUE_A - data.VALUE_B
     data = calculate_error(data)
@@ -94,13 +94,13 @@ def read_case(name, PF_SOL_DIR, PREFIX):
 
 def read_aut_group(name, PF_SOL_DIR, DWO_DWO, PREFIX):
     if DWO_DWO == 0:
-        file_name = PF_SOL_DIR + "/aut/" + PREFIX + "_" + name + "-aut-groups.csv"
+        file_name = PF_SOL_DIR + "/aut/" + PREFIX + "#" + name + "-aut-groups.csv"
         data = pd.read_csv(file_name, sep=";")
         return data, None
     else:
-        file_name = PF_SOL_DIR + "/aut/" + PREFIX + "_" + name + "-autA-groups.csv"
+        file_name = PF_SOL_DIR + "/aut/" + PREFIX + "#" + name + "-autA-groups.csv"
         data1 = pd.read_csv(file_name, sep=";")
-        file_name = PF_SOL_DIR + "/aut/" + PREFIX + "_" + name + "-autB-groups.csv"
+        file_name = PF_SOL_DIR + "/aut/" + PREFIX + "#" + name + "-autB-groups.csv"
         data2 = pd.read_csv(file_name, sep=";")
         return data1, data2
 
@@ -297,7 +297,7 @@ def create_aut_df(results_dir, A_B, contgcase, prefix, basecase, dwo_dwo, var_va
                 + prefix
                 + "/xml/"
                 + prefix
-                + "_"
+                + "#"
                 + contgcase
                 + "-Hades.Out.xml.xz"
             )
@@ -312,7 +312,7 @@ def create_aut_df(results_dir, A_B, contgcase, prefix, basecase, dwo_dwo, var_va
                     + prefix
                     + "/xml/"
                     + prefix
-                    + "_"
+                    + "#"
                     + contgcase
                     + "-Dynawo.IIDM.xml.xz"
                 )
@@ -324,7 +324,7 @@ def create_aut_df(results_dir, A_B, contgcase, prefix, basecase, dwo_dwo, var_va
                     + prefix
                     + "/xml/"
                     + prefix
-                    + "_"
+                    + "#"
                     + contgcase
                     + "-Dynawo.IIDMA.xml.xz"
                 )
@@ -338,7 +338,7 @@ def create_aut_df(results_dir, A_B, contgcase, prefix, basecase, dwo_dwo, var_va
                 + prefix
                 + "/xml/"
                 + prefix
-                + "_"
+                + "#"
                 + contgcase
                 + "-Hades.Out.xml.xz"
             )
@@ -353,7 +353,7 @@ def create_aut_df(results_dir, A_B, contgcase, prefix, basecase, dwo_dwo, var_va
                     + prefix
                     + "/xml/"
                     + prefix
-                    + "_"
+                    + "#"
                     + contgcase
                     + "-Dynawo.IIDM.xml.xz"
                 )
@@ -365,7 +365,7 @@ def create_aut_df(results_dir, A_B, contgcase, prefix, basecase, dwo_dwo, var_va
                     + prefix
                     + "/xml/"
                     + prefix
-                    + "_"
+                    + "#"
                     + contgcase
                     + "-Dynawo.IIDMB.xml.xz"
                 )

@@ -253,13 +253,13 @@ def main():
             if names_A[i] not in names_B:
                 x_valuesTAP.append(df_A.iloc[i, 1])
                 y_valuesTAP.append(df_A.iloc[i, 0])
-                namesTAP.append(contgname + "_" + names_A[i])
+                namesTAP.append(contgname + "#" + names_A[i])
             else:
                 for j in range(len(names_B)):
                     if names_B[j] == names_A[i]:
                         x_valuesTAP.append(df_A.iloc[i, 1])
                         y_valuesTAP.append(df_B.iloc[j, 1])
-                        namesTAP.append(contgname + "_" + names_A[i])
+                        namesTAP.append(contgname + "#" + names_A[i])
                         names_B_aux[j] = 0
                         break
 
@@ -267,7 +267,7 @@ def main():
             if names_B_aux[i] != 0:
                 x_valuesTAP.append(df_B.iloc[i, 0])
                 y_valuesTAP.append(df_B.iloc[i, 1])
-                namesTAP.append(contgname + "_" + names_B[i])
+                namesTAP.append(contgname + "#" + names_B[i])
         os.remove(aut_dir + data_files_list_sim_A_TAP_changes[k])
         os.remove(aut_dir + data_files_list_sim_B_TAP_changes[k])
 
@@ -284,19 +284,19 @@ def main():
             if names_A[i] not in names_B:
                 x_valuesPSTAP.append(df_A.iloc[i, 1])
                 y_valuesPSTAP.append(df_A.iloc[i, 0])
-                namesPSTAP.append(contgname + "_" + names_A[i])
+                namesPSTAP.append(contgname + "#" + names_A[i])
             else:
                 for j in range(len(names_B)):
                     if names_B[j] == names_A[i]:
                         x_valuesPSTAP.append(df_A.iloc[i, 1])
                         y_valuesPSTAP.append(df_B.iloc[j, 1])
-                        namesPSTAP.append(contgname + "_" + names_A[i])
+                        namesPSTAP.append(contgname + "#" + names_A[i])
                         del names_B[j]
                         break
         for i in range(len(names_B)):
             x_valuesPSTAP.append(df_B.iloc[i, 0])
             y_valuesPSTAP.append(df_B.iloc[i, 1])
-            namesPSTAP.append(contgname + "_" + names_B[i])
+            namesPSTAP.append(contgname + "#" + names_B[i])
         os.remove(aut_dir + data_files_list_sim_A_PSTAP_changes[k])
         os.remove(aut_dir + data_files_list_sim_B_PSTAP_changes[k])
 

@@ -357,27 +357,27 @@ for DEVICE in "${!create_contg[@]}"; do
     fi
     echo
     
-    dirList=$(find_cmd "$DEVICE"_)
+    dirList=$(find_cmd "$DEVICE"#)
     if [ -z "$dirList" ]; then
-       echo -e "No cases with pattern $DEVICE""_* found under $CASE_DIR"
+       echo -e "No cases with pattern $DEVICE""#* found under $CASE_DIR"
     else
        colormsg "*** RUNNING CONTINGENCY CASES:"
        RESULTS_DIR="$RESULTS_BASEDIR"/"$DEVICE"
        mkdir -p "$RESULTS_DIR"
        set -x
-       "$CONTG_SRC"/run_all_contg.sh "${RUN_OPTS[@]}" $runallopts -o "$RESULTS_DIR" -A "$A" -B "$B" "$CASE_DIR" "$BASECASE" "$DEVICE"_
+       "$CONTG_SRC"/run_all_contg.sh "${RUN_OPTS[@]}" $runallopts -o "$RESULTS_DIR" -A "$A" -B "$B" "$CASE_DIR" "$BASECASE" "$DEVICE"#
        set +x
        echo
 
        if [ -t 1 ] ; then
           # stdout is a terminal
           colormsg "*** COMPUTING DIFF METRICS:"   
-          python3 "$CONTG_SRC"/calc_global_pf_diffmetrics.py "$RESULTS_DIR"/pf_sol "$DEVICE"_ "0"
+          python3 "$CONTG_SRC"/calc_global_pf_diffmetrics.py "$RESULTS_DIR"/pf_sol "$DEVICE"# "0"
           echo
        else
           # stdout isn't a terminal
           colormsg "*** COMPUTING DIFF METRICS:"   
-          python3 "$CONTG_SRC"/calc_global_pf_diffmetrics.py "$RESULTS_DIR"/pf_sol "$DEVICE"_ "1"
+          python3 "$CONTG_SRC"/calc_global_pf_diffmetrics.py "$RESULTS_DIR"/pf_sol "$DEVICE"# "1"
           echo
        fi
        

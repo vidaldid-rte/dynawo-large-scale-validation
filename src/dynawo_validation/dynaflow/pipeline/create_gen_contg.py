@@ -192,7 +192,7 @@ def main():
     # Add NOCONTINGENCY
 
     # We fix any device names with slashes in them (illegal filenames)
-    contg_casedir = dirname + "/gen_NOCONTINGENCY"
+    contg_casedir = dirname + "/gen#NOCONTINGENCY"
 
     if dwohds:
         # Copy the basecase (unchanged files and dir structure)
@@ -306,7 +306,7 @@ def main():
         )
 
         # We fix any device names with slashes in them (illegal filenames)
-        contg_casedir = dirname + "/gen_" + gen_name.replace("/", "+")
+        contg_casedir = dirname + "/gen#" + gen_name.replace("/", "+")
 
         if dwohds:
             # Copy the basecase (unchanged files and dir structure)
