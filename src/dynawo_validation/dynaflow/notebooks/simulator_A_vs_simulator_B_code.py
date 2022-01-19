@@ -1999,14 +1999,8 @@ def run_all(
             globaldiffs_generaltrace.layout.yaxis.title = globaldiffs_dropdownvary.value
 
     def contgcasediffs_individual_case(case):
-        if len(globaldiffs_dfgrid.selections) != 0:
-            case = globaldiffs_dfgrid.data.loc[
-                globaldiffs_dfgrid.selections[0]["r1"], "contg_case"
-            ]
-            globaldiffs_dfgrid.clear_selection()
-
         df1 = read_case(case, PF_SOL_DIR, PREFIX)
-        # PERF: Plotly starts showing horrible performance with more than 5,000 points
+        globaldiffs_dfgrid.clear_selection()
         with contgcasediffs_individualtrace.batch_update():
             if (
                 contgcasediffs_elementdropdown.value != "ALL"
@@ -2030,9 +2024,11 @@ def run_all(
                         and contgcasediffs_vardropdown.value != "ALL"
                     ):
                         df1 = df1.loc[(df1.VAR == contgcasediffs_vardropdown.value)]
+
+            contgcasediffs_individualgrid.data = df1.sort_values("ID")
+            # PERF: Plotly starts showing horrible performance with more than 5,000 points
             if df1.shape[0] > DATA_LIMIT:
                 df1 = df1.sample(DATA_LIMIT)
-            contgcasediffs_individualgrid.data = df1.sort_values("ID")
             contgcasediffs_individualtrace.data[0].x = df1[
                 contgcasediffs_dropdownx.value
             ]
@@ -2106,124 +2102,131 @@ def run_all(
     def contgcasediffs_response(change):
         contgcasediffs_individual_case(contgcasediffs_dropdowndev.value)
 
+    def contgcasediffs_response_button(change):
+        if len(globaldiffs_dfgrid.selections) != 0:
+            case = globaldiffs_dfgrid.data.loc[
+                globaldiffs_dfgrid.selections[0]["r1"], "contg_case"
+            ]
+        contgcasediffs_individual_case(case)
+
     def contgcasetap_response_autA(change):
-        with contgcasetap_aut_diff_dfA_grid.batch_update():
-            contgcasetap_aut_diff_dfA_contgcase = create_aut_df(
-                RESULTS_DIR,
-                1,
-                contgcasetap_aut_diff_case.value,
-                PREFIX,
-                BASECASE,
-                DWO_DWO,
-                contgcasetap_aut_diff_var_A.value,
+        contgcasetap_aut_diff_dfA_contgcase = create_aut_df(
+            RESULTS_DIR,
+            1,
+            contgcasetap_aut_diff_case.value,
+            PREFIX,
+            BASECASE,
+            DWO_DWO,
+            contgcasetap_aut_diff_var_A.value,
+        )
+
+        if contgcasetap_checka.value:
+            contgcasetap_aut_diff_dfA_contgcase = (
+                contgcasetap_aut_diff_dfA_contgcase.loc[
+                    (contgcasetap_aut_diff_dfA_contgcase.HAS_CHANGED != 0)
+                ]
+            )
+            contgcasetap_aut_diff_dfA_contgcase = (
+                contgcasetap_aut_diff_dfA_contgcase.drop(columns=["HAS_CHANGED"])
             )
 
-            if contgcasetap_checka.value:
-                contgcasetap_aut_diff_dfA_contgcase = (
-                    contgcasetap_aut_diff_dfA_contgcase.loc[
-                        (contgcasetap_aut_diff_dfA_contgcase.HAS_CHANGED != 0)
-                    ]
-                )
-                contgcasetap_aut_diff_dfA_contgcase = (
-                    contgcasetap_aut_diff_dfA_contgcase.drop(columns=["HAS_CHANGED"])
-                )
-
-            contgcasetap_aut_diff_dfA_grid.data = contgcasetap_aut_diff_dfA_contgcase
-            contgcasetap_aut_diff_dfA_grid.base_column_size = int(
-                (WIDTH / 2 / 1.1) / len(contgcasetap_aut_diff_dfA_contgcase.columns)
-            )
+        contgcasetap_aut_diff_dfA_grid.data = contgcasetap_aut_diff_dfA_contgcase
+        contgcasetap_aut_diff_dfA_grid.base_column_size = int(
+            (WIDTH / 2 / 1.1) / len(contgcasetap_aut_diff_dfA_contgcase.columns)
+        )
 
     def contgcasetap_response_autB(change):
-        with contgcasetap_aut_diff_dfB_grid.batch_update():
-            contgcasetap_aut_diff_dfB_contgcase = create_aut_df(
-                RESULTS_DIR,
-                2,
-                contgcasetap_aut_diff_case.value,
-                PREFIX,
-                BASECASE,
-                DWO_DWO,
-                contgcasetap_aut_diff_var_B.value,
+        contgcasetap_aut_diff_dfB_contgcase = create_aut_df(
+            RESULTS_DIR,
+            2,
+            contgcasetap_aut_diff_case.value,
+            PREFIX,
+            BASECASE,
+            DWO_DWO,
+            contgcasetap_aut_diff_var_B.value,
+        )
+
+        if contgcasetap_checkb.value:
+            contgcasetap_aut_diff_dfB_contgcase = (
+                contgcasetap_aut_diff_dfB_contgcase.loc[
+                    (contgcasetap_aut_diff_dfB_contgcase.HAS_CHANGED != 0)
+                ]
+            )
+            contgcasetap_aut_diff_dfB_contgcase = (
+                contgcasetap_aut_diff_dfB_contgcase.drop(columns=["HAS_CHANGED"])
             )
 
-            if contgcasetap_checkb.value:
-                contgcasetap_aut_diff_dfB_contgcase = (
-                    contgcasetap_aut_diff_dfB_contgcase.loc[
-                        (contgcasetap_aut_diff_dfB_contgcase.HAS_CHANGED != 0)
-                    ]
-                )
-                contgcasetap_aut_diff_dfB_contgcase = (
-                    contgcasetap_aut_diff_dfB_contgcase.drop(columns=["HAS_CHANGED"])
-                )
+        contgcasetap_aut_diff_dfB_grid.data = contgcasetap_aut_diff_dfB_contgcase
+        contgcasetap_aut_diff_dfB_grid.base_column_size = int(
+            (WIDTH / 2 / 1.1) / len(contgcasetap_aut_diff_dfB_contgcase.columns)
+        )
 
-            contgcasetap_aut_diff_dfB_grid.data = contgcasetap_aut_diff_dfB_contgcase
-            contgcasetap_aut_diff_dfB_grid.base_column_size = int(
-                (WIDTH / 2 / 1.1) / len(contgcasetap_aut_diff_dfB_contgcase.columns)
-            )
+    def contgcasetap_response_aut_button(change):
+        # Ipydatagrid does not have the option to observe events. What it does is put in a buffer the selected cells.
+        # In order to solve this, a button is created and it takes the value of the buffer and applies the changes
+        # manually.
+        if len(globaltap_aut_diffs_A_grid.selections) != 0:
+            contgcasetap_aut_diff_case.value = globaltap_aut_diffs_A_grid.data.iloc[
+                globaltap_aut_diffs_A_grid.selections[0]["r1"], 4
+            ][len(PREFIX) + 1 :]
+
+        elif len(globaltap_aut_diffs_B_grid.selections) != 0:
+            contgcasetap_aut_diff_case.value = globaltap_aut_diffs_B_grid.data.iloc[
+                globaltap_aut_diffs_B_grid.selections[0]["r1"], 4
+            ][len(PREFIX) + 1 :]
+        contgcasetap_response_aut("")
 
     def contgcasetap_response_aut(change):
-        with contgcasetap_aut_diff_dfA_grid.batch_update():
-            if len(globaltap_aut_diffs_A_grid.selections) != 0:
-                contgcasetap_aut_diff_case.value = globaltap_aut_diffs_A_grid.data.iloc[
-                    globaltap_aut_diffs_A_grid.selections[0]["r1"], 4
-                ][len(PREFIX) + 1 :]
-                globaltap_aut_diffs_A_grid.clear_selection()
-                globaltap_aut_diffs_B_grid.clear_selection()
+        globaltap_aut_diffs_A_grid.clear_selection()
+        globaltap_aut_diffs_B_grid.clear_selection()
+        contgcasetap_aut_diff_dfA_contgcase = create_aut_df(
+            RESULTS_DIR,
+            1,
+            contgcasetap_aut_diff_case.value,
+            PREFIX,
+            BASECASE,
+            DWO_DWO,
+            contgcasetap_aut_diff_var_A.value,
+        )
+        contgcasetap_aut_diff_dfB_contgcase = create_aut_df(
+            RESULTS_DIR,
+            2,
+            contgcasetap_aut_diff_case.value,
+            PREFIX,
+            BASECASE,
+            DWO_DWO,
+            contgcasetap_aut_diff_var_B.value,
+        )
 
-            elif len(globaltap_aut_diffs_B_grid.selections) != 0:
-                contgcasetap_aut_diff_case.value = globaltap_aut_diffs_B_grid.data.iloc[
-                    globaltap_aut_diffs_B_grid.selections[0]["r1"], 4
-                ][len(PREFIX) + 1 :]
-                globaltap_aut_diffs_A_grid.clear_selection()
-                globaltap_aut_diffs_B_grid.clear_selection()
-
-            contgcasetap_aut_diff_dfA_contgcase = create_aut_df(
-                RESULTS_DIR,
-                1,
-                contgcasetap_aut_diff_case.value,
-                PREFIX,
-                BASECASE,
-                DWO_DWO,
-                contgcasetap_aut_diff_var_A.value,
+        if contgcasetap_checka.value:
+            contgcasetap_aut_diff_dfA_contgcase = (
+                contgcasetap_aut_diff_dfA_contgcase.loc[
+                    (contgcasetap_aut_diff_dfA_contgcase.HAS_CHANGED != 0)
+                ]
             )
-            contgcasetap_aut_diff_dfB_contgcase = create_aut_df(
-                RESULTS_DIR,
-                2,
-                contgcasetap_aut_diff_case.value,
-                PREFIX,
-                BASECASE,
-                DWO_DWO,
-                contgcasetap_aut_diff_var_B.value,
+            contgcasetap_aut_diff_dfA_contgcase = (
+                contgcasetap_aut_diff_dfA_contgcase.drop(columns=["HAS_CHANGED"])
             )
 
-            if contgcasetap_checka.value:
-                contgcasetap_aut_diff_dfA_contgcase = (
-                    contgcasetap_aut_diff_dfA_contgcase.loc[
-                        (contgcasetap_aut_diff_dfA_contgcase.HAS_CHANGED != 0)
-                    ]
-                )
-                contgcasetap_aut_diff_dfA_contgcase = (
-                    contgcasetap_aut_diff_dfA_contgcase.drop(columns=["HAS_CHANGED"])
-                )
-
-            if contgcasetap_checkb.value:
-                contgcasetap_aut_diff_dfB_contgcase = (
-                    contgcasetap_aut_diff_dfB_contgcase.loc[
-                        (contgcasetap_aut_diff_dfB_contgcase.HAS_CHANGED != 0)
-                    ]
-                )
-                contgcasetap_aut_diff_dfB_contgcase = (
-                    contgcasetap_aut_diff_dfB_contgcase.drop(columns=["HAS_CHANGED"])
-                )
-
-            contgcasetap_aut_diff_dfA_grid.data = contgcasetap_aut_diff_dfA_contgcase
-            contgcasetap_aut_diff_dfA_grid.base_column_size = int(
-                (WIDTH / 2 / 1.1) / len(contgcasetap_aut_diff_dfA_contgcase.columns)
+        if contgcasetap_checkb.value:
+            contgcasetap_aut_diff_dfB_contgcase = (
+                contgcasetap_aut_diff_dfB_contgcase.loc[
+                    (contgcasetap_aut_diff_dfB_contgcase.HAS_CHANGED != 0)
+                ]
             )
-            contgcasetap_aut_diff_dfB_grid.data = contgcasetap_aut_diff_dfB_contgcase
-            contgcasetap_aut_diff_dfB_grid.base_column_size = int(
-                (WIDTH / 2 / 1.1) / len(contgcasetap_aut_diff_dfB_contgcase.columns)
+            contgcasetap_aut_diff_dfB_contgcase = (
+                contgcasetap_aut_diff_dfB_contgcase.drop(columns=["HAS_CHANGED"])
             )
-            contgcasetap_individual_aut_group(contgcasetap_aut_diff_case.value)
+
+        contgcasetap_aut_diff_dfA_grid.data = contgcasetap_aut_diff_dfA_contgcase
+        contgcasetap_aut_diff_dfA_grid.base_column_size = int(
+            (WIDTH / 2 / 1.1) / len(contgcasetap_aut_diff_dfA_contgcase.columns)
+        )
+        contgcasetap_aut_diff_dfB_grid.data = contgcasetap_aut_diff_dfB_contgcase
+        contgcasetap_aut_diff_dfB_grid.base_column_size = int(
+            (WIDTH / 2 / 1.1) / len(contgcasetap_aut_diff_dfB_contgcase.columns)
+        )
+        contgcasetap_individual_aut_group(contgcasetap_aut_diff_case.value)
 
     def response_download_data(change):
         temp_dict = {
@@ -2426,6 +2429,7 @@ def run_all(
         contgcasetap_aut_group_data_first_caseB,
     ) = read_aut_group(contgcasediffs_contgcaseinit, PF_SOL_DIR, DWO_DWO, PREFIX)
 
+    # Get all the contingency diffs vars
     contgcasediffs_vars_case = contgcasediffs_data_first_case.columns[1:]
 
     # Get the bus list for subgraph selection
@@ -2439,6 +2443,7 @@ def run_all(
         )
     )
 
+    # Read global aut df and create the trace
     globaltap_df_aut = read_aut_case(
         RESULTS_DIR + "/" + PREFIX + "/aut/", "ratioTapChanger"
     )
@@ -2516,9 +2521,45 @@ def run_all(
         renderers=compscore_renderers,
     )
 
-    # Individual trace for contingency diffs
+    # Individual trace for contingency diffs with filters
+    if (
+        contgcasediffs_elementdropdown.value != "ALL"
+        and contgcasediffs_vardropdown.value != "ALL"
+    ):
+        contgcasediffs_data_first_case_filter = contgcasediffs_data_first_case.loc[
+            (
+                contgcasediffs_data_first_case.ELEMENT_TYPE
+                == contgcasediffs_elementdropdown.value
+            )
+            & (contgcasediffs_data_first_case.VAR == contgcasediffs_vardropdown.value)
+        ]
+    else:
+        if (
+            contgcasediffs_elementdropdown.value != "ALL"
+            and contgcasediffs_vardropdown.value == "ALL"
+        ):
+            contgcasediffs_data_first_case_filter = contgcasediffs_data_first_case.loc[
+                (
+                    contgcasediffs_data_first_case.ELEMENT_TYPE
+                    == contgcasediffs_elementdropdown.value
+                )
+            ]
+        else:
+            if (
+                contgcasediffs_elementdropdown.value == "ALL"
+                and contgcasediffs_vardropdown.value != "ALL"
+            ):
+                contgcasediffs_data_first_case_filter = (
+                    contgcasediffs_data_first_case.loc[
+                        (
+                            contgcasediffs_data_first_case.VAR
+                            == contgcasediffs_vardropdown.value
+                        )
+                    ]
+                )
+
     contgcasediffs_current_individual_trace = create_individual_trace(
-        contgcasediffs_data_first_case,
+        contgcasediffs_data_first_case_filter,
         contgcasediffs_dropdownx.value,
         contgcasediffs_dropdowny.value,
         DATA_LIMIT,
@@ -2645,9 +2686,9 @@ def run_all(
     )
 
     contgcasediffs_individualgrid = ipydatagrid.DataGrid(
-        contgcasediffs_data_first_case,
+        contgcasediffs_data_first_case_filter,
         base_column_size=int(
-            (WIDTH / 1.03) / len(contgcasediffs_data_first_case.columns)
+            (WIDTH / 1.03) / len(contgcasediffs_data_first_case_filter.columns)
         ),
     )
 
@@ -2660,6 +2701,7 @@ def run_all(
         netwgraph_iidm_file, netwgraph_graph.value, SUBGRAPH_TYPE, SUBGRAPH_VALUE
     )
 
+    # Paint with colors the graph
     netwgraph_C = paint_graph(
         netwgraph_C,
         contgcasediffs_data_first_case,
@@ -2785,8 +2827,8 @@ def run_all(
     contgcasetap_aut_diff_var_B.observe(contgcasetap_response_autB, names="value")
     contgcasetap_aut_diff_case.observe(contgcasetap_response_aut, names="value")
 
-    globaldiffs_button_case.observe(contgcasediffs_response, "value")
-    globaltap_button_aut.observe(contgcasetap_response_aut, "value")
+    globaldiffs_button_case.observe(contgcasediffs_response_button, "value")
+    globaltap_button_aut.observe(contgcasetap_response_aut_button, "value")
     button_download_data.observe(response_download_data, "value")
 
     globaltap_aut_diff_var_plot.observe(globaltap_response_aut_plot, names="value")
