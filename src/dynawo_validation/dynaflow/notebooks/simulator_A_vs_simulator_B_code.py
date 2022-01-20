@@ -1432,7 +1432,7 @@ def create_tap_trace(df, HEIGHT, WIDTH):
     )
 
     layout_temp = go.Layout(
-        title=dict(text="Case: [TODO: show value]"),
+        title=dict(text="All cases"),
         xaxis=dict(
             title="SIM_A",
             range=[min_val, max_val],
@@ -1736,7 +1736,7 @@ def show_displays(
         )
     )
 
-    display(Markdown("## Tap values -- A vs. B (for a given contingency case)"))
+    display(Markdown("## Tap values -- A vs. B"))
     display(widgets.HBox([globaltap_trace, globaltap_container_aut_trace]))
 
     display(
