@@ -26,18 +26,18 @@ The second way is by installing the package. This package can be downloaded from
 
 A folder called "dist" will be created and inside there will be a .tar.gz file that we can install with: pip install dist/file_name.tar.gz.
 
+It can also be done through the build_and_install.sh script, which by simply executing it will install the package and do all the necessary actions to use the package. 
+
 Once installed, several instructions for the command line will have been added to our system:
-- dynawaltz_run_validation
+- add_contg_job.py
+- convert_dflow2dwoAdwoB_all.sh
+- convert_dwaltz2dwoAdwoB.sh
+- create_graph.py
 - dynaflow_run_validation
+- dynawaltz_run_validation
 - dynawo_validation_extract_bus
 - dynawo_validation_find_path
-- create_graph.py - convert_dwaltz2dwoAdwoB_all.sh
-- convert_dflow2dwoAdwoB_all.sh
+- prepare_pipeline_basecase.py
+- top_10_diffs_dflow.py
+- top_10_diffs_dwaltz.py
 - xml_format_dir.sh
-- create_graph.py
-- xml_format_dir.sh
-  
-
-
-
-

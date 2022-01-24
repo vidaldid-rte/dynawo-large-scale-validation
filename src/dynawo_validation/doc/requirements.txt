@@ -12,3 +12,4 @@ ipywidgets>=7.6.3
 tqdm>=4.62.1
 scipy>=1.6.1
 seaborn>=0.11.2
+ipydatagrid>=1.1.6

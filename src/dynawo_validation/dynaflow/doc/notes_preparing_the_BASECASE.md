@@ -33,26 +33,37 @@ by RTE:
 
   5. Introduce a dummy disconnection in DynaFlow, which will become
      the reference for the disconnection time (typically, set the
-     disconnection event at t=100 and the stopTime at t=200). Edit
-     these:
+     disconnection event at t=100 and the stopTime at t=200). To do 
+     this, we must first modify the JOB file with the script included 
+     in the package (add_contg_job.py). This script will add a new 
+     dyd file so you don't have to copy the entire old dyd. Also, it 
+     will change various paths to run optimizations and save memory 
+     on execution. Next, we need to create two new files. One called 
+     contingency.par and the other contingency.dyd. In them, we need 
+     to copy the following code and place them at the same level as 
+     the dyd and par files that already contains our base case.
      
        * in the dyd file, introduce a disconnection model (for an
          element that's already disconnected, so that it doesn't have
          any effect). Example:
          ```
-            <dyn:blackBoxModel id="Disconnect my branch" lib="EventQuadripoleDisconnection"
-                 parFile="recollement_20210422_0930.par" parId="99991234"/>
-            <dyn:connect id1="Disconnect my branch" var1="event_state1_value" id2="NETWORK"
-                 var2="AGNEAL41VLEDI_state_value"/>
+            <?xml version="1.0" encoding="UTF-8" standalone="no"?>
+            <dyn:dynamicModelsArchitecture xmlns:dyn="http://www.rte-france.com/dynawo">
+              <dyn:blackBoxModel id="Disconnect my branch" lib="EventQuadripoleDisconnection" parFile="contingency.par" parId="99991234"/>
+              <dyn:connect id1="Disconnect my branch" var1="event_state1_value" id2="NETWORK" var2="AGNEAL41VLEDI_state_value"/>
+            </dyn:dynamicModelsArchitecture>
          ```
 
         * in the par file, introduce the corresponding parameters:
           ```
-             <set id="99991234">
-               <par name="event_tEvent" type="DOUBLE" value="100"/>
-               <par name="event_disconnectOrigin" type="BOOL" value="true"/>
-               <par name="event_disconnectExtremity" type="BOOL" value="true"/>
-              </set>
+             <?xml version="1.0" encoding="UTF-8" standalone="no"?>
+             <parametersSet xmlns="http://www.rte-france.com/dynawo">
+               <set id="99991234">
+                 <par name="event_tEvent" type="DOUBLE" value="100"/>
+                 <par name="event_disconnectOrigin" type="BOOL" value="true"/>
+                 <par name="event_disconnectExtremity" type="BOOL" value="true"/>
+               </set>
+             </parametersSet>
            ```
 
   6. Create a curves file, which is useful for inspecting the

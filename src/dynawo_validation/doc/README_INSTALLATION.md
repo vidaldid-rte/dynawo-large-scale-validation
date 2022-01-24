@@ -24,7 +24,26 @@
 	- Install parallel package for faster execution: sudo apt-get install parallel
 
 
-## Virtual environment creation
+
+## Option 1
+## Use the default script 
+
+### Run build_and_install.sh script
+Run the build_and_install.sh script located at the root of the directory where all the files are. In this way, a virtual environment will be created and all the packages necessary to use the tool will be installed in it. This includes creating virtual environment, enabling extensions, building the package, installing the package, etc. 
+
+### Install Dynawo
+
+- Follow the instructions of this website: https://dynawo.github.io/install/
+
+
+### Install Hades
+
+- To compare between Hades, it is assumed that you already have Hades installed in your environment.
+
+## Option 2
+## Do all the steps manually 
+
+### Virtual environment creation
 
 - Create the virtual environment: python3 -m venv /path/to/new/virtual/environment
 
@@ -39,31 +58,31 @@ Others:
 - Remove virtual environment: rm -rf /path/to/new/virtual/environment
 
 
-## Virtual environment configuration (venv must be actived to proceed)
+### Virtual environment configuration (venv must be actived to proceed)
 
 Now, you have a self-contained directory tree that contains a Python installation for a particular version of Python, plus a number of additional packages. All the modifications that you make in this installation (with pip) will not affect the general installation of Python.
 
 - Upgrade pip: python -m pip install --upgrade pip (we use python instead of python3 because in this environment we only have Python 3).
 
 
-## Install Dynawo
+### Install Dynawo
 
 - Follow the instructions of this website: https://dynawo.github.io/install/
 
 
-## Install Hades
+### Install Hades
 
 - To compare between Hades, it is assumed that you already have Hades installed in your environment.
 
 
-## Install dynaflow-validation (venv must be actived to proceed)
+### Install dynaflow-validation (venv must be actived to proceed)
 
 - Install dynaflow-validation with all dependencies: pip install -i https://test.pypi.org/simple/ dynaflow-validation-RTE-AIA
 
 (For now, to avoid problems with other packages, it is better if you download the source code from the link and install it manually with: pip install name_of_tar.gz)
 	
 
-## Jupyter Notebooks configuration
+### Jupyter Notebooks configuration
 
 To use the virtual environment interpreter in Jupyter Notebooks, we have to do the following steps:
 
@@ -73,15 +92,16 @@ To use the virtual environment interpreter in Jupyter Notebooks, we have to do t
 
 	3. Add your virtual environment to Jupyter: python -m ipykernel install --user --name=NAME-OF-INTERPRETER
 
-	4. Run this two commands in order to register this extensions with jupyter: 
+	4. Run this three commands in order to register this extensions with jupyter: 
         	
         	jupyter nbextension enable --py widgetsnbextension
         	jupyter nbextension enable --py --sys-prefix qgrid
+        	jupyter nbextension enable --py --sys-prefix ipydatagrid
 
 	5. Open Jupyter and, in Kernel Options, select your new Kernel.
 
 
-## IDE configuration (only for development)
+### IDE configuration (only for development)
 	
 To use the virtual environment interpreter in our IDE we have to open our Python IDE (for example, PyCharm) and go to Interpreter Configuration (in the case of PyCharm, we have the direct option to Add Interpreter). We must choose the option that allows us to add a new interpreter and then, we only have to select the Python interpreter from the path where we have installed the Virtual Environment (in /bin directory).
 
