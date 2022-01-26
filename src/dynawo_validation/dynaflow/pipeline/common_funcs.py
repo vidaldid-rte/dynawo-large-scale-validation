@@ -77,6 +77,8 @@ def copy_dwohds_basecase(base_case, dwo_paths, dest_case):
     if os.path.exists(dest_case):
         remove_case(dest_case)
     # For Dynawo, obtain most paths from the info in the JOB file
+    iidm_dir = os.path.dirname(dwo_paths.iidmFile)
+    dyd_dir = os.path.dirname(dwo_paths.dydFile)
     spar_dir = os.path.dirname(dwo_paths.solver_parFile)
     npar_dir = os.path.dirname(dwo_paths.network_parFile)
     par_dir = os.path.dirname(dwo_paths.parFile)
@@ -89,7 +91,7 @@ def copy_dwohds_basecase(base_case, dwo_paths, dest_case):
         p = "../"
     else:
         p = ""
-    # Special hard-coded path: the Diagrams directory
+    # Special Diagrams dir is hard-coded (potential GOTCHA: we use the first match)
     diagr_dir = glob.glob(f"{base_case}/*_Diagram")
     if len(diagr_dir) != 0:
         copy_diagr_command = f" && ln -s '{p}{diagr_dir[0]}' '{dest_case}'"
@@ -101,6 +103,8 @@ def copy_dwohds_basecase(base_case, dwo_paths, dest_case):
         f"mkdir -p '{dest_case}/Hades' '{dest_case}/{spar_dir}'"
         f" '{dest_case}/{npar_dir}' '{dest_case}/{par_dir}' '{dest_case}/{crv_dir}'"
         f" && ln -s '{p}{dwo_paths.job_file}' '{dest_case}'"
+        f" && ln -s '{p}{bc}/{dwo_paths.iidmFile}' '{dest_case}/{iidm_dir}'"
+        f" && ln -s '{p}{bc}/{dwo_paths.dydFile}' '{dest_case}/{dyd_dir}'"
         f" && ln -s '{p}{bc}/{dwo_paths.solver_parFile}' '{dest_case}/{spar_dir}'"
         f" && ln -s '{p}{bc}/{dwo_paths.network_parFile}' '{dest_case}/{npar_dir}'"
         f" && ln -s '{p}{bc}/{dwo_paths.parFile}' '{dest_case}/{par_dir}'"
@@ -128,6 +132,8 @@ def copy_dwodwo_basecase(base_case, dwo_pathsA, dwo_pathsB, dest_case):
     if os.path.exists(dest_case):
         remove_case(dest_case)
     # For Dynawo A, obtain most paths from the info in the JOB file
+    iidm_dirA = os.path.dirname(dwo_pathsA.iidmFile)
+    dyd_dirA = os.path.dirname(dwo_pathsA.dydFile)
     spar_dirA = os.path.dirname(dwo_pathsA.solver_parFile)
     npar_dirA = os.path.dirname(dwo_pathsA.network_parFile)
     par_dirA = os.path.dirname(dwo_pathsA.parFile)
@@ -135,6 +141,8 @@ def copy_dwodwo_basecase(base_case, dwo_pathsA, dwo_pathsB, dest_case):
     contg_dyd_dirA = os.path.dirname(dwo_pathsA.dydFile_contg)
     contg_par_dirA = os.path.dirname(dwo_pathsA.parFile_contg)
     # For Dynawo B, obtain most paths from the info in the JOB file
+    iidm_dirB = os.path.dirname(dwo_pathsB.iidmFile)
+    dyd_dirB = os.path.dirname(dwo_pathsB.dydFile)
     spar_dirB = os.path.dirname(dwo_pathsB.solver_parFile)
     npar_dirB = os.path.dirname(dwo_pathsB.network_parFile)
     par_dirB = os.path.dirname(dwo_pathsB.parFile)
@@ -147,7 +155,7 @@ def copy_dwodwo_basecase(base_case, dwo_pathsA, dwo_pathsB, dest_case):
         p = "../"
     else:
         p = ""
-    # Special hard-coded path: the Diagrams directory
+    # Special Diagrams dir is hard-coded (potential GOTCHA: we use the first match)
     diagr_dirA = glob.glob(f"{base_case}/A/*_Diagram")
     diagr_dirB = glob.glob(f"{base_case}/B/*_Diagram")
     if len(diagr_dirA) != 0:
@@ -167,6 +175,10 @@ def copy_dwodwo_basecase(base_case, dwo_pathsA, dwo_pathsB, dest_case):
         f" '{dest_case}/{npar_dirA}' '{dest_case}/{npar_dirB}'"
         f" && ln -s '{p}{dwo_pathsA.job_file}' '{dest_case}'"
         f" && ln -s '{p}{dwo_pathsB.job_file}' '{dest_case}'"
+        f" && ln -s '{p}{p}{bc}/{dwo_pathsA.iidmFile}' '{dest_case}/{iidm_dirA}'"
+        f" && ln -s '{p}{p}{bc}/{dwo_pathsB.iidmFile}' '{dest_case}/{iidm_dirB}'"
+        f" && ln -s '{p}{p}{bc}/{dwo_pathsA.dydFile}' '{dest_case}/{dyd_dirA}'"
+        f" && ln -s '{p}{p}{bc}/{dwo_pathsB.dydFile}' '{dest_case}/{dyd_dirB}'"
         f" && ln -s '{p}{p}{bc}/{dwo_pathsA.parFile}' '{dest_case}/{par_dirA}'"
         f" && ln -s '{p}{p}{bc}/{dwo_pathsB.parFile}' '{dest_case}/{par_dirB}'"
         f" && ln -s '{p}{p}{bc}/{dwo_pathsA.solver_parFile}' '{dest_case}/{spar_dirA}'"
