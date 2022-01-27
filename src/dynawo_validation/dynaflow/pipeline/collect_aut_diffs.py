@@ -16,6 +16,8 @@ import argparse
 import os
 from dynawo_validation.dynaflow.pipeline.dwo_jobinfo import is_dwohds
 import re
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
