@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 #
 # (c) Grupo AIA
+#     omsg@aia.es
+#     marinjl@aia.es
 #
 
 import pandas as pd
@@ -50,7 +52,7 @@ def main():
         basecase_dir = basecase_dir + "/"
 
     if basecase_type != "0" and basecase_type != "1" and basecase_type != "2":
-        raise ValueError(f"Non-valid option")
+        raise ValueError("Non-valid value for basecase_type")
     else:
         basecase_type = int(basecase_type)
 
@@ -328,13 +330,17 @@ def create_distance_matrix(graph, aut_df):
     for df_i in range(len(aut_df.index)):
         distance_matrix.append([])
         for df_j in range(len(aut_df.index)):
-            shortest_path = nx.shortest_path_length(
-                graph,
-                source=aut_df.loc[df_i, "BUS"],
-                target=aut_df.loc[df_j, "BUS"],
-                weight="imp",
-            )
-            distance_matrix[df_i].append(shortest_path)
+            try:
+                shortest_path = nx.shortest_path_length(
+                    graph,
+                    source=aut_df.loc[df_i, "BUS"],
+                    target=aut_df.loc[df_j, "BUS"],
+                    weight="imp",
+                )
+                distance_matrix[df_i].append(shortest_path)
+            except (nx.NetworkXNoPath, nx.NodeNotFound) as e:
+                print(f"   WARNING: group_dwo_events: create_distance_matrix: {e}")
+                distance_matrix[df_i].append(float("Inf"))
 
     return distance_matrix
 
