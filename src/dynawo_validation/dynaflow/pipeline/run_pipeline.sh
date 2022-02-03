@@ -4,7 +4,7 @@
 # run_pipeline.sh:
 #
 # A simple high-level "driver" script that runs the whole processing
-# pipeline.  Given a directory containing either an Astre vs. Dynawo
+# pipeline.  Given a directory containing either an Hades vs. Dynawo
 # OR a Dynawo vs. Dynawo BASECASE, and for each type of device (load,
 # shunt, gen, branchB, etc.):
 #
@@ -13,25 +13,32 @@
 #       "prepare_pipeline_basecase.py" to help you do that, before
 #       running this script)
 #
-#   (b) runs them all, and collects the results in the given directory
+#   (b) runs them all (which also processes and collects the results in
+#       the provided Results directory)
+#
+#   (c) calculates metrics, summary reports, etc., and finally
+#       prepares the Notebook for analysis.
 #
 # So, for example, instead of running these commands:
 #
-#    $ cd ~/work/PtFige-Lille
-#    $ rm -rf gen_* MyResults/gens/
+#    $ cd ~/work/DynaFlow/
+#    $ rm -rf gen#* MyResults/gens/
 #    $ gen_contg.py 20190410_1350.BASECASE
-#    $ run_all_contg.sh -v -c -o MyResults/gens . 20190410_1350.BASECASE gen_
+#    $ run_all_contg.sh -v -c -o MyResults/gens . 20190410_1350.BASECASE gen#
+#    $ calc_global_pf_diffmetrics.py MyResults/gens/pf_sol gen#
+#    $ [etc. etc.]
 #
-# and having to repeat this for loads, branches, etc.; invoke this
-# script instead, to obtain the same result:
+# and then having to repeat this for loads, branches, etc.; invoke
+# this script instead, to obtain the same result:
 #
-#    $ run_pipeline.sh 20190410_1350.BASECASE MyResults
+#    $ run_pipeline.sh [options] 20190410_1350.BASECASE MyResults
 #
 # You may use either relative or absolute paths.
 #
 #
 # (c) Grupo AIA
-# marinjl@aia.es
+#     marinjl@aia.es
+#     omsg@aia.es
 #
 
 # For saner programming:
@@ -54,9 +61,10 @@ create_contg[branchB]="create_branchB_contg.py"
 DWO_VALIDATION_SRC=$(dirname "$0")/..
 DWO_VALIDATION_SRC=$(realpath "$DWO_VALIDATION_SRC")
 
-# Config your particular options to pass to run_all_contingencies.sh
-declare -a RUN_OPTS
-RUN_OPTS=("-v" "-c")
+# Config options to pass to run_all_contingencies.sh (using a Bash array as a
+# safe way to pass parameters when invoking it)
+declare -a RUNALL_OPTS
+RUNALL_OPTS=("-v" "-c")
 
 
 # Nothing else to configure below this point
@@ -95,38 +103,31 @@ colormsg()
     fi
 }
 
+
 #######################################
 # getopt-like input option processing
 #######################################
 
-# -allow a command to fail with !’s side effect on errexit
-# -use return value from ${PIPESTATUS[0]}, because ! hosed $?
-! getopt --test > /dev/null 
-if [[ ${PIPESTATUS[0]} -ne 4 ]]; then
+# Test for getopt's version (this needs to temporarily deactivate errexit)
+set +e
+getopt --test > /dev/null
+if [[ $? -ne 4 ]]; then
     echo "I’m sorry, 'getopt --test' failed in this environment."
     exit 1
 fi
-
+set -e
 
 OPTIONS=A:B:hal:rsdcp:w:
 LONGOPTS=launcherB:,launcherA:,help,allcontg,regexlist:,random,sequential,debug,cleanup,prandom:,weights:
-
-# -regarding ! and PIPESTATUS see above
-# -temporarily store output to be able to check for errors
 # -activate quoting/enhanced mode (e.g. by writing out “--options”)
 # -pass arguments only via   -- "$@"   to separate them correctly
-! PARSED=$(getopt --options=$OPTIONS --longoptions=$LONGOPTS --name "$0" -- "$@")
-if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
-    # e.g. return value is 1
-    #  then getopt has complained about wrong arguments to stdout
-    usage
-    exit 2
-fi
+PARSED=$(getopt --options=$OPTIONS --longoptions=$LONGOPTS --name "$0" -- "$@")
 # read getopt’s output this way to handle the quoting right:
 eval set -- "$PARSED"
 
-A="dynawo.sh" B="dynawo.sh" h=n allcontg=n regexlist="None" random=n sequential=n debug=n cleanup=n prandom="None" weightslist="None"
 # now enjoy the options in order and nicely split until we see --
+A="dynawo.sh" B="dynawo.sh" h=n allcontg=n regexlist="None" random=n sequential=n
+debug=n cleanup=n prandom="None" weightslist="None"
 while true; do
     case "$1" in
         -A|--launcherA)
@@ -189,69 +190,69 @@ while true; do
     esac
 done
 
-if [ "$allcontg" == "y" ]; then
-    if [ "$regexlist" != "None" ]; then
-        echo "ERROR: Option --allcontg and --regexlist aren't supported together"
-        exit 1
-    fi    
-fi
-
-if [ "$regexlist" != "None" ]; then
-    if [ "$random" == "y" ]; then
-        echo "ERROR: Option --regexlist and --random aren't supported together"
-        exit 1
-    fi    
-fi
-
-if [ "$allcontg" == "y" ]; then
-    if [ "$random" == "y" ]; then
-        echo "ERROR: Option --allcontg and --random aren't supported together"
-        exit 1
-    fi    
-fi
-
-if [ "$regexlist" != "None" ]; then
-    if [ "$prandom" != "None" ]; then
-        echo "ERROR: Option --regexlist and --prandom aren't supported together"
-        exit 1
-    fi    
-fi
-
-if [ "$allcontg" == "y" ]; then
-    if [ "$prandom" != "None" ]; then
-        echo "ERROR: Option --allcontg and --prandom aren't supported together"
-        exit 1
-    fi    
-fi
-
-if [ "$random" == "y" ]; then
-    if [ "$prandom" != "None" ]; then
-        echo "ERROR: Option --random and --prandom aren't supported together"
-        exit 1
-    fi    
-fi
-
-runallopts=""
-space=" "
-
 if [ $h = "y" ]; then
     usage
     exit 0
 fi
 
+# handle options for create_contg.py
+if [ "$allcontg" == "y" ] && [ "$regexlist" != "None" ]; then
+    echo "ERROR: Option --allcontg and --regexlist aren't supported together"
+    exit 1
+fi
+
+if [ "$regexlist" != "None" ] && [ "$random" == "y" ]; then
+    echo "ERROR: Option --regexlist and --random aren't supported together"
+    exit 1
+fi
+
+if [ "$allcontg" == "y" ] && [ "$random" == "y" ]; then
+    echo "ERROR: Option --allcontg and --random aren't supported together"
+    exit 1
+fi
+
+if [ "$regexlist" != "None" ] && [ "$prandom" != "None" ]; then
+    echo "ERROR: Option --regexlist and --prandom aren't supported together"
+    exit 1
+fi
+
+if [ "$allcontg" == "y" ] && [ "$prandom" != "None" ]; then
+    echo "ERROR: Option --allcontg and --prandom aren't supported together"
+    exit 1
+fi
+
+if [ "$random" == "y" ] && [ "$prandom" != "None" ]; then
+    echo "ERROR: Option --random and --prandom aren't supported together"
+    exit 1
+fi
+
+if [ "$allcontg" = "y" ]; then
+    CREATE_OPTS=("-a")
+fi
+
+if [ "$regexlist" != "None" ]; then
+    CREATE_OPTS=("-t" "$regexlist")
+fi
+
+if [ "$random" = "y" ]; then
+    CREATE_OPTS=("-r")
+fi
+
+if [ "$prandom" != "None" ]; then
+    CREATE_OPTS=("-p" "$prandom")
+fi
+
+# handle options for run_all.sh
 if [ $sequential = "y" ]; then
-    runallopts+=-s
-    runallopts+=$space
+    RUNALL_OPTS=("${RUNALL_OPTS[@]}" "-s")
 fi
 
 if [ $debug = "y" ]; then
-    runallopts+=-d
-    runallopts+=$space
+    RUNALL_OPTS=("${RUNALL_OPTS[@]}" "-d")
 fi
 
 if [ $cleanup = "y" ]; then
-    runallopts+=-c 
-    runallopts+=$space
+    RUNALL_OPTS=("${RUNALL_OPTS[@]}" "-c")
 fi
 
 # handle non-option arguments
@@ -268,135 +269,164 @@ if [ ! -d "$BASECASE" ]; then
    echo "ERROR: Basecase dir $BASECASE not found."
    exit 1
 fi
-CASE_DIR=$(dirname "$BASECASE")
-
 
 if [ -f "$RESULTS_BASEDIR" ]; then
    echo "ERROR: Results directory $RESULTS_BASEDIR is an existing file!!!"
    exit 1
 fi
-echo "Generating results under directory: $RESULTS_BASEDIR"
+
+
+
+#######################################
+# The real meat starts here
+#######################################
+echo -e "Generating results under directory: $RESULTS_BASEDIR\n\n"
 mkdir -p "$RESULTS_BASEDIR"
 
+
+##############################################################
+# Process the user-provided weights & thresholds for scoring
+##############################################################
+colormsg "*** CONFIGURING WEIGHTS & THRESHOLDS FOR THE COMPOUND SCORES:" 
 if [ "$weightslist" != "None" ]; then
-   echo "Reading the scores from the file"
-   python3 "$CONTG_SRC"/get_and_define_weights.py "-w" "$weightslist" "$RESULTS_BASEDIR"
+    echo "Reading weights & thresholds from the user-provided file"
+    set -x
+    python3 "$CONTG_SRC"/get_and_define_weights.py "-w" "$weightslist" "$RESULTS_BASEDIR"
+    set +x
 else
-   echo "Defining the default scores"
-   python3 "$CONTG_SRC"/get_and_define_weights.py "$RESULTS_BASEDIR"
+    echo "Using default weights & thresholds"
+    set -x
+    python3 "$CONTG_SRC"/get_and_define_weights.py "$RESULTS_BASEDIR"
+    set +x
 fi
+echo
 
-colormsg "*** COPYING BASECASE:" 
 
+###################################################
+# Copy and process the BASECASE in the Results dir
+###################################################
+colormsg "*** COPYING & PROCESSING THE BASECASE:" 
 REAL_BASECASE=$(realpath "$BASECASE/..")
-
 REAL_RESULTS_BASEDIR=$(realpath "$RESULTS_BASEDIR")
-
 if [ "$REAL_BASECASE" != "$REAL_RESULTS_BASEDIR" ]; then
    cp -a "$BASECASE" "$RESULTS_BASEDIR"
-   #TODO: Run basecase
+   # TODO: Run the basecase now here, to save the user that step
 fi
-
 basecase_name=$(basename "$BASECASE")
 CP_BASECASE="$RESULTS_BASEDIR"/"$basecase_name"
 
-
+# Process automata changes for the BASECASE run
 DWO_JOBINFO_SCRIPT="$CONTG_SRC"/dwo_jobinfo.py
 CASE_TYPE=$(python3 "$DWO_JOBINFO_SCRIPT" "$CP_BASECASE" | grep -F "CASE_TYPE" | cut -d'=' -f2)
 if [ "$CASE_TYPE" = "dwohds" ]; then
-   DWO_OUTPUT_DIR=$(python3 "$DWO_JOBINFO_SCRIPT" "$CP_BASECASE" | grep -F "outputs_directory" | cut -d'=' -f2)
-   python3 "$CONTG_SRC"/extract_dynawo_automata_changes_basecase.py "$CP_BASECASE"/"$DWO_OUTPUT_DIR"/finalState/outputIIDM.xml "$CP_BASECASE"
-   python3 "$CONTG_SRC"/extract_hades_automata_changes_basecase.py "$CP_BASECASE"/Hades/out.xml "$CP_BASECASE" "$CP_BASECASE"/Hades/donneesEntreeHADES2.xml
+    DWO_OUTPUT_DIR=$(python3 "$DWO_JOBINFO_SCRIPT" "$CP_BASECASE" | grep -F "outputs_directory" | cut -d'=' -f2)
+    set -x
+    python3 "$CONTG_SRC"/extract_dynawo_automata_changes_basecase.py \
+        "$CP_BASECASE"/"$DWO_OUTPUT_DIR"/finalState/outputIIDM.xml "$CP_BASECASE"
+    python3 "$CONTG_SRC"/extract_hades_automata_changes_basecase.py \
+        "$CP_BASECASE"/Hades/out.xml "$CP_BASECASE" "$CP_BASECASE"/Hades/donneesEntreeHADES2.xml
+    set +x
 else
-   DWO_OUTPUT_DIR=$(python3 "$DWO_JOBINFO_SCRIPT" "$CP_BASECASE" | grep -F "outputs_directoryA" | cut -d'=' -f2)
-   python3 "$CONTG_SRC"/extract_dynawo_automata_changes_basecase.py "$CP_BASECASE"/"$DWO_OUTPUT_DIR"/finalState/outputIIDM.xml "$CP_BASECASE"/A/
-   DWO_OUTPUT_DIR=$(python3 "$DWO_JOBINFO_SCRIPT" "$CP_BASECASE" | grep -F "outputs_directoryB" | cut -d'=' -f2)
-   python3 "$CONTG_SRC"/extract_dynawo_automata_changes_basecase.py "$CP_BASECASE"/"$DWO_OUTPUT_DIR"/finalState/outputIIDM.xml "$CP_BASECASE"/B/
+    DWO_OUTPUT_DIR=$(python3 "$DWO_JOBINFO_SCRIPT" "$CP_BASECASE" | grep -F "outputs_directoryA" | cut -d'=' -f2)
+    set -x
+    python3 "$CONTG_SRC"/extract_dynawo_automata_changes_basecase.py \
+        "$CP_BASECASE"/"$DWO_OUTPUT_DIR"/finalState/outputIIDM.xml "$CP_BASECASE"/A/
+    set +x
+    DWO_OUTPUT_DIR=$(python3 "$DWO_JOBINFO_SCRIPT" "$CP_BASECASE" | grep -F "outputs_directoryB" | cut -d'=' -f2)
+    set -x
+    python3 "$CONTG_SRC"/extract_dynawo_automata_changes_basecase.py \
+        "$CP_BASECASE"/"$DWO_OUTPUT_DIR"/finalState/outputIIDM.xml "$CP_BASECASE"/B/
+    set +x
 fi
 
-# Process all devices from the list
+
+#######################################
+# Process all types of contingency
+#######################################
+CASE_DIR=$(dirname "$BASECASE")
 for DEVICE in "${!create_contg[@]}"; do
-    colormsg "****** PROCESSING: $DEVICE"s
+    echo
+    colormsg "****** PROCESSING CONTINGENCIES OF TYPE: $DEVICE"
     echo
     
+    ####################################
+    # Creation of the contingency cases
+    ####################################
     colormsg "*** CREATING CONTINGENCY CASES:"
     rm -rf "$CASE_DIR"/"$DEVICE"_*
-    
-    if [ "$allcontg" = "n" ]; then
-       if [ "$regexlist" = "None" ]; then
-          if [ "$random" = "n" ]; then
-             if [ "$prandom" = "None" ]; then
-                set -x
-                python3 "$CONTG_SRC"/"${create_contg[$DEVICE]}" "$BASECASE"
-                set +x
-             else
-                set -x
-                python3 "$CONTG_SRC"/"${create_contg[$DEVICE]}" "-p" "$prandom" "$BASECASE"
-                set +x  
-             fi    
-          else
-             set -x
-             python3 "$CONTG_SRC"/"${create_contg[$DEVICE]}" "-r" "$BASECASE"
-             set +x   
-          fi   
-       else
-          set -x
-          python3 "$CONTG_SRC"/"${create_contg[$DEVICE]}" "-t" "$regexlist" "$BASECASE"
-          set +x
-       fi
-    else
-       if [ "$regexlist" = "None" ]; then
-          set -x
-          python3 "$CONTG_SRC"/"${create_contg[$DEVICE]}" "-a" "$BASECASE"
-          set +x
-       else
-          set -x
-          python3 "$CONTG_SRC"/"${create_contg[$DEVICE]}" "-t" "$regexlist" "-a" "$BASECASE"
-          set +x
-       fi
-    fi
+    set -x
+    python3 "$CONTG_SRC"/"${create_contg[$DEVICE]}" "${CREATE_OPTS[@]}" "$BASECASE"
+    set +x
     echo
-    
+
+    #############################################################
+    # Run all the contingency cases just created
+    # (this step also extracts the PF values & automata changes)
+    #############################################################
     dirList=$(find_cmd "$DEVICE"#)
     if [ -z "$dirList" ]; then
-       echo -e "No cases with pattern $DEVICE""#* found under $CASE_DIR"
-    else
-       colormsg "*** RUNNING CONTINGENCY CASES:"
-       RESULTS_DIR="$RESULTS_BASEDIR"/"$DEVICE"
-       mkdir -p "$RESULTS_DIR"
-       set -x
-       "$CONTG_SRC"/run_all_contg.sh "${RUN_OPTS[@]}" $runallopts -o "$RESULTS_DIR" -A "$A" -B "$B" "$CASE_DIR" "$BASECASE" "$DEVICE"#
-       set +x
-       echo
-
-       if [ -t 1 ] ; then
-          # stdout is a terminal
-          colormsg "*** COMPUTING DIFF METRICS:"   
-          python3 "$CONTG_SRC"/calc_global_pf_diffmetrics.py "$RESULTS_DIR"/pf_sol "$DEVICE"# "0"
-          echo
-       else
-          # stdout isn't a terminal
-          colormsg "*** COMPUTING DIFF METRICS:"   
-          python3 "$CONTG_SRC"/calc_global_pf_diffmetrics.py "$RESULTS_DIR"/pf_sol "$DEVICE"# "1"
-          echo
-       fi
-       
-       colormsg "*** COMPUTING TOP 10 DIFFS:"
-       python3 "$DWO_VALIDATION_SRC"/pipeline/top_10_diffs_dflow.py "$RESULTS_DIR"/pf_sol/ "$RESULTS_DIR"/pf_metrics/ > "$RESULTS_DIR"/../top_10_diffs_"$DEVICE".txt
-       echo
-       
-       colormsg "*** COLLECTING AUT DIFFS:"
-       python3 "$DWO_VALIDATION_SRC"/pipeline/collect_aut_diffs.py "$RESULTS_DIR"/aut/ "$RESULTS_DIR"/../ "$BASECASE"
-       echo
-       
-       colormsg "*** CREATING NOTEBOOK:" 
-       # Create notebook
-       python3 "$DWO_VALIDATION_SRC"/notebooks/generate_notebooks.py "$(cd "$(dirname "$RESULTS_DIR")"; pwd)/" "$BASECASE" "$DEVICE" "$RESULTS_BASEDIR"/score_weights.csv
-       mkdir -p "$RESULTS_DIR"/notebooks
-       cp "$DWO_VALIDATION_SRC"/notebooks/simulator_A_vs_simulator_B_final.ipynb "$RESULTS_DIR"/notebooks
-       rm "$DWO_VALIDATION_SRC"/notebooks/simulator_A_vs_simulator_B_final.ipynb
-       echo
+        echo -e "No cases with pattern $DEVICE""#* found under $CASE_DIR"
+        continue
     fi
+    colormsg "*** RUNNING CONTINGENCY CASES:"
+    RESULTS_DIR="$RESULTS_BASEDIR"/"$DEVICE"
+    mkdir -p "$RESULTS_DIR"
+    set -x
+    "$CONTG_SRC"/run_all_contg.sh "${RUNALL_OPTS[@]}" -o "$RESULTS_DIR" -A "$A" -B "$B" \
+                "$CASE_DIR" "$BASECASE" "$DEVICE"#
+    set +x
+    echo
+
+    ###############################
+    # Calculate Power Flow metrics
+    ###############################
+    if [ -t 1 ] ; then
+        # stdout is a terminal
+        colormsg "*** COMPUTING DIFF METRICS:"
+        set -x
+        python3 "$CONTG_SRC"/calc_global_pf_diffmetrics.py "$RESULTS_DIR"/pf_sol "$DEVICE"# "0"
+        set +x
+        echo
+    else
+        # stdout isn't a terminal
+        colormsg "*** COMPUTING DIFF METRICS:"
+        set -x
+        python3 "$CONTG_SRC"/calc_global_pf_diffmetrics.py "$RESULTS_DIR"/pf_sol "$DEVICE"# "1"
+        set +x
+        echo
+    fi
+
+    #####################################
+    # Calculate the "Top 10" mini-report
+    #####################################
+    colormsg "*** COMPUTING TOP 10 DIFFS:"
+    set -x
+    python3 "$DWO_VALIDATION_SRC"/pipeline/top_10_diffs_dflow.py "$RESULTS_DIR"/pf_sol/ \
+            "$RESULTS_DIR"/pf_metrics/ > "$RESULTS_DIR"/../top_10_diffs_"$DEVICE".txt
+    set +x
+    echo
+
+    ##############################################################################
+    # Collect all automata changes into a single file & erase the individual ones
+    ##############################################################################
+    colormsg "*** COLLECTING AUT DIFFS:"
+    set -x
+    python3 "$DWO_VALIDATION_SRC"/pipeline/collect_aut_diffs.py "$RESULTS_DIR"/aut/ "$RESULTS_DIR"/../ "$BASECASE"
+    set +x
+    echo
+
+    ##########################################################
+    # Prepare the Notebook (sets paths, weights & thresholds)
+    ##########################################################
+    colormsg "*** CREATING THE NOTEBOOK:"
+    set -x
+    python3 "$DWO_VALIDATION_SRC"/notebooks/generate_notebooks.py \
+            "$(cd "$(dirname "$RESULTS_DIR")"; pwd)" "$BASECASE" "$DEVICE" "$RESULTS_BASEDIR"/score_weights.csv
+    set +x
+    mkdir -p "$RESULTS_DIR"/notebooks
+    cp "$DWO_VALIDATION_SRC"/notebooks/simulator_A_vs_simulator_B_final.ipynb "$RESULTS_DIR"/notebooks
+    rm "$DWO_VALIDATION_SRC"/notebooks/simulator_A_vs_simulator_B_final.ipynb
+    echo
 
 done
 
