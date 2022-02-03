@@ -6,11 +6,13 @@
 # given a directory containing contingency cases (which can be of
 # EITHER Hades vs. Dynawo OR Dynawo vs. Dynawo type), all of them
 # derived from a common BASECASE, this script runs all cases having a
-# given prefix in their name (possibly in parallel, using GNU
-# parallel).
+# given prefix in their name. It is essentially a thin wrapper around
+# the script run_one_contg.sh, in order to be able to launch the
+# simulations either sequentially or in parallel (using GNU parallel).
 #
 # (c) Grupo AIA
-# marinjl@aia.es
+#     marinjl@aia.es
+#     omsg@aia.es
 #
 
 # For saner programming:
@@ -181,8 +183,19 @@ if [ $s = "y" ] || ! [ -x "$(type -p parallel)" ]; then
     done
     set -e 
 else
-    echo "*** Running in parallel"
-    # no need to use 'set +e', since parallel does the right thing
-    find_cmd | parallel -j 50% --verbose "$run_case" "${OPTS[@]}" {}
+    echo "*** Running in parallel (using GNU parallel)"
+    set +e    # allow the script to continue if any case fails
+    find_cmd | parallel -j 100% --verbose "$run_case" "${OPTS[@]}" {}
+    EXIT_VAL=$?
+    set -e
+    if [ "$EXIT_VAL" -ne 0 ]; then
+        if [ "$EXIT_VAL" -ge 1 ] && [ "$EXIT_VAL" -le 100 ]; then
+            echo "WARNING: GNU parallel: $EXIT_VAL contingency jobs failed"
+        elif [ "$EXIT_VAL" = 101 ]; then
+            echo "WARNING: GNU parallel: more than 100 contingency jobs failed"
+        else
+            echo "WARNING: GNU parallel: unexpected exit value: $EXIT_VAL"
+        fi
+    fi
 fi
 
