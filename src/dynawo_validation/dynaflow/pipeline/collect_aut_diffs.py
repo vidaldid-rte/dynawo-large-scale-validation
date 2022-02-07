@@ -203,7 +203,7 @@ def main():
         df_temp["ID"] = temp_ind
         df_temp["CONTG"] = temp_bus
         df_temp.set_index("ID", inplace=True)
-        dataframeA = dataframeA.append(df_temp)
+        dataframeA = pd.concat([dataframeA, df_temp], axis=0, join='outer')
         os.remove(aut_dir + j)
 
     df_temp = read_aut_changes(aut_dir + data_files_list_sim_B[0])
@@ -228,7 +228,7 @@ def main():
         df_temp["ID"] = temp_ind
         df_temp["CONTG"] = temp_bus
         df_temp.set_index("ID", inplace=True)
-        dataframeB = dataframeB.append(df_temp)
+        dataframeB = pd.concat([dataframeB, df_temp], axis=0, join='outer')
         os.remove(aut_dir + j)
 
     dataframeA.to_csv(aut_dir + "SIMULATOR_A_AUT_CHANGES.csv", sep=";")
