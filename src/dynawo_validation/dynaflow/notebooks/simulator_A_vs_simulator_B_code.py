@@ -197,7 +197,6 @@ def create_individual_trace(data, x, y, DATA_LIMIT):
 def create_aut_group_trace(data1, data2, DATA_LIMIT):
     if data1.shape[0] > DATA_LIMIT:
         data1 = data1.sample(DATA_LIMIT)
-
     if data2 is None:
         data = data1.sort_values("GROUP", axis=0)
         c = list(data["GROUP"])
@@ -1709,7 +1708,36 @@ def show_displays(
     display(compscore_grid_score)
 
     #######################################################################
-    # Part II: Discrete events
+    # Part II: Detailed metrics
+    #######################################################################
+    display(Markdown("# ANALYSIS OF DIFFERENCES BETWEEN A AND B"))
+
+    display(Markdown("## Configurable X-Y plot of PF solution diff metrics"))
+    display(widgets.HBox([globaldiffs_def_volt_level, globaldiffs_container]))
+    display(globaldiffs_generaltrace)
+    display(Markdown("## PF solution diff metrics"))
+    display(widgets.HBox([globaldiffs_diff_metric_type, globaldiffs_button_case]))
+    display(globaldiffs_dfgrid)
+
+    display(Markdown("## Configurable X-Y plot for all values of a given case"))
+    display(contgcasediffs_container)
+    display(contgcasediffs_individualtracecontainer)
+    display(Markdown("## All values of a given case (choose above)"))
+    display(contgcasediffs_individualgrid)
+    display(button_download_data)
+
+    display(Markdown("## Local topology (network graph around a chosen bus)"))
+    display(netwgraph_container)
+    netwgraph_html_graph = display(netwgraph_C.show("subgraph.html"), display_id=True)
+    print("Node Legend - Edge Legend")
+    display(netwgraph_legendcontainer)
+    print(
+        "If a node/edge is white, it means that the selected metric is not available"
+        " for that node/edge."
+    )
+
+    #######################################################################
+    # Part III: Discrete events
     #######################################################################
     display(Markdown("# TAPS AND CONNECTION/DISCONNECTION EVENTS"))
 
@@ -1785,34 +1813,6 @@ def show_displays(
         containergroup = widgets.HBox([contgcasetap_groups_traceA])
     display(containergroup)
 
-    #######################################################################
-    # Part III: Detailed metrics
-    #######################################################################
-    display(Markdown("# ANALYSIS OF DIFFERENCES BETWEEN A AND B"))
-
-    display(Markdown("## Configurable X-Y plot of PF solution diff metrics"))
-    display(widgets.HBox([globaldiffs_def_volt_level, globaldiffs_container]))
-    display(globaldiffs_generaltrace)
-    display(Markdown("## PF solution diff metrics"))
-    display(widgets.HBox([globaldiffs_diff_metric_type, globaldiffs_button_case]))
-    display(globaldiffs_dfgrid)
-
-    display(Markdown("## Configurable X-Y plot for all values of a given case"))
-    display(contgcasediffs_container)
-    display(contgcasediffs_individualtracecontainer)
-    display(Markdown("## All values of a given case (choose above)"))
-    display(contgcasediffs_individualgrid)
-    display(button_download_data)
-
-    display(Markdown("## Local topology (network graph around a chosen bus)"))
-    display(netwgraph_container)
-    netwgraph_html_graph = display(netwgraph_C.show("subgraph.html"), display_id=True)
-    print("Node Legend - Edge Legend")
-    display(netwgraph_legendcontainer)
-    print(
-        "If a node/edge is white, it means that the selected metric is not available"
-        " for that node/edge."
-    )
     return netwgraph_html_graph
 
 
@@ -2053,6 +2053,8 @@ def run_all(
     def contgcasetap_individual_aut_group(case):
         df1, df2 = read_aut_group(case, PF_SOL_DIR, DWO_DWO, PREFIX)
         # PERF: Plotly starts showing horrible performance with more than 5,000 points
+        if df1.shape[0] > DATA_LIMIT:
+            df1 = df1.sample(DATA_LIMIT)
         with contgcasetap_groups_traceA.batch_update():
             df1 = df1.sort_values("GROUP", axis=0)
             color = list(df1["GROUP"])
@@ -2074,6 +2076,8 @@ def run_all(
             contgcasetap_groups_traceA.layout.xaxis.range = [0, 200]
             contgcasetap_groups_traceA.layout.title.text = "Case: " + case
         if df2 is not None:
+            if df2.shape[0] > DATA_LIMIT:
+                df2 = df2.sample(DATA_LIMIT)
             with contgcasetap_groups_traceB.batch_update():
                 df2 = df2.sort_values("GROUP", axis=0)
                 color = list(df2["GROUP"])
