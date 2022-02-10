@@ -327,6 +327,7 @@ def insert_HVDCLines(iidm_tree, G, n_edges):
 
 def create_distance_matrix(graph, aut_df):
     distance_matrix = []
+    bool_error = False
     for df_i in range(len(aut_df.index)):
         distance_matrix.append([])
         for df_j in range(len(aut_df.index)):
@@ -339,8 +340,11 @@ def create_distance_matrix(graph, aut_df):
                 )
                 distance_matrix[df_i].append(shortest_path)
             except (nx.NetworkXNoPath, nx.NodeNotFound) as e:
-                print(f"   WARNING: group_dwo_events: create_distance_matrix: {e}")
                 distance_matrix[df_i].append(float("Inf"))
+                bool_error = True
+                
+    if bool_error:
+        print(f"   WARNING: group_dwo_events: some nodes were unreachable (probably disconnected islands)")
 
     return distance_matrix
 
