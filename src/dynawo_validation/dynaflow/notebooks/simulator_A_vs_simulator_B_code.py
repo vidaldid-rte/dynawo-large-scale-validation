@@ -108,7 +108,8 @@ def read_aut_group(name, PF_SOL_DIR, DWO_DWO, PREFIX):
 # Create the general graphic of simulator A vs B
 def create_general_trace(data, x, y, DATA_LIMIT):
     if data.shape[0] > DATA_LIMIT:
-        data = data.sample(DATA_LIMIT)
+        data = data.reindex(data[y].abs().sort_values().index)
+        data = data[-DATA_LIMIT:]
     trace = go.Scatter(
         x=data[x],
         y=data[y],
@@ -178,9 +179,7 @@ def create_colors(data):
 
 
 # Create the individual graphic of simulator A vs B
-def create_individual_trace(data, x, y, DATA_LIMIT):
-    if data.shape[0] > DATA_LIMIT:
-        data = data.sample(DATA_LIMIT)
+def create_individual_trace(data, x, y):
     colordata = create_colors(data)
     trace = go.Scatter(
         x=data[x],
@@ -194,9 +193,7 @@ def create_individual_trace(data, x, y, DATA_LIMIT):
     return trace
 
 
-def create_aut_group_trace(data1, data2, DATA_LIMIT):
-    if data1.shape[0] > DATA_LIMIT:
-        data1 = data1.sample(DATA_LIMIT)
+def create_aut_group_trace(data1, data2):
     if data2 is None:
         data = data1.sort_values("GROUP", axis=0)
         c = list(data["GROUP"])
@@ -220,8 +217,6 @@ def create_aut_group_trace(data1, data2, DATA_LIMIT):
         )
         trace2 = None
     else:
-        if data2.shape[0] > DATA_LIMIT:
-            data2 = data2.sample(DATA_LIMIT)
         data = data1.sort_values("GROUP", axis=0)
         c = list(data["GROUP"])
         if len(c) != 0:
@@ -1144,7 +1139,7 @@ def create_dropdowns(
     )
 
     globaldiffs_dropdownvary = widgets.Dropdown(
-        options=df.columns[1:], value="v_p95", description="Y: "
+        options=df.columns[2:], value="v_p95", description="Y: "
     )
 
     contgcasediffs_dropdowndev = widgets.Dropdown(
@@ -1396,7 +1391,8 @@ def create_check_box():
     return globaltap_checka, globaltap_checkb, contgcasetap_checka, contgcasetap_checkb
 
 
-def create_tap_trace(df, HEIGHT, WIDTH):
+def create_tap_trace(df, HEIGHT):
+    df = df.loc[(df.sim_A != df.sim_B)]
     trace = go.Scatter(
         name="Positions",
         x=df["sim_A"],
@@ -1661,6 +1657,7 @@ def show_displays(
     compscore_p95_n_pass,
     compscore_mean_n_pass,
     compscore_total_n_pass,
+    DATA_LIMIT,
 ):
     display(
         HTML(
@@ -1713,6 +1710,7 @@ def show_displays(
     display(Markdown("# ANALYSIS OF DIFFERENCES BETWEEN A AND B"))
 
     display(Markdown("## Configurable X-Y plot of PF solution diff metrics"))
+    display(Markdown("NOTE: In order to avoid performance problems in Plotly, the graph only shows a maximum of " + str(DATA_LIMIT) + " corresponding to the worst differences **according to the selected metric on the Y axis**."))
     display(widgets.HBox([globaldiffs_def_volt_level, globaldiffs_container]))
     display(globaldiffs_generaltrace)
     display(Markdown("## PF solution diff metrics"))
@@ -1984,7 +1982,9 @@ def run_all(
 
         # PERF: Plotly starts showing horrible performance with more than 5,000 points
         if df1.shape[0] > DATA_LIMIT:
-            df1 = df1.sample(DATA_LIMIT)
+            df1 = df1.reindex(df1[globaldiffs_dropdownvary.value].abs().sort_values().index)
+            df1 = df1[-DATA_LIMIT:]
+
         with globaldiffs_generaltrace.batch_update():
             globaldiffs_dfgrid.data = df2
             globaldiffs_generaltrace.data[0].x = df1[globaldiffs_dropdownvarx.value]
@@ -2027,8 +2027,6 @@ def run_all(
 
             contgcasediffs_individualgrid.data = df1.sort_values("ID")
             # PERF: Plotly starts showing horrible performance with more than 5,000 points
-            if df1.shape[0] > DATA_LIMIT:
-                df1 = df1.sample(DATA_LIMIT)
             contgcasediffs_individualtrace.data[0].x = df1[
                 contgcasediffs_dropdownx.value
             ]
@@ -2053,8 +2051,6 @@ def run_all(
     def contgcasetap_individual_aut_group(case):
         df1, df2 = read_aut_group(case, PF_SOL_DIR, DWO_DWO, PREFIX)
         # PERF: Plotly starts showing horrible performance with more than 5,000 points
-        if df1.shape[0] > DATA_LIMIT:
-            df1 = df1.sample(DATA_LIMIT)
         with contgcasetap_groups_traceA.batch_update():
             df1 = df1.sort_values("GROUP", axis=0)
             color = list(df1["GROUP"])
@@ -2076,8 +2072,6 @@ def run_all(
             contgcasetap_groups_traceA.layout.xaxis.range = [0, 200]
             contgcasetap_groups_traceA.layout.title.text = "Case: " + case
         if df2 is not None:
-            if df2.shape[0] > DATA_LIMIT:
-                df2 = df2.sample(DATA_LIMIT)
             with contgcasetap_groups_traceB.batch_update():
                 df2 = df2.sort_values("GROUP", axis=0)
                 color = list(df2["GROUP"])
@@ -2451,7 +2445,7 @@ def run_all(
     globaltap_df_aut = read_aut_case(
         RESULTS_DIR + "/" + PREFIX + "/aut/", "ratioTapChanger"
     )
-    globaltap_trace = create_tap_trace(globaltap_df_aut, HEIGHT, WIDTH)
+    globaltap_trace = create_tap_trace(globaltap_df_aut, HEIGHT)
 
     # Get all the dropdowns
     (
@@ -2566,7 +2560,6 @@ def run_all(
         contgcasediffs_data_first_case_filter,
         contgcasediffs_dropdownx.value,
         contgcasediffs_dropdowny.value,
-        DATA_LIMIT,
     )
 
     # Individual trace for contingency taps
@@ -2576,7 +2569,6 @@ def run_all(
     ) = create_aut_group_trace(
         contgcasetap_aut_group_data_first_caseA,
         contgcasetap_aut_group_data_first_caseB,
-        DATA_LIMIT,
     )
 
     # Individual grid for contingency taps
@@ -2804,6 +2796,7 @@ def run_all(
         compscore_p95_n_pass,
         compscore_mean_n_pass,
         compscore_total_n_pass,
+        DATA_LIMIT,
     )
 
     # Observe selection events to update graphics

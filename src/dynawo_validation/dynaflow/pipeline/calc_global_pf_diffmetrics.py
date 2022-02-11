@@ -50,7 +50,7 @@ def main():
 
     if args.isout == "0":
         for filepath in tqdm(files):
-            contg = filepath.split("#")[-1].split("_")[-2]
+            contg = filepath.split("#")[-1].split("_pfsolution")[-2]
             delta = pd.read_csv(filepath, sep=";", index_col=False, compression="infer")
             delta["DIFF"] = delta.VALUE_A - delta.VALUE_B
 
@@ -169,7 +169,7 @@ def main():
                 res = res + [res2]
     else:
         for filepath in files:
-            contg = filepath.split("#")[-2].split("_")[-2]
+            contg = filepath.split("#")[-1].split("_pfsolution")[-2]
             delta = pd.read_csv(filepath, sep=";", index_col=False, compression="infer")
             delta["DIFF"] = delta.VALUE_A - delta.VALUE_B
 
