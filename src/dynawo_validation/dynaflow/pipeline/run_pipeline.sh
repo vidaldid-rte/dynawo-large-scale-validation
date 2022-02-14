@@ -380,21 +380,11 @@ for DEVICE in "${!create_contg[@]}"; do
     ###############################
     # Calculate Power Flow metrics
     ###############################
-    if [ -t 1 ] ; then
-        # stdout is a terminal
-        colormsg "*** COMPUTING DIFF METRICS:"
-        set -x
-        python3 "$CONTG_SRC"/calc_global_pf_diffmetrics.py "$RESULTS_DIR"/pf_sol "$DEVICE"# "0"
-        set +x
-        echo
-    else
-        # stdout isn't a terminal
-        colormsg "*** COMPUTING DIFF METRICS:"
-        set -x
-        python3 "$CONTG_SRC"/calc_global_pf_diffmetrics.py "$RESULTS_DIR"/pf_sol "$DEVICE"# "1"
-        set +x
-        echo
-    fi
+    colormsg "*** COMPUTING DIFF METRICS:"
+    set -x
+    python3 "$CONTG_SRC"/calc_global_pf_diffmetrics.py "$RESULTS_DIR"/pf_sol "$DEVICE#"
+    set +x
+    echo
 
     #####################################
     # Calculate the "Top 10" mini-report
