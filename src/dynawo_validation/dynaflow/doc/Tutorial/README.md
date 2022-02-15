@@ -11,9 +11,9 @@
   
   2. Initial directory structure:
 
-	2.1 Put all all DynaFlow files under a directory `<casename>.BASECASE/`, with job filename pattern: *JOB*.xml
-
-  	2.2 Create a subdir Hades and put `donneesEntreeHADES2.xml` in it. There's nothing else to do with the Hades file.
+        2.1 Put all all DynaFlow files under a directory `<casename>.BASECASE/`, with job filename pattern: *JOB*.xml
+        
+        2.2 Create a subdir Hades and put `donneesEntreeHADES2.xml` in it. There's nothing else to do with the Hades file.
   
   3. For good measure, start by formatting all XML files with xmllint. Use the provided script `xml_format_dir.sh`. It's good practice to keep a backup copy the formatted case at this point, so that all the edits that come below can be viewed cleanly when using diff.
 
@@ -88,7 +88,6 @@
 	├── recollement_20210422_0930.iidm
 	└── solver.par
 
-   *The following step is only for dynaflow-dynaflow*
    8. *(This step is only for dynaflow-dynaflow)* Run the script convert_dflow2dwoAdwoB.sh BASECASE_A BASECASE_B to generate a new directory with the files. 
    
 	20210422_0930a.BASECASE.DWODWO/
@@ -147,14 +146,14 @@
 
    11. We also have the option with the command line to use other commands such as: 
 
-	* add_contg_job.py 
-	* top_10_diffs_dflow.py
-	* dynaflow_run_validation
-	* convert_dflow2dwoAdwoB.sh
-	* xml_format_dir.sh
-	* dynawo_validation_find_path
-	* create_graph.py
-	* dynawo_validation_extract_bus
+        * add_contg_job.py 
+        * top_10_diffs_dflow.py
+        * dynaflow_run_validation
+        * convert_dflow2dwoAdwoB.sh
+        * xml_format_dir.sh
+        * dynawo_validation_find_path
+        * create_graph.py
+        * dynawo_validation_extract_bus
 
 ## Analyze the results 
 
