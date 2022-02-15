@@ -134,13 +134,25 @@ echo "OK."
 ########################################################################
 echo -n "Editing the DYD file... "
 LABEL=A
+DYD_FILE_A_cont=$(find "$DWODWO_CASE_A/$LABEL" -type f -iname 'contingency.dyd')
+sed -i -e "s%parFile=\"%parFile=\"$LABEL/%" "$DYD_FILE_A_cont"
 DYD_FILE_A=$(find "$DWODWO_CASE_A/$LABEL" -type f -iname '*.dyd')
+DYD_FILE_A=${DYD_FILE_A#"$DYD_FILE_A_cont"}
+DYD_FILE_A=${DYD_FILE_A%"$DYD_FILE_A_cont"}
+DYD_FILE_A=${DYD_FILE_A//$'\n'/} 
+DYD_FILE_A=${DYD_FILE_A%$'\n'}
 sed -i -e "s%parFile=\"%parFile=\"$LABEL/%" "$DYD_FILE_A"
 
 
 LABEL=B
 echo -n "Editing the DYD file... "
+DYD_FILE_B_cont=$(find "$DWODWO_CASE_A/$LABEL" -type f -iname 'contingency.dyd')
+sed -i -e "s%parFile=\"%parFile=\"$LABEL/%" "$DYD_FILE_B_cont"
 DYD_FILE_B=$(find "$DWODWO_CASE_A/$LABEL" -type f -iname '*.dyd')
+DYD_FILE_B=${DYD_FILE_B#"$DYD_FILE_B_cont"}
+DYD_FILE_B=${DYD_FILE_B%"$DYD_FILE_B_cont"}
+DYD_FILE_B=${DYD_FILE_B//$'\n'/} 
+DYD_FILE_B=${DYD_FILE_B%$'\n'}
 sed -i -e "s%parFile=\"%parFile=\"$LABEL/%" "$DYD_FILE_B"
 echo "OK."
 

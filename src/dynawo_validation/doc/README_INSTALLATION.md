@@ -61,11 +61,11 @@ Now, you have a self-contained directory tree that contains a Python installatio
 
 - Install dynaflow-validation with all dependencies manually:
 
-	1 - Clone the repo: git clone https://github.com/dynawo/dynawo-validation-AIA
+	1. Clone the repo: git clone https://github.com/dynawo/dynawo-validation-AIA
 	
-	2 - Build the package (go to the main directory of the package): python -m build
+	2. Build the package (go to the main directory of the package): python -m build
 	
-	3 - Install the package: pip install dist/dynawo_validation_RTE_AIA-X.Y.Z-py3-none-any.whl
+	3. Install the package: pip install dist/dynawo_validation_RTE_AIA-X.Y.Z-py3-none-any.whl
 
 
 ## Install Dynawo
