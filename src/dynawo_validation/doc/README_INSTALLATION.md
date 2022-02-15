@@ -15,15 +15,14 @@
 
 - Install Jupyter and some other python debs for DS: apt-get install jupyter python-numpy python3-numpy
 
+- Install parallel package for faster execution: sudo apt-get install parallel
+
 - Only for development:
 
 	- Install a python IDE. (for ex. PyCharm: https://www.jetbrains.com/help/pycharm/installation-guide.html#requirements)
 
 	- Install python development utilities: apt-get install black flake8 python3-pytest
 	
-	- Install parallel package for faster execution: sudo apt-get install parallel
-
-
 
 ## Option 1
 ## Use the default script 
@@ -31,14 +30,6 @@
 ### Run build_and_install.sh script
 Run the build_and_install.sh script located at the root of the directory where all the files are. In this way, a virtual environment will be created and all the packages necessary to use the tool will be installed in it. This includes creating virtual environment, enabling extensions, building the package, installing the package, etc. 
 
-### Install Dynawo
-
-- Follow the instructions of this website: https://dynawo.github.io/install/
-
-
-### Install Hades
-
-- To compare between Hades, it is assumed that you already have Hades installed in your environment.
 
 ## Option 2
 ## Do all the steps manually 
@@ -64,25 +55,30 @@ Now, you have a self-contained directory tree that contains a Python installatio
 
 - Upgrade pip: python -m pip install --upgrade pip (we use python instead of python3 because in this environment we only have Python 3).
 
+### Install dynaflow-validation (venv must be actived to proceed)
 
-### Install Dynawo
+- Install dynaflow-validation with all dependencies: pip install dynaflow-validation-RTE-AIA (if in the end it is uploaded as a package )
+
+- Install dynaflow-validation with all dependencies manually:
+
+	1 - Clone the repo: git clone https://github.com/dynawo/dynawo-validation-AIA
+	
+	2 - Build the package (go to the main directory of the package): python -m build
+	
+	3 - Install the package: pip install dist/dynawo_validation_RTE_AIA-X.Y.Z-py3-none-any.whl
+
+
+## Install Dynawo
 
 - Follow the instructions of this website: https://dynawo.github.io/install/
 
 
-### Install Hades
+## Install Hades
 
 - To compare between Hades, it is assumed that you already have Hades installed in your environment.
-
-
-### Install dynaflow-validation (venv must be actived to proceed)
-
-- Install dynaflow-validation with all dependencies: pip install -i https://test.pypi.org/simple/ dynaflow-validation-RTE-AIA
-
-(For now, to avoid problems with other packages, it is better if you download the source code from the link and install it manually with: pip install name_of_tar.gz)
 	
 
-### Jupyter Notebooks configuration
+## Jupyter Notebooks configuration
 
 To use the virtual environment interpreter in Jupyter Notebooks, we have to do the following steps:
 
@@ -101,7 +97,7 @@ To use the virtual environment interpreter in Jupyter Notebooks, we have to do t
 	5. Open Jupyter and, in Kernel Options, select your new Kernel.
 
 
-### IDE configuration (only for development)
+## IDE configuration (only for development)
 	
 To use the virtual environment interpreter in our IDE we have to open our Python IDE (for example, PyCharm) and go to Interpreter Configuration (in the case of PyCharm, we have the direct option to Add Interpreter). We must choose the option that allows us to add a new interpreter and then, we only have to select the Python interpreter from the path where we have installed the Virtual Environment (in /bin directory).
 
