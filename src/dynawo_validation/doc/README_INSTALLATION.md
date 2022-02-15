@@ -61,11 +61,11 @@ Now, you have a self-contained directory tree that contains a Python installatio
 
 - Install dynaflow-validation with all dependencies manually:
 
-       1. Clone the repo: git clone https://github.com/dynawo/dynawo-validation-AIA
+   1. Clone the repo: git clone https://github.com/dynawo/dynawo-validation-AIA
 	
-       2. Build the package (go to the main directory of the package): python -m build
+   2. Build the package (go to the main directory of the package): python -m build
 	
-       3. Install the package: pip install dist/dynawo_validation_RTE_AIA-X.Y.Z-py3-none-any.whl
+   3. Install the package: pip install dist/dynawo_validation_RTE_AIA-X.Y.Z-py3-none-any.whl
 
 
 ## Install Dynawo
@@ -82,19 +82,19 @@ Now, you have a self-contained directory tree that contains a Python installatio
 
 To use the virtual environment interpreter in Jupyter Notebooks, we have to do the following steps:
 
-       1. Activate virtual environment source /path/to/new/virtual/environment/bin/activate
+   1. Activate virtual environment source /path/to/new/virtual/environment/bin/activate
 
-       2. Install ipykernel which provides the IPython kernel for Jupyter: pip install ipykernel
+   2. Install ipykernel which provides the IPython kernel for Jupyter: pip install ipykernel
 
-       3. Add your virtual environment to Jupyter: python -m ipykernel install --user --name=NAME-OF-INTERPRETER
+   3. Add your virtual environment to Jupyter: python -m ipykernel install --user --name=NAME-OF-INTERPRETER
 
-       4. Run this three commands in order to register this extensions with jupyter: 
+   4. Run this three commands in order to register this extensions with jupyter: 
         	
                 jupyter nbextension enable --py widgetsnbextension
                 jupyter nbextension enable --py --sys-prefix qgrid
                 jupyter nbextension enable --py --sys-prefix ipydatagrid
 
-       5. Open Jupyter and, in Kernel Options, select your new Kernel.
+   5. Open Jupyter and, in Kernel Options, select your new Kernel.
 
 
 ## IDE configuration (only for development)
