@@ -34,17 +34,16 @@ def main():
         dir_dyd_contg = dir_dyd + "contingency.dyd"
         event = etree.SubElement(dyd_file.getparent(), f"{{{ns}}}dynModels")
         event.set("dydFile", dir_dyd_contg)
-    
+
     find = False
     for crv_file in root.iter(f"{{{ns}}}curves"):
         find = True
-    
+
     if not find:
         for output in root.iter(f"{{{ns}}}outputs"):
             event = etree.SubElement(output, f"{{{ns}}}curves")
             event.set("exportMode", "CSV")
             event.set("inputFile", "standard_curves.crv")
-
 
     tree.write(
         job_path,

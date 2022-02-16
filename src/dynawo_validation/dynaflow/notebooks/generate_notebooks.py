@@ -60,9 +60,8 @@ def get_weights(csv_weights):
     max_THRESH = df_weights["MAX_THRESH"].to_list()[0]
     p95_THRESH = df_weights["P95_THRESH"].to_list()[0]
     mean_THRESH = df_weights["MEAN_THRESH"].to_list()[0]
-    
-    return w_V, w_P, w_Q, w_T, max_THRESH, p95_THRESH, mean_THRESH
 
+    return w_V, w_P, w_Q, w_T, max_THRESH, p95_THRESH, mean_THRESH
 
 
 def main():
@@ -105,7 +104,7 @@ def main():
         elif "PLACEHOLDER_W_P" in line:
             fout.write(line.replace("PLACEHOLDER_W_P", str(w_P)))
         elif "PLACEHOLDER_W_Q" in line:
-            fout.write(line.replace("PLACEHOLDER_W_Q", str(w_Q)))  
+            fout.write(line.replace("PLACEHOLDER_W_Q", str(w_Q)))
         elif "PLACEHOLDER_W_T" in line:
             fout.write(line.replace("PLACEHOLDER_W_T", str(w_T)))
         elif "PLACEHOLDER_MAX_THRESH" in line:
@@ -113,7 +112,7 @@ def main():
         elif "PLACEHOLDER_P95_THRESH" in line:
             fout.write(line.replace("PLACEHOLDER_P95_THRESH", str(p95_THRESH)))
         elif "PLACEHOLDER_MEAN_THRESH" in line:
-            fout.write(line.replace("PLACEHOLDER_MEAN_THRESH", str(mean_THRESH))) 
+            fout.write(line.replace("PLACEHOLDER_MEAN_THRESH", str(mean_THRESH)))
         else:
             fout.write(line)
     # close input and output files

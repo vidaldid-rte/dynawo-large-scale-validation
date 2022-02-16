@@ -342,9 +342,11 @@ def create_distance_matrix(graph, aut_df):
             except (nx.NetworkXNoPath, nx.NodeNotFound) as e:
                 distance_matrix[df_i].append(float("Inf"))
                 bool_error = True
-                
+
     if bool_error:
-        print(f"   WARNING: group_dwo_events: some nodes were unreachable (probably disconnected islands)")
+        print(
+            f"   WARNING: group_dwo_events: some nodes were unreachable (probably disconnected islands)"
+        )
 
     return distance_matrix
 

@@ -17,7 +17,8 @@ import os
 from dynawo_validation.dynaflow.pipeline.dwo_jobinfo import is_dwohds
 import re
 import warnings
-warnings.simplefilter(action='ignore', category=FutureWarning)
+
+warnings.simplefilter(action="ignore", category=FutureWarning)
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -203,7 +204,7 @@ def main():
         df_temp["ID"] = temp_ind
         df_temp["CONTG"] = temp_bus
         df_temp.set_index("ID", inplace=True)
-        dataframeA = pd.concat([dataframeA, df_temp], axis=0, join='outer')
+        dataframeA = pd.concat([dataframeA, df_temp], axis=0, join="outer")
         os.remove(aut_dir + j)
 
     df_temp = read_aut_changes(aut_dir + data_files_list_sim_B[0])
@@ -228,7 +229,7 @@ def main():
         df_temp["ID"] = temp_ind
         df_temp["CONTG"] = temp_bus
         df_temp.set_index("ID", inplace=True)
-        dataframeB = pd.concat([dataframeB, df_temp], axis=0, join='outer')
+        dataframeB = pd.concat([dataframeB, df_temp], axis=0, join="outer")
         os.remove(aut_dir + j)
 
     dataframeA.to_csv(aut_dir + "SIMULATOR_A_AUT_CHANGES.csv", sep=";")

@@ -1710,7 +1710,13 @@ def show_displays(
     display(Markdown("# ANALYSIS OF DIFFERENCES BETWEEN A AND B"))
 
     display(Markdown("## Configurable X-Y plot of PF solution diff metrics"))
-    display(Markdown("NOTE: In order to avoid performance problems in Plotly, the graph only shows a maximum of " + str(DATA_LIMIT) + " corresponding to the worst differences **according to the selected metric on the Y axis**."))
+    display(
+        Markdown(
+            "NOTE: In order to avoid performance problems in Plotly, the graph only shows a maximum of "
+            + str(DATA_LIMIT)
+            + " corresponding to the worst differences **according to the selected metric on the Y axis**."
+        )
+    )
     display(widgets.HBox([globaldiffs_def_volt_level, globaldiffs_container]))
     display(globaldiffs_generaltrace)
     display(Markdown("## PF solution diff metrics"))
@@ -1982,7 +1988,9 @@ def run_all(
 
         # PERF: Plotly starts showing horrible performance with more than 5,000 points
         if df1.shape[0] > DATA_LIMIT:
-            df1 = df1.reindex(df1[globaldiffs_dropdownvary.value].abs().sort_values().index)
+            df1 = df1.reindex(
+                df1[globaldiffs_dropdownvary.value].abs().sort_values().index
+            )
             df1 = df1[-DATA_LIMIT:]
 
         with globaldiffs_generaltrace.batch_update():
@@ -2102,9 +2110,9 @@ def run_all(
 
     def contgcasediffs_response_button(change):
         if len(globaldiffs_dfgrid.selections) != 0:
-            case = globaldiffs_dfgrid.data.loc[
-                globaldiffs_dfgrid.selections[0]["r1"], "contg_case"
-            ]
+            case = globaldiffs_dfgrid.selected_cell_values[0]
+            globaldiffs_dfgrid.clear_selection()
+
         contgcasediffs_individual_case(case)
 
     def contgcasetap_response_autA(change):
@@ -2164,14 +2172,15 @@ def run_all(
         # In order to solve this, a button is created and it takes the value of the buffer and applies the changes
         # manually.
         if len(globaltap_aut_diffs_A_grid.selections) != 0:
-            contgcasetap_aut_diff_case.value = globaltap_aut_diffs_A_grid.data.iloc[
-                globaltap_aut_diffs_A_grid.selections[0]["r1"], 4
-            ][len(PREFIX) + 1 :]
+            contgcasetap_aut_diff_case.value = (
+                globaltap_aut_diffs_A_grid.selected_cell_values[4][len(PREFIX) + 1 :]
+            )
 
         elif len(globaltap_aut_diffs_B_grid.selections) != 0:
-            contgcasetap_aut_diff_case.value = globaltap_aut_diffs_B_grid.data.iloc[
-                globaltap_aut_diffs_B_grid.selections[0]["r1"], 4
-            ][len(PREFIX) + 1 :]
+            contgcasetap_aut_diff_case.value = (
+                globaltap_aut_diffs_B_grid.selected_cell_values[4][len(PREFIX) + 1 :]
+            )
+
         contgcasetap_response_aut("")
 
     def contgcasetap_response_aut(change):
