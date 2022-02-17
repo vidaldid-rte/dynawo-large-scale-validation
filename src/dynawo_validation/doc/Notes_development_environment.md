@@ -1,93 +1,114 @@
 
-# Instructions for execution/development requirements
+# Setting up a development environment for working on this code
 
-## OS, development software and utilities
+## OS-level development software and utilities
 
-- Install base OS: Debian 11 (from netinst). Standard Gnome desktop and ssh. Used en_US as system-wide locale, then used to set the timezone manually later: timedatectl set-timezone Europe/Madrid
+- Install the base OS on a VM. We recommend Debian or Ubuntu (we used Debian
+  11, installed from a standard "netinst" image). You will probably
+  want to install a standard desktop environment (we use Gnome).
+  
+- Other interesting packages, such as ssh, rsync, and your preferred
+  system utilities:
+    - `sudo apt-get install aptitude open-vm-tools-desktop ssh rsync emacs`
 
-- Post-install packages: apt-get install aptitude open-vm-tools-desktop rsync emacs
+- You do need a base install of Python 3 in the OS:
+	- `sudo apt-get update && sudo apt-get upgrade`
 
-- Install Python 3: 
+	- `sudo apt-get install python3.9 python3-venv python3-pip`
 
-	- sudo apt-get update && sudo apt-get upgrade
-
-	- sudo apt-get install python3.9
-
-- Install pip and venv: sudo apt install python3-venv python3-pip
-
-- Install Jupyter and some other python debs for DS: apt-get install jupyter python-numpy python3-numpy
-
-- Only for development:
-
-	- Install a python IDE. (for ex. PyCharm: https://www.jetbrains.com/help/pycharm/installation-guide.html#requirements)
-
-	- Install python development utilities: apt-get install black flake8 python3-pytest
-	
-	- Install parallel package for faster execution: sudo apt-get install parallel
-
-
-## Virtual environment creation
-
-- Create the virtual environment: python3 -m venv /path/to/new/virtual/environment
-
-- Activate the virtual environment: source /path/to/new/virtual/environment/bin/activate
-
-Now you should have the name of your virtual environment in parentheses before the username on the command line.
-
-- Deactivate virtual environment: deactivate
-
-- Remove virtual environment: rm -rf /path/to/new/virtual/environment
+- But the rest of all Python packages can be installed under a virtual
+  environment in the $HOME of the user account that you will be
+  using. This is all taken care of when you clone the code from this
+  repo and install the package, as shown in the
+  [README_INSTALLATION.md](/src/dynawo_validation/doc/README_INSTALLATION.md)
+  under the general doc folder. You can peek inside the script
+  [build_and_install.sh](/build_and_install.sh) if you want to see how
+  it creates a virtual env and installs the package and all of its
+  dependencies.
 
 
-## Virtual environment configuration (venv must be actived to proceed)
+- Non-python stuff: you need to install GNU parallel if you want to be
+  able to run contingencies in parallel and thus benefit from multiple
+  CPU cores: `sudo apt-get install parallel`
 
-Now, you have a self-contained directory tree that contains a Python installation for a particular version of Python, plus a number of additional packages. All the modifications that you make in this installation (with pip) will not affect the general installation of Python.
 
-- Upgrade pip: python -m pip install --upgrade pip (we use python instead of python3 because in this environment we only have Python 3).
+- For developing Python code:
 
-- **Install all Python packages**:
+	- Install a python IDE (for example, PyCharm:
+      https://www.jetbrains.com/help/pycharm/installation-guide.html#requirements)
 
-	- **With requirements.txt**:
+	- Install these important Python development utilities: `apt-get
+        install black flake8 python3-pytest`
 
-		- pip install -r dynawo-validation-AIA/doc/requirements.txt
 
-	- **Manually**:
 
-		- pip install pandas
+## Python virtual environments
 
-		- pip install lxml
+If you don't like the way the script
+[build_and_install.sh](/build_and_install.sh) does things and you want
+to manage your Python virtualenv your way, here's a quick reminder:
 
-		- pip install plotly
+- Create the virtualenv: `python3 -m venv /path/to/new/virtual/environment`
 
-		- pip install frozendict
+- Activate the virtualenv: `source /path/to/new/virtual/environment/bin/activate`  
+  (Now you should have the name of your virtual environment in
+  parentheses before the username on the command line.)
 
-		- pip install networkx
+- Deactivate virtualenv: `deactivate`
 
-		- pip install pyvis
-		
-		- pip install ipywidgets
+- Remove the virtualenv: `rm -rf /path/to/new/virtual/environment`
 
-		- pip install matplotlib
-		
-		- pip install tqdm
-	
+
+
+## Virtual environment configuration/maintenance (venv must be actived to proceed)
+
+Again, configuration and upgrades to the venv are automatically taken
+care of by re-runnuning periodically the script
+[build_and_install.sh](/build_and_install.sh) at the root of the
+repo. But if you prefer to do some of this manually, read on.
+
+A virtualenv is a directory tree that contains a self-contained Python
+installation (for a particular version of Python), plus a number of
+additional packages. All the modifications that you make in this
+installation (with pip) will not affect the general installation of
+Python on the OS.
+
+Remember to first **activate** your venv, en then:
+
+- Before you start installing or upgrading anything, update pip &
+  friends first: `pip install --upgrade pip wheel setuptools build`
+
+- To upgrade all packages to their newest available versions: `pip
+    install -U --upgrade-strategy eager`
+
+- To install all packages required by the software, `pip install -r
+    doc/requirements.txt`
+
 
 ## Jupyter Notebooks configuration
 
-To use the virtual environment interpreter in Jupyter Notebooks, we have to do the following steps:
-
-	1. Activate virtual environment source /path/to/new/virtual/environment/bin/activate
-
-	2. Install ipykernel which provides the IPython kernel for Jupyter: pip install ipykernel
-
-	3. Add your virtual environment to Jupyter: python -m ipykernel install --user --name=NAME-OF-INTERPRETER
-
-	4. Open Jupyter and, in Kernel Options, select your new Kernel.
+Nowadays with recent versions of Jupyter Notebook you don't need to
+configure anything after instalation, except maybe **register some
+widgets which do not automatically do so when installed with
+pip**. Currently there are only two, qgrid and ipydatagrid. You
+"register" them with (while the venv is active!):
+  * `jupyter nbextension enable --py --sys-prefix ipydatagrid`
+  * `jupyter nbextension enable --py --sys-prefix qgrid`
 
 
-## IDE configuration (only for development)
+Other than this, just open Jupyter Notebook and, in Kernel Options,
+select ther Kernel corresponding to your venv, and you're done.
+
+
+
+## IDE configuration
 	
-To use the virtual environment interpreter in our IDE we have to open our Python IDE (for example, PyCharm) and go to Interpreter Configuration (in the case of PyCharm, we have the direct option to Add Interpreter). We must choose the option that allows us to add a new interpreter and then, we only have to select the Python interpreter from the path where we have installed the Virtual Environment (in /bin directory).
+To use the virtual environment's Python interpreter in our IDE, we may
+have to configure our IDE to explicitly tell it so.  For example, in
+PyCharm: go to Interpreter Configuration, choose the option that
+allows you to add a new interpreter, and then select the Python
+interpreter from the path where we have installed the Virtual
+Environment (it's inside the bin directory).
 
 
 ## Install Dynawo
@@ -97,5 +118,11 @@ To use the virtual environment interpreter in our IDE we have to open our Python
 
 ## Install Hades
 
-- To compare between Hades, it is assumed that you already have Hades installed in your environment.
+- To compare between DynaFlow and Hades, it is assumed that you
+  already have Hades installed in your environment.
+
+## Install Astre
+
+- To compare between DynaWaltz and Hades, it is assumed that you
+  already have Hades installed in your environment.
 

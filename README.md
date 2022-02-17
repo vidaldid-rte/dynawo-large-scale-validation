@@ -58,6 +58,8 @@ src
         └── pipeline
 ```
 
+[comment]: <> (tree view obtained with: tree -d -L 3 -I '*.egg-info' src)
+
 The repository contains two main parts: DynaWaltz validation and
 DynaFlow validation. In addition, it has a set of common utilities
 that are used for both parts.
