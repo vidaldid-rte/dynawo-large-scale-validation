@@ -2,42 +2,91 @@
 Dynawo validation
 =================
 
-A repository of scripts and utilities used for the RTE-AIA project. It can be used in package form or each of the scripts individually.
-*"Validation of dynamic simulations made using open source tool"*.
+A repository of scripts and utilities built during the RTE-AIA
+projects carried out in 2020--2021 for the purpose of validating
+*DynaWaltz* and *DynaFlow*.
 
-***(c) 2020 Grupo AIA***
-
-**marinjl@aia.es**
-
+***(c) 2020--2021 Grupo AIA***  
+**marinjl@aia.es**  
+**omsg@aia.es**
 
 -------------------------------------------------------------------------------
 
 
-## Intro
+## Overview
 
-This repository contains two main parts. Dynawaltz validation and Dynaflow validation. In addition, it has a set of common utilities that serve for both parts.
+The methodology for validation is based on running extensive sets of
+(single-element) contingency cases, and then compare the results
+between Dynawo and another well-established legacy simulator (in our
+case, Astre vs. DynaWaltz and Hades vs. DynaFlow).  Additionally, the
+validation pipeline allows comparison of Dynawo vs. Dynawo, which can
+be used for ongoing validation of future Dynawo versions, or for
+analyzing the effects of different simulation parameters, different
+model parameterizations, etc.
+
+In essence the system consists of a "processing pipeline" and a
+Jupyter Notebook for the analysys of results. The pipeline
+orchestrates all Python and shell scripts for the creation of
+contingency cases, running them, collecting results, calculating
+metrics, etc. The Notebook presents results in the form of tables and
+graphs, also computing a few further analyses.
+
+
+## Repository structure
+
+At a high-level, this repo is structured as follows:
+
+```
+src
+└── dynawo_validation
+    ├── attic
+    │   └── launchers
+    ├── commons
+    │   ├── log_utils
+    │   └── xml_utils
+    ├── doc
+    │   ├── conf_paper
+    │   ├── Github installation
+    │   └── journal_paper
+    ├── dynaflow
+    │   ├── doc
+    │   ├── notebooks
+    │   └── pipeline
+    └── dynawaltz
+        ├── doc
+        ├── notebooks
+        └── pipeline
+```
+
+The repository contains two main parts: DynaWaltz validation and
+DynaFlow validation. In addition, it has a set of common utilities
+that are used for both parts.
+
+
 
 ## How to use it
 
-Before following this process, it is important to read the document located in commons called README_INSTALLATION.md
-There are two ways to use it. The first is to add the root directory to the system's PATH and use the scripts individually. You can find the directory by running the script located in commons: dynawo_validation_find_path.
+Although it is possible to just clone this repo and start using the
+pipeline by running the scripts directly off of their folder (e.g., by
+adding the pipeline directory to your PATH), please note that the
+software has been packaged as a proper **Python package** that can be
+installed via **pip**. This is the recommended way to use it and the
+most convenient, in order to have all dependencies automatically
+installed.  For more information, please consult the
+[README_INSTALLATION.md](src/dynawo_validation/doc/README_INSTALLATION.md)
+under the general doc folder.
 
-The second way is by installing the package. This package can be downloaded from the PyPi website or created manually from the repository. To do this, we just have to go to the root directory and execute the command: python3 -m build.
 
-A folder called "dist" will be created and inside there will be a .tar.gz file that we can install with: pip install dist/file_name.tar.gz.
 
-It can also be done through the build_and_install.sh script, which by simply executing it will install the package and do all the necessary actions to use the package. 
+## Documentation
 
-Once installed, several instructions for the command line will have been added to our system:
-- add_contg_job.py
-- convert_dflow2dwoAdwoB_all.sh
-- convert_dwaltz2dwoAdwoB.sh
-- create_graph.py
-- dynaflow_run_validation
-- dynawaltz_run_validation
-- dynawo_validation_extract_bus
-- dynawo_validation_find_path
-- prepare_pipeline_basecase.py
-- top_10_diffs_dflow.py
-- top_10_diffs_dwaltz.py
-- xml_format_dir.sh
+At the root of the source, the general [doc](/src/dynawo_validation/doc)
+folder contains:
+  * the installation instructions for users
+  * notes for developers setting up their environment
+  * publications related to the project
+
+Then there are two additional folders with information specific to each sub-project:
+  * DynaWaltz pipeline [dynawaltz/doc](src/dynawo_validation/dynawaltz/doc)
+  * DynaFlow pipeline [dynaflow/doc](src/dynawo_validation/dynaflow/doc)
+
