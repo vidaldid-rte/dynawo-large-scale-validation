@@ -95,7 +95,6 @@ pip**. Currently there are only two, qgrid and ipydatagrid. You
   * `jupyter nbextension enable --py --sys-prefix ipydatagrid`
   * `jupyter nbextension enable --py --sys-prefix qgrid`
 
-
 Other than this, just open Jupyter Notebook and, in Kernel Options,
 select ther Kernel corresponding to your venv, and you're done.
 
@@ -123,6 +122,6 @@ Environment (it's inside the bin directory).
 
 ## Install Astre
 
-- To compare between DynaWaltz and Hades, it is assumed that you
+- To compare between DynaWaltz and Astre, it is assumed that you
   already have Hades installed in your environment.
 
