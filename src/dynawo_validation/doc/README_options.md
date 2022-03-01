@@ -121,13 +121,13 @@ user logs out, or gets disconnected from his ssh session, or the VPN goes down, 
    - **&** 🡪 This final ampersand is just used to push the execution into the background, to recover the shell prompt. At this point you could then, for instance, just exit from the shell and the
 pipeline will continue running without a problem.
 
-   **Best practice, in summary:**
+**Best practice, in summary:**
 
-      1. Launch the pipeline with: nohup dynaflow_run_validation … > output.txt 2>&1 &
+   1. Launch the pipeline with: nohup dynaflow_run_validation … > output.txt 2>&1 &
 
-      2. Monitor the file for a few seconds to check that everything progresses fine: tail –f output.txt (press Ctrl-C when done)
+   2. Monitor the file for a few seconds to check that everything progresses fine: tail –f output.txt (press Ctrl-C when done)
 
-      3. Exit or disconnect from the shell. Log back in when you think it is done,
+   3. Exit or disconnect from the shell. Log back in when you think it is done,
 
 
 # Other examples:
