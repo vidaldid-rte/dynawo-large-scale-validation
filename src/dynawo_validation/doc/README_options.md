@@ -3,9 +3,9 @@
 
 The validation pipelines for DynaFlow and DynaWaltz are launched by using these scripts:
 
-    **dynaflow_run_validation**
+   - **dynaflow_run_validation**
 
-    **dynawaltz_run_validation**
+   - **dynawaltz_run_validation**
 
 Their usage and options are very similar. We will show examples using DynaFlow, but everything works the same for the case of DynaWaltz.
 
@@ -106,7 +106,7 @@ Runs only a small random sample of contingencies of each type. The RNG will use 
 When executing the pipeline for a long run, you want to keep the console output and also make the execution robust against disconnections (e.g. when you are working from home and
 your VPN goes down):
 
-	**nohup dynaflow_run_validation –A dynawo.sh –B hades –a Prepared_BASECASE_name Results_dir > output.txt 2>&1 &**
+	nohup dynaflow_run_validation –A dynawo.sh –B hades –a Prepared_BASECASE_name Results_dir > output.txt 2>&1 &
 	
 	
 
