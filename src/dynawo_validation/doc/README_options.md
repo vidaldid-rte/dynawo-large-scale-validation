@@ -3,9 +3,9 @@
 
 The validation pipelines for DynaFlow and DynaWaltz are launched by using these scripts:
 
-   **dynaflow_run_validation**
+    **dynaflow_run_validation**
 
-   **dynawaltz_run_validation**
+    **dynawaltz_run_validation**
 
 Their usage and options are very similar. We will show examples using DynaFlow, but everything works the same for the case of DynaWaltz.
 
@@ -17,7 +17,7 @@ As with many other scripts in the pipeline, just run the command with no argumen
 	
 	dynaflow_run_validation: error: the following arguments are required: base_case, results_dir
 
-Or run it with **-h / --help** in order to get a more detailed description of each option and argument (see next slide).
+Or run it with **-h / --help** in order to get a more detailed description of each option and argument.
 
 
 
@@ -133,21 +133,21 @@ pipeline will continue running without a problem.
 
 # Other examples:
 
-	**dynaflow_run_validation –s -r Prepared_BASECASE_name Results_dir**
+	dynaflow_run_validation –s -r Prepared_BASECASE_name Results_dir
 
    In this example the pipeline runs sequentially (1 thread) a small random sample of contingencies. Default launchers will be used.
 
-	**dynaflow_run_validation –A dynawo.sh –B hades –d –p 67 Prepared_BASECASE_name Results_dir**
+	dynaflow_run_validation –A dynawo.sh –B hades –d –p 67 Prepared_BASECASE_name Results_dir
 
    Runs a random sample of contingencies (using seed 67 for the RNG), using all possible CPU cores, with the provided launchers (which should be on our $PATH), and
 showing DEBUG information in the output messages to the console.
 
-	**dynaflow_run_validation –w weights.txt Prepared_BASECASE_name Results_dir**
+	dynaflow_run_validation –w weights.txt Prepared_BASECASE_name Results_dir
 
    Runs a random sample of contingencies (using a randomly chosen seed), with the default launchers and using all possible CPU cores. In addition, the values to calculate
 the scores and define the thresholds will be read from the provided file “weights.txt”, instead of using the default ones.
 
-	**dynaflow_run_validation –A dynawo.sh –B hades –l regex.txt Prepared_BASECASE_name Results_dir**
+	dynaflow_run_validation –A dynawo.sh –B hades –l regex.txt Prepared_BASECASE_name Results_dir
 
    Runs a set of contingencies defined through regular expressions defined in the regex.txt file, with the provided launchers, and using all possible CPU cores.
 
