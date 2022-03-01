@@ -108,18 +108,17 @@ your VPN goes down):
 
 	nohup dynaflow_run_validation –A dynawo.sh –B hades –a Prepared_BASECASE_name Results_dir > output.txt 2>&1 &
 	
-	
 
-   **nohup** 🡪 nohup is a POSIX command which means "no hang up". Its purpose is to execute a command such that it ignores the HUP (hangup) signal and therefore does not stop when the
+   - **nohup** 🡪 nohup is a POSIX command which means "no hang up". Its purpose is to execute a command such that it ignores the HUP (hangup) signal and therefore does not stop when the
 user logs out, or gets disconnected from his ssh session, or the VPN goes down, etc.
 
-   **>** 🡪 Redirects stdout to a file.
+   - **>** 🡪 Redirects stdout to a file.
 
-   **output.txt** 🡪 Output file (choose any name).
+   - **output.txt** 🡪 Output file (choose any name).
 
-   **2>&1** 🡪 Redirects stderr (“unit 2”) to a file (in this case “&1” is an alias to standard error, which by now is the file “output.txt”)
+   - **2>&1** 🡪 Redirects stderr (“unit 2”) to a file (in this case “&1” is an alias to standard error, which by now is the file “output.txt”)
 
-   **&** 🡪 This final ampersand is just used to push the execution into the background, to recover the shell prompt. At this point you could then, for instance, just exit from the shell and the
+   - **&** 🡪 This final ampersand is just used to push the execution into the background, to recover the shell prompt. At this point you could then, for instance, just exit from the shell and the
 pipeline will continue running without a problem.
 
    **Best practice, in summary:**
