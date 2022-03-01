@@ -16,37 +16,37 @@ parser.add_argument(
     "-A",
     "--launcherA",
     default="dynawo.sh",
-    help="Defines the launcher of simulator A",
+    help="defines the launcher of simulator A",
 )
 parser.add_argument(
     "-B",
     "--launcherB",
     default="dynawo.sh",
-    help="Defines the launcher of simulator B",
+    help="defines the launcher of simulator B",
 )
 parser.add_argument(
     "-a",
     "--allcontg",
     action="store_true",
-    help="Run all the contingencies",
+    help="run all the contingencies",
 )
 parser.add_argument(
     "-s",
     "--sequential",
     action="store_true",
-    help="Run jobs sequentially (defult is parallel)",
+    help="run jobs sequentially (default is parallel)",
 )
 parser.add_argument(
     "-d",
     "--debug",
     action="store_true",
-    help="More debug messages",
+    help="more debug messages",
 )
 parser.add_argument(
     "-c",
     "--cleanup",
     action="store_true",
-    help="Delete input cases after getting the results",
+    help="delete input cases after getting the results",
 )
 parser.add_argument(
     "-l",
@@ -60,20 +60,20 @@ parser.add_argument(
     "-w",
     "--weights",
     default=None,
-    help="enter personalized weights to calcule score following the template",
+    help="file containing personalized weights for computing scores (format should follow the template)",
 )
 parser.add_argument(
     "-r",
     "--random",
     action="store_true",
-    help="Run a different random sample of contingencies",
+    help="run a different random sample of contingencies",
 )
 
 parser.add_argument(
     "-p",
     "--randomseed",
     default=None,
-    help="Run a different random sample of contingencies with a seed",
+    help="run a different random sample of contingencies with a seed",
 )
 
 args = parser.parse_args()
