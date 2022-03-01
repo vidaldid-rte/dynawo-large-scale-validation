@@ -3,22 +3,21 @@
 
 The validation pipelines for DynaFlow and DynaWaltz are launched by using these scripts:
 
-dynaflow_run_validation
+   **dynaflow_run_validation**
 
-dynawaltz_run_validation
+   **dynawaltz_run_validation**
 
 Their usage and options are very similar. We will show examples using DynaFlow, but everything works the same for the case of DynaWaltz.
 
 As with many other scripts in the pipeline, just run the command with no arguments or options at all to get a quick reminder:
 
-$ dynaflow_run_validation
+	$ dynaflow_run_validation
 
-usage: dynaflow_run_validation [-h] [-A LAUNCHERA] [-B LAUNCHERB] [-a] [-s] [-d] [-c] [-l REGEXLIST] [-w WEIGHTS]
-[-r] [-p RANDOMSEED] base_case results_dir
+	usage: dynaflow_run_validation [-h] [-A LAUNCHERA] [-B LAUNCHERB] [-a] [-s] [-d] [-c] [-l REGEXLIST] [-w WEIGHTS] [-r] [-p RANDOMSEED] base_case results_dir
+	
+	dynaflow_run_validation: error: the following arguments are required: base_case, results_dir
 
-dynaflow_run_validation: error: the following arguments are required: base_case, results_dir
-
-Or run it with -h / --help in order to get a more detailed description of each option and argument (see next slide).
+Or run it with **-h / --help** in order to get a more detailed description of each option and argument (see next slide).
 
 
 
