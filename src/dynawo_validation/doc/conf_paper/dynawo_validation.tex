@@ -187,7 +187,7 @@ analysis~\cite{Bialek16}.
 The validation tools described here have been developed to assess and validate
 DynaWaltz quantitatively and in a systematic manner, using RTE's national grid
 models and cases in the context of long-term stability studies. Initially, the
-retained approach was based on comparing against another well-established
+approach was based on comparing against another well-established
 simulator, \emph{Astre}, which is the current production tool. More
 specifically, the validation focused on the behaviour of the coordinated
 Secondary Voltage Control (SVC) systems. Shortly after, the tools have been
@@ -609,7 +609,7 @@ reached. The graph stacked on top shows the metrics for the global differences
 in discrete events vs.~simulation time (see subsection~\ref{sssec:metrics}
 above).  In this case it can be seen that shunt and tap events do not differ
 much after the contingency, meaning that the differences in Q developing after
-t\,$\sim$\,\SI{1,100}{s} must be due to purely local effects. This prompts us to
+t\,$\sim$\,\SI{1100}{s} must be due to purely local effects. This prompts us to
 investigate the model of this generator further, and to try finding whether
 there are commonalities shared by other outliers of this kind, etc.
 
@@ -617,8 +617,9 @@ there are commonalities shared by other outliers of this kind, etc.
   \centering
   \includegraphics[width=\columnwidth]{figs/Qgen_curve_GENS_20210211-0930_moreT600}
   \caption{Bottom: reactive power of a generator participating in SVC
-    (contingency at t\,=\,\SI{600}{s}). Top: numchange metric for tap and shunt
-    events vs.\ time.}
+    (contingency at t\,=\,\SI{600}{s}). Top: metrics for tap and shunt
+    events vs.\ time (here ``\%~changes'' is shorthand for ``normalized
+    $L_1$-norm based on numchange'').}
   \label{fig:curveplot}
 \end{figure}
 
