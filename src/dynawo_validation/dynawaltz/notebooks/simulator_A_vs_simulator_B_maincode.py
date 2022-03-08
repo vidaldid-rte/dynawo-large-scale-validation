@@ -426,7 +426,7 @@ def main(
                 height=550,
                 width=820,
                 margin=dict(l=5, r=5, t=5, b=5, autoexpand=True),
-                font=dict(family="Arial", size=24),
+                font=dict(family="Arial", size=18),
             ),
         )
         subfig_curve_and_events.write_image(
@@ -592,7 +592,7 @@ def main(
         yaxis="y2",
     )
     trace2 = go.Scatter(
-        name=curve_nameA,
+        name=curve_nameB,
         x=df_dwo["time"],
         y=df_dwo[var0] + yoffset,
         mode=curve_modeB,
