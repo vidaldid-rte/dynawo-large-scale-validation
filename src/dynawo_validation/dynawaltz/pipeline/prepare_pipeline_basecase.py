@@ -271,7 +271,10 @@ def edit_dwo_curves(edited_case, case_zone, dwo_paths, astdwo):
             rst_id = bb.get("id")
             rst_models[rst_id] = []
             if rst_id[4:] not in all_pilot_buses:
-                raise ValueError("case contains %s, not in the master list" % rst_id)
+                print(
+                    "WARNING: case contains pilot bus %s, not in the master list"
+                    % rst_id
+                )
     # And their respective participating gens (the ones that are actually connected)
     Gen = namedtuple("Bus", "DM staticId")
     for mc in root.iter("{%s}macroConnect" % ns):
@@ -363,8 +366,7 @@ def edit_ast_curves(edited_case, case_zone, dwo_rst_models, zone_pilot_buses):
         ast_genId[gen.get("nom")] = gen.get("num")
 
     # Delete existing curves
-    first_curve = root.find(".//{%s}courbe" % ns)
-    ast_entrees = first_curve.getparent()
+    ast_entrees = root.find(".//{%s}entreesAstre" % ns)
     for crv in ast_entrees.iterfind(".//{%s}courbe" % ns):
         ast_entrees.remove(crv)
 
