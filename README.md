@@ -2,14 +2,14 @@
 Dynawo validation
 =================
 
-A repository of scripts and utilities built during the RTE-AIA
+A repository of scripts and utilities built during the
 projects carried out in 2020--2021 for the purpose of validating
 *DynaWaltz* and *DynaFlow*.
 
 ***(c) 2020--2021 Grupo AIA***  
 **marinjl@aia.es**  
 **omsg@aia.es**
-
+**rte-dynawo@rte-france.com**
 -------------------------------------------------------------------------------
 
 
