@@ -8,8 +8,9 @@ projects carried out in 2020--2021 for the purpose of validating
 
 ***(c) 2020--2021 Grupo AIA***  
 **marinjl@aia.es**  
-**omsg@aia.es**
+**omsg@aia.es**     
 **rte-dynawo@rte-france.com**
+
 -------------------------------------------------------------------------------
 
 
