@@ -13,6 +13,11 @@ projects carried out in 2020--2021 for the purpose of validating
 
 -------------------------------------------------------------------------------
 
+## Get involved!
+
+Dyna&omega;o-large-scale-validation is an open-source project and as such, questions, discussions, feedbacks and more generally any form of contribution are very welcome and greatly appreciated!
+
+For further informations about contributing guidelines, please refers to the [contributing documentation](https://github.com/dynawo/.github/blob/master/CONTRIBUTING.md).
 
 ## Overview
 
