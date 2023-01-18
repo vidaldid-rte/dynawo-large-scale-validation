@@ -81,7 +81,7 @@ software has been packaged as a proper **Python package** that can be
 installed via **pip**. This is the recommended way to use it and the
 most convenient, in order to have all dependencies automatically
 installed.  For more information, please consult the
-[README_INSTALLATION.md](src/dynawo_validation/doc/README_INSTALLATION.md)
+[README_INSTALLATION.md](src/dynawo_validation/doc/README_INSTALLATION.MD)
 under the general doc folder.
 
 
