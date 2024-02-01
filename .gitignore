@@ -19,3 +19,8 @@ dist/
 # Exclude the recommended virtual env:
 dwo_venv/
 
+.idea
+
+#Excluse lib drectory created when testing a notebook
+src/dynawo_validation/openloadflow/notebooks/lib
+*.ipynb_checkpoints

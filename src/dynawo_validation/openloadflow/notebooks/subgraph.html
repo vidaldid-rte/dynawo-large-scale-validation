@@ -1,0 +1,155 @@
+<html>
+    <head>
+        <meta charset="utf-8">
+        
+            <script src="lib/bindings/utils.js"></script>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.2/dist/dist/vis-network.min.css" integrity="sha512-WgxfT5LWjfszlPHXRmBWHkV2eceiWTOBvrKCNbdgDYTHrT2AeLCGbF4sZlZw3UMN3WtL0tGUoIAKsu8mllg/XA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.2/dist/vis-network.min.js" integrity="sha512-LnvoEWDFrqGHlHmDD2101OrLcbsfkrzoSpvtSQtxK3RMnRV0eOkhhBN2dXHKRrUU8p2DGRTk35n4O8nWSVe1mQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+            
+        
+<center>
+<h1></h1>
+</center>
+
+<!-- <link rel="stylesheet" href="../node_modules/vis/dist/vis.min.css" type="text/css" />
+<script type="text/javascript" src="../node_modules/vis/dist/vis.js"> </script>-->
+        <link
+          href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/css/bootstrap.min.css"
+          rel="stylesheet"
+          integrity="sha384-eOJMYsd53ii+scO/bJGFsiCZc+5NDVN2yr8+0RDqr0Ql0h+rP48ckxlpbzKgwra6"
+          crossorigin="anonymous"
+        />
+        <script
+          src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/js/bootstrap.bundle.min.js"
+          integrity="sha384-JEW9xMcG8R+pH31jmWH6WWP0WintQrMb4s7ZOdauHnUtxwoG2vI5DkLtS3qm9Ekf"
+          crossorigin="anonymous"
+        ></script>
+
+
+        <center>
+          <h1></h1>
+        </center>
+        <style type="text/css">
+
+             #mynetwork {
+                 width: 100%;
+                 height: 600px;
+                 background-color: #222222;
+                 border: 1px solid lightgray;
+                 position: relative;
+                 float: left;
+             }
+
+             
+
+             
+
+             
+        </style>
+    </head>
+
+
+    <body>
+        <div class="card" style="width: 100%">
+            
+            
+            <div id="mynetwork" class="card-body"></div>
+        </div>
+
+        
+        
+
+        <script type="text/javascript">
+
+              // initialize global variables.
+              var edges;
+              var nodes;
+              var allNodes;
+              var allEdges;
+              var nodeColors;
+              var originalNodes;
+              var network;
+              var container;
+              var options, data;
+              var filter = {
+                  item : '',
+                  property : '',
+                  value : []
+              };
+
+              
+
+              
+
+              // This method is responsible for drawing the graph, returns the drawn network
+              function drawGraph() {
+                  var container = document.getElementById('mynetwork');
+
+                  
+
+                  // parsing and collecting nodes and edges from the python
+                  nodes = new vis.DataSet([{"color": "rgb(166.590976,32.079104,152.477952)", "font": {"color": "white"}, "id": "1MAZUP71", "label": "1MAZUP71", "shape": "dot", "size": 10, "title": "(1MAZUP71,MAZURP61): id = MAZURY761, Y = 0.11731498751106911, Pa = 85.29898257900904\u003cbr\u003e(1MAZUP71,MAZURP71): id = MAZURY771, Y = 0.012869876503820522, Pa = 85.34209108769544\u003cbr\u003e"}, {"color": "rgb(134.050048,6.280192,167.142656)", "font": {"color": "white"}, "id": "MAZURP61", "label": "MAZURP61", "shape": "dot", "size": 10, "title": "(MAZURP61,1MAZUP71): id = MAZURY761, Y = 0.11731498751106911, Pa = 85.29898257900904\u003cbr\u003e(MAZURP61,CHOO5P61): id = CHOO5L61MAZUR__CHOO5L62MAZUR, Y = 0.21978721954791425, Pa = 24.558301689656542\u003cbr\u003e(MAZURP61,LUMESP61): id = LUMESL61MAZUR__LUMESL62MAZUR, Y = 0.2134956712184094, Pa = 302.94623896442556\u003cbr\u003e(MAZURP61,2MAZUP71): id = MAZURY762, Y = 0.07629285317027565, Pa = 93.47643256048576\u003cbr\u003e(MAZURP61,MAZURP71): id = MAZURY763, Y = 0.02544355025109587, Pa = 150.21035184956855\u003cbr\u003e"}, {"color": "rgb(166.590976,32.079104,152.477952)", "font": {"color": "white"}, "id": "MAZURP71", "label": "MAZURP71", "shape": "dot", "size": 10, "title": "(MAZURP71,1MAZUP71): id = MAZURY771, Y = 0.012869876503820522, Pa = 85.34209108769544\u003cbr\u003e(MAZURP71,MAZURP61): id = MAZURY763, Y = 0.02544355025109587, Pa = 150.21035184956855\u003cbr\u003e(MAZURP71,LONNYP71): id = LONNYL71MAZUR__LONNYL72MAZUR, Y = 0.5942288766978873, Pa = 329.25527377325363\u003cbr\u003e(MAZURP71,REVI5P71): id = MAZURL71REVI5, Y = 1.2383485318206982, Pa = 2.9739649698371833e-07\u003cbr\u003e(MAZURP71,REVI5P72): id = MAZURL72REVI5, Y = 1.2383485318206982, Pa = 2.9739649698371833e-07\u003cbr\u003e(MAZURP71,REVI5P73): id = MAZURL73REVI5, Y = 1.2383485318206982, Pa = 2.9739649698371833e-07\u003cbr\u003e(MAZURP71,REVI5P74): id = MAZURL74REVI5, Y = 1.208685579218975, Pa = 2.974087949883491e-07\u003cbr\u003e(MAZURP71,2MAZUP71): id = MAZURY772, Y = 0.01312275793273567, Pa = 93.5371153318296\u003cbr\u003e"}, {"color": "rgb(134.050048,6.280192,167.142656)", "font": {"color": "white"}, "id": "CHOO5P61", "label": "CHOO5P61", "shape": "dot", "size": 10, "title": "(CHOO5P61,MAZURP61): id = CHOO5L61MAZUR__CHOO5L62MAZUR, Y = 0.21978721954791425, Pa = 24.558301689656542\u003cbr\u003e(CHOO5P61,CHOO5P31): id = CHOO5Y631__CHOO5Y632__CHOO5Y633, Y = 0.025666532396124597, Pa = 55.3799786848564\u003cbr\u003e"}, {"color": "rgb(134.050048,6.280192,167.142656)", "font": {"color": "white"}, "id": "LUMESP61", "label": "LUMESP61", "shape": "dot", "size": 10, "title": "(LUMESP61,MAZURP61): id = LUMESL61MAZUR__LUMESL62MAZUR, Y = 0.2134956712184094, Pa = 302.94623896442556\u003cbr\u003e(LUMESP61,AYVELP61): id = AYVELL62LUMES, Y = 0.7453146228984724, Pa = 30.277313232379328\u003cbr\u003e(LUMESP61,MOHONP61): id = LUMESL61MOHON, Y = 0.5458535211046299, Pa = 47.22427348309666\u003cbr\u003e(LUMESP61,STENAP61): id = LUMESL61STENA, Y = 0.057027321814964664, Pa = 130.78856860687648\u003cbr\u003e(LUMESP61,MOHONP62): id = LUMESL63MOHON, Y = 0.42593704053819054, Pa = 47.58570230870642\u003cbr\u003e(LUMESP61,LUMESP31): id = LUMESY631, Y = 0.017687814189519067, Pa = 46.985210007960944\u003cbr\u003e"}, {"color": "rgb(166.590976,32.079104,152.477952)", "font": {"color": "white"}, "id": "2MAZUP71", "label": "2MAZUP71", "shape": "dot", "size": 10, "title": "(2MAZUP71,MAZURP61): id = MAZURY762, Y = 0.07629285317027565, Pa = 93.47643256048576\u003cbr\u003e(2MAZUP71,MAZURP71): id = MAZURY772, Y = 0.01312275793273567, Pa = 93.5371153318296\u003cbr\u003e(2MAZUP71,MAZURP11): id = MAZURY712, Y = 0.004367545349510747, Pa = 3.298589086584332e-14\u003cbr\u003e"}, {"color": "rgb(166.590976,32.079104,152.477952)", "font": {"color": "white"}, "id": "LONNYP71", "label": "LONNYP71", "shape": "dot", "size": 10, "title": "(LONNYP71,MAZURP71): id = LONNYL71MAZUR__LONNYL72MAZUR, Y = 0.5942288766978873, Pa = 329.25527377325363\u003cbr\u003e(LONNYP71,CAPELP71): id = CAPELL71LONNY, Y = 0.056732884624043245, Pa = 213.0195044322169\u003cbr\u003e(LONNYP71,CHOO1P71): id = CHOO1L71LONNY, Y = 0.1210241407078374, Pa = 826.3523282499093\u003cbr\u003e(LONNYP71,CHOO2P71): id = CHOO2L72LONNY, Y = 0.10723314799608744, Pa = 1472.73227208886\u003cbr\u003e(LONNYP71,SEUILP71): id = LONNYL71SEUIL, Y = 0.08451383053169993, Pa = 846.4994591411662\u003cbr\u003e(LONNYP71,VESLEP71): id = LONNYL71VESLE, Y = 0.04987898074092676, Pa = 815.6852850488788\u003cbr\u003e(LONNYP71,MASTAP71): id = LONNYL72MASTA__LONNYL73MASTA, Y = 0.06416462734704015, Pa = 265.90173289649806\u003cbr\u003e"}, {"color": "rgb(166.590976,32.079104,152.477952)", "font": {"color": "white"}, "id": "REVI5P71", "label": "REVI5P71", "shape": "dot", "size": 10, "title": "(REVI5P71,MAZURP71): id = MAZURL71REVI5, Y = 1.2383485318206982, Pa = 2.9739649698371833e-07\u003cbr\u003e"}, {"color": "rgb(166.590976,32.079104,152.477952)", "font": {"color": "white"}, "id": "REVI5P72", "label": "REVI5P72", "shape": "dot", "size": 10, "title": "(REVI5P72,MAZURP71): id = MAZURL72REVI5, Y = 1.2383485318206982, Pa = 2.9739649698371833e-07\u003cbr\u003e"}, {"color": "rgb(166.590976,32.079104,152.477952)", "font": {"color": "white"}, "id": "REVI5P73", "label": "REVI5P73", "shape": "dot", "size": 10, "title": "(REVI5P73,MAZURP71): id = MAZURL73REVI5, Y = 1.2383485318206982, Pa = 2.9739649698371833e-07\u003cbr\u003e"}, {"color": "rgb(166.590976,32.079104,152.477952)", "font": {"color": "white"}, "id": "REVI5P74", "label": "REVI5P74", "shape": "dot", "size": 10, "title": "(REVI5P74,MAZURP71): id = MAZURL74REVI5, Y = 1.208685579218975, Pa = 2.974087949883491e-07\u003cbr\u003e"}, {"color": "rgb(134.050048,6.280192,167.142656)", "font": {"color": "white"}, "id": "CHOO5P31", "label": "CHOO5P31", "shape": "dot", "size": 10, "title": "(CHOO5P31,CHOO5P61): id = CHOO5Y631__CHOO5Y632__CHOO5Y633, Y = 0.025666532396124597, Pa = 55.3799786848564\u003cbr\u003e(CHOO5P31,GIVETP31): id = CHOO5L31GIVET, Y = 0.526248955467023, Pa = 8.016866709339304\u003cbr\u003e(CHOO5P31,H.RIVP31): id = CHOO5L31H.RIV, Y = 0.08532441109220704, Pa = 13.976964747088024\u003cbr\u003e(CHOO5P31,ZFROMP31): id = CHOO5L31ZFROM, Y = 0.4100641077425653, Pa = 6.13343172762988\u003cbr\u003e(CHOO5P31,ZV.M5P31): id = CHOO5L31ZV.M5, Y = 0.34882555411460087, Pa = 27.25271550080017\u003cbr\u003e"}, {"color": "rgb(134.050048,6.280192,167.142656)", "font": {"color": "white"}, "id": "AYVELP61", "label": "AYVELP61", "shape": "dot", "size": 10, "title": "(AYVELP61,LUMESP61): id = AYVELL62LUMES, Y = 0.7453146228984724, Pa = 30.277313232379328\u003cbr\u003e"}, {"color": "rgb(134.050048,6.280192,167.142656)", "font": {"color": "white"}, "id": "MOHONP61", "label": "MOHONP61", "shape": "dot", "size": 10, "title": "(MOHONP61,LUMESP61): id = LUMESL61MOHON, Y = 0.5458535211046299, Pa = 47.22427348309666\u003cbr\u003e(MOHONP61,MOHONP31): id = MOHONY631, Y = 0.01674506206906891, Pa = 47.151826292123694\u003cbr\u003e"}, {"color": "rgb(166.590976,32.079104,152.477952)", "font": {"color": "white"}, "id": "STENAP61", "label": "STENAP61", "shape": "dot", "size": 10, "title": "(STENAP61,LUMESP61): id = LUMESL61STENA, Y = 0.057027321814964664, Pa = 130.78856860687648\u003cbr\u003e(STENAP61,STENAP31): id = STENAY631__STENAY633, Y = 0.020588245500030307, Pa = 44.50532335418103\u003cbr\u003e"}, {"color": "rgb(134.050048,6.280192,167.142656)", "font": {"color": "white"}, "id": "MOHONP62", "label": "MOHONP62", "shape": "dot", "size": 10, "title": "(MOHONP62,LUMESP61): id = LUMESL63MOHON, Y = 0.42593704053819054, Pa = 47.58570230870642\u003cbr\u003e(MOHONP62,MOHONP31): id = MOHONY633, Y = 0.01702921073343934, Pa = 47.508658317378384\u003cbr\u003e"}, {"color": "rgb(134.050048,6.280192,167.142656)", "font": {"color": "white"}, "id": "LUMESP31", "label": "LUMESP31", "shape": "dot", "size": 10, "title": "(LUMESP31,LUMESP61): id = LUMESY631, Y = 0.017687814189519067, Pa = 46.985210007960944\u003cbr\u003e(LUMESP31,MOHONP31): id = LUMESL31MOHON, Y = 0.5758072349172286, Pa = 11.840797998424943\u003cbr\u003e(LUMESP31,TENDRP31): id = LUMESL31TENDR, Y = 0.5878821051571709, Pa = 35.14441200949733\u003cbr\u003e"}, {"color": "rgb(99.118848,0.367104,167.469312)", "font": {"color": "white"}, "id": "MAZURP11", "label": "MAZURP11", "shape": "dot", "size": 10, "title": "(MAZURP11,2MAZUP71): id = MAZURY712, Y = 0.004367545349510747, Pa = 3.298589086584332e-14\u003cbr\u003e"}, {"color": "rgb(134.050048,6.280192,167.142656)", "font": {"color": "white"}, "id": "CAPELP71", "label": "CAPELP71", "shape": "dot", "size": 10, "title": "(CAPELP71,LONNYP71): id = CAPELL71LONNY, Y = 0.056732884624043245, Pa = 213.0195044322169\u003cbr\u003e(CAPELP71,MASTAP71): id = CAPELL71MASTA, Y = 0.049265497537236635, Pa = 19.957675870963\u003cbr\u003e(CAPELP71,CAPELP61): id = CAPELY761, Y = 0.012345673092490442, Pa = 193.039449411039\u003cbr\u003e"}, {"color": "rgb(99.118848,0.367104,167.469312)", "font": {"color": "white"}, "id": "CHOO1P71", "label": "CHOO1P71", "shape": "dot", "size": 10, "title": "(CHOO1P71,LONNYP71): id = CHOO1L71LONNY, Y = 0.1210241407078374, Pa = 826.3523282499093\u003cbr\u003e"}, {"color": "rgb(99.118848,0.367104,167.469312)", "font": {"color": "white"}, "id": "CHOO2P71", "label": "CHOO2P71", "shape": "dot", "size": 10, "title": "(CHOO2P71,LONNYP71): id = CHOO2L72LONNY, Y = 0.10723314799608744, Pa = 1472.73227208886\u003cbr\u003e"}, {"color": "rgb(214.221056,84.25088,110.31168)", "font": {"color": "white"}, "id": "SEUILP71", "label": "SEUILP71", "shape": "dot", "size": 10, "title": "(SEUILP71,LONNYP71): id = LONNYL71SEUIL, Y = 0.08451383053169993, Pa = 846.4994591411662\u003cbr\u003e(SEUILP71,VESLEP71): id = SEUILL71VESLE, Y = 0.11958251514641668, Pa = 756.360743006391\u003cbr\u003e(SEUILP71,SEUILP41): id = SEUILY741__SEUILY742, Y = 0.011235744968975019, Pa = 87.04337516324742\u003cbr\u003e"}, {"color": "rgb(232.28544,111.238144,90.36032)", "font": {"color": "white"}, "id": "VESLEP71", "label": "VESLEP71", "shape": "dot", "size": 10, "title": "(VESLEP71,LONNYP71): id = LONNYL71VESLE, Y = 0.04987898074092676, Pa = 815.6852850488788\u003cbr\u003e(VESLEP71,SEUILP71): id = SEUILL71VESLE, Y = 0.11958251514641668, Pa = 756.360743006391\u003cbr\u003e(VESLEP71,VESLEP61): id = VESLEY762__VESLEY763, Y = 0.05005919045850518, Pa = 753.1548590076741\u003cbr\u003e"}, {"color": "rgb(99.118848,0.367104,167.469312)", "font": {"color": "white"}, "id": "MASTAP71", "label": "MASTAP71", "shape": "dot", "size": 10, "title": "(MASTAP71,LONNYP71): id = LONNYL72MASTA__LONNYL73MASTA, Y = 0.06416462734704015, Pa = 265.90173289649806\u003cbr\u003e(MASTAP71,CAPELP71): id = CAPELL71MASTA, Y = 0.049265497537236635, Pa = 19.957675870963\u003cbr\u003e(MASTAP71,AVELIP71): id = AVELIL71MASTA__AVELIL72MASTA, Y = 0.20853906083557444, Pa = 472.6686545350065\u003cbr\u003e(MASTAP71,BOUCHP71): id = BOUCHL71MASTA, Y = 3.271399939892793, Pa = 591.918399174313\u003cbr\u003e(MASTAP71,MASTAP41): id = MASTAY741, Y = 0.006890751076421706, Pa = 117.24977590759245\u003cbr\u003e(MASTAP71,MASTAP61): id = MASTAY761__MASTAY762, Y = 0.05069536221029658, Pa = 678.9243085038996\u003cbr\u003e"}, {"color": "rgb(134.050048,6.280192,167.142656)", "font": {"color": "white"}, "id": "GIVETP31", "label": "GIVETP31", "shape": "dot", "size": 10, "title": "(GIVETP31,CHOO5P31): id = CHOO5L31GIVET, Y = 0.526248955467023, Pa = 8.016866709339304\u003cbr\u003e"}, {"color": "rgb(134.050048,6.280192,167.142656)", "font": {"color": "white"}, "id": "H.RIVP31", "label": "H.RIVP31", "shape": "dot", "size": 10, "title": "(H.RIVP31,CHOO5P31): id = CHOO5L31H.RIV, Y = 0.08532441109220704, Pa = 13.976964747088024\u003cbr\u003e"}, {"color": "rgb(134.050048,6.280192,167.142656)", "font": {"color": "white"}, "id": "ZFROMP31", "label": "ZFROMP31", "shape": "dot", "size": 10, "title": "(ZFROMP31,CHOO5P31): id = CHOO5L31ZFROM, Y = 0.4100641077425653, Pa = 6.13343172762988\u003cbr\u003e"}, {"color": "rgb(134.050048,6.280192,167.142656)", "font": {"color": "white"}, "id": "ZV.M5P31", "label": "ZV.M5P31", "shape": "dot", "size": 10, "title": "(ZV.M5P31,CHOO5P31): id = CHOO5L31ZV.M5, Y = 0.34882555411460087, Pa = 27.25271550080017\u003cbr\u003e"}, {"color": "rgb(134.050048,6.280192,167.142656)", "font": {"color": "white"}, "id": "MOHONP31", "label": "MOHONP31", "shape": "dot", "size": 10, "title": "(MOHONP31,MOHONP61): id = MOHONY631, Y = 0.01674506206906891, Pa = 47.151826292123694\u003cbr\u003e(MOHONP31,MOHONP62): id = MOHONY633, Y = 0.01702921073343934, Pa = 47.508658317378384\u003cbr\u003e(MOHONP31,LUMESP31): id = LUMESL31MOHON, Y = 0.5758072349172286, Pa = 11.840797998424943\u003cbr\u003e"}, {"color": "rgb(134.050048,6.280192,167.142656)", "font": {"color": "white"}, "id": "STENAP31", "label": "STENAP31", "shape": "dot", "size": 10, "title": "(STENAP31,STENAP61): id = STENAY631__STENAY633, Y = 0.020588245500030307, Pa = 44.50532335418103\u003cbr\u003e"}, {"color": "rgb(134.050048,6.280192,167.142656)", "font": {"color": "white"}, "id": "TENDRP31", "label": "TENDRP31", "shape": "dot", "size": 10, "title": "(TENDRP31,LUMESP31): id = LUMESL31TENDR, Y = 0.5878821051571709, Pa = 35.14441200949733\u003cbr\u003e"}, {"color": "rgb(134.050048,6.280192,167.142656)", "font": {"color": "white"}, "id": "CAPELP61", "label": "CAPELP61", "shape": "dot", "size": 10, "title": "(CAPELP61,CAPELP71): id = CAPELY761, Y = 0.012345673092490442, Pa = 193.039449411039\u003cbr\u003e"}, {"color": "rgb(134.050048,6.280192,167.142656)", "font": {"color": "white"}, "id": "SEUILP41", "label": "SEUILP41", "shape": "dot", "size": 10, "title": "(SEUILP41,SEUILP71): id = SEUILY741__SEUILY742, Y = 0.011235744968975019, Pa = 87.04337516324742\u003cbr\u003e"}, {"color": "rgb(214.221056,84.25088,110.31168)", "font": {"color": "white"}, "id": "VESLEP61", "label": "VESLEP61", "shape": "dot", "size": 10, "title": "(VESLEP61,VESLEP71): id = VESLEY762__VESLEY763, Y = 0.05005919045850518, Pa = 753.1548590076741\u003cbr\u003e"}, {"color": "rgb(166.590976,32.079104,152.477952)", "font": {"color": "white"}, "id": "AVELIP71", "label": "AVELIP71", "shape": "dot", "size": 10, "title": "(AVELIP71,MASTAP71): id = AVELIL71MASTA__AVELIL72MASTA, Y = 0.20853906083557444, Pa = 472.6686545350065\u003cbr\u003e"}, {"color": "rgb(99.118848,0.367104,167.469312)", "font": {"color": "white"}, "id": "BOUCHP71", "label": "BOUCHP71", "shape": "dot", "size": 10, "title": "(BOUCHP71,MASTAP71): id = BOUCHL71MASTA, Y = 3.271399939892793, Pa = 591.918399174313\u003cbr\u003e"}, {"color": "rgb(134.050048,6.280192,167.142656)", "font": {"color": "white"}, "id": "MASTAP41", "label": "MASTAP41", "shape": "dot", "size": 10, "title": "(MASTAP41,MASTAP71): id = MASTAY741, Y = 0.006890751076421706, Pa = 117.24977590759245\u003cbr\u003e"}, {"color": "rgb(134.050048,6.280192,167.142656)", "font": {"color": "white"}, "id": "MASTAP61", "label": "MASTAP61", "shape": "dot", "size": 10, "title": "(MASTAP61,MASTAP71): id = MASTAY761__MASTAY762, Y = 0.05069536221029658, Pa = 678.9243085038996\u003cbr\u003e"}]);
+                  edges = new vis.DataSet([{"color": "rgb(30.595072,155.510784,138.295808)", "from": "1MAZUP71", "id": "MAZURY761", "to": "MAZURP61", "value": 0.11731498751106911, "width": 1}, {"color": "rgb(30.595072,155.510784,138.295808)", "from": "1MAZUP71", "id": "MAZURY771", "to": "MAZURP71", "value": 0.012869876503820522, "width": 1}, {"color": "rgb(30.595072,155.510784,138.295808)", "from": "MAZURP61", "id": "CHOO5L61MAZUR__CHOO5L62MAZUR", "to": "CHOO5P61", "value": 0.21978721954791425, "width": 1}, {"color": "rgb(42.594048,176.859136,127.104512)", "from": "MAZURP61", "id": "LUMESL61MAZUR__LUMESL62MAZUR", "to": "LUMESP61", "value": 0.2134956712184094, "width": 1}, {"color": "rgb(42.594048,176.859136,127.104512)", "from": "MAZURP61", "id": "MAZURY762", "to": "2MAZUP71", "value": 0.07629285317027565, "width": 1}, {"color": "rgb(42.594048,176.859136,127.104512)", "from": "MAZURP61", "id": "MAZURY763", "to": "MAZURP71", "value": 0.02544355025109587, "width": 1}, {"color": "rgb(30.595072,155.510784,138.295808)", "from": "MAZURP71", "id": "LONNYL71MAZUR__LONNYL72MAZUR", "to": "LONNYP71", "value": 0.5942288766978873, "width": 1}, {"color": "rgb(30.595072,155.510784,138.295808)", "from": "MAZURP71", "id": "MAZURL71REVI5", "to": "REVI5P71", "value": 1.2383485318206982, "width": 1}, {"color": "rgb(30.595072,155.510784,138.295808)", "from": "MAZURP71", "id": "MAZURL72REVI5", "to": "REVI5P72", "value": 1.2383485318206982, "width": 1}, {"color": "rgb(30.595072,155.510784,138.295808)", "from": "MAZURP71", "id": "MAZURL73REVI5", "to": "REVI5P73", "value": 1.2383485318206982, "width": 1}, {"color": "rgb(30.595072,155.510784,138.295808)", "from": "MAZURP71", "id": "MAZURL74REVI5", "to": "REVI5P74", "value": 1.208685579218975, "width": 1}, {"color": "rgb(30.595072,155.510784,138.295808)", "from": "MAZURP71", "id": "MAZURY772", "to": "2MAZUP71", "value": 0.01312275793273567, "width": 1}, {"color": "rgb(30.595072,155.510784,138.295808)", "from": "CHOO5P61", "id": "CHOO5Y631__CHOO5Y632__CHOO5Y633", "to": "CHOO5P31", "value": 0.025666532396124597, "width": 1}, {"color": "rgb(30.595072,155.510784,138.295808)", "from": "LUMESP61", "id": "AYVELL62LUMES", "to": "AYVELP61", "value": 0.7453146228984724, "width": 1}, {"color": "rgb(30.595072,155.510784,138.295808)", "from": "LUMESP61", "id": "LUMESL61MOHON", "to": "MOHONP61", "value": 0.5458535211046299, "width": 1}, {"color": "rgb(30.595072,155.510784,138.295808)", "from": "LUMESP61", "id": "LUMESL61STENA", "to": "STENAP61", "value": 0.057027321814964664, "width": 1}, {"color": "rgb(30.595072,155.510784,138.295808)", "from": "LUMESP61", "id": "LUMESL63MOHON", "to": "MOHONP62", "value": 0.42593704053819054, "width": 1}, {"color": "rgb(30.595072,155.510784,138.295808)", "from": "LUMESP61", "id": "LUMESY631", "to": "LUMESP31", "value": 0.017687814189519067, "width": 1}, {"color": "rgb(255,255,255)", "from": "2MAZUP71", "id": "MAZURY712", "to": "MAZURP11", "value": 0.004367545349510747, "width": 1}, {"color": "rgb(81.871104,197.353984,105.254912)", "from": "LONNYP71", "id": "CAPELL71LONNY", "to": "CAPELP71", "value": 0.056732884624043245, "width": 1}, {"color": "rgb(68.353024,1.247744,84.33024)", "from": "LONNYP71", "id": "CHOO1L71LONNY", "to": "CHOO1P71", "value": 0.1210241407078374, "width": 1}, {"color": "rgb(68.353024,1.247744,84.33024)", "from": "LONNYP71", "id": "CHOO2L72LONNY", "to": "CHOO2P71", "value": 0.10723314799608744, "width": 1}, {"color": "rgb(67.107328,62.025216,133.334272)", "from": "LONNYP71", "id": "LONNYL71SEUIL", "to": "SEUILP71", "value": 0.08451383053169993, "width": 1}, {"color": "rgb(56.334592,87.886592,140.649728)", "from": "LONNYP71", "id": "LONNYL71VESLE", "to": "VESLEP71", "value": 0.04987898074092676, "width": 1}, {"color": "rgb(36.695808,133.829888,142.41152)", "from": "LONNYP71", "id": "LONNYL72MASTA__LONNYL73MASTA", "to": "MASTAP71", "value": 0.06416462734704015, "width": 1}, {"color": "rgb(30.595072,155.510784,138.295808)", "from": "CHOO5P31", "id": "CHOO5L31GIVET", "to": "GIVETP31", "value": 0.526248955467023, "width": 1}, {"color": "rgb(30.595072,155.510784,138.295808)", "from": "CHOO5P31", "id": "CHOO5L31H.RIV", "to": "H.RIVP31", "value": 0.08532441109220704, "width": 1}, {"color": "rgb(30.595072,155.510784,138.295808)", "from": "CHOO5P31", "id": "CHOO5L31ZFROM", "to": "ZFROMP31", "value": 0.4100641077425653, "width": 1}, {"color": "rgb(30.595072,155.510784,138.295808)", "from": "CHOO5P31", "id": "CHOO5L31ZV.M5", "to": "ZV.M5P31", "value": 0.34882555411460087, "width": 1}, {"color": "rgb(30.595072,155.510784,138.295808)", "from": "MOHONP61", "id": "MOHONY631", "to": "MOHONP31", "value": 0.01674506206906891, "width": 1}, {"color": "rgb(30.595072,155.510784,138.295808)", "from": "STENAP61", "id": "STENAY631__STENAY633", "to": "STENAP31", "value": 0.020588245500030307, "width": 1}, {"color": "rgb(30.595072,155.510784,138.295808)", "from": "MOHONP62", "id": "MOHONY633", "to": "MOHONP31", "value": 0.01702921073343934, "width": 1}, {"color": "rgb(30.595072,155.510784,138.295808)", "from": "LUMESP31", "id": "LUMESL31MOHON", "to": "MOHONP31", "value": 0.5758072349172286, "width": 1}, {"color": "rgb(30.595072,155.510784,138.295808)", "from": "LUMESP31", "id": "LUMESL31TENDR", "to": "TENDRP31", "value": 0.5878821051571709, "width": 1}, {"color": "rgb(30.595072,155.510784,138.295808)", "from": "CAPELP71", "id": "CAPELL71MASTA", "to": "MASTAP71", "value": 0.049265497537236635, "width": 1}, {"color": "rgb(81.871104,197.353984,105.254912)", "from": "CAPELP71", "id": "CAPELY761", "to": "CAPELP61", "value": 0.012345673092490442, "width": 1}, {"color": "rgb(45.420288,112.006912,142.73664)", "from": "SEUILP71", "id": "SEUILL71VESLE", "to": "VESLEP71", "value": 0.11958251514641668, "width": 1}, {"color": "rgb(81.871104,197.353984,105.254912)", "from": "SEUILP71", "id": "SEUILY741__SEUILY742", "to": "SEUILP41", "value": 0.011235744968975019, "width": 1}, {"color": "rgb(134.598656,213.373696,73.760512)", "from": "VESLEP71", "id": "VESLEY762__VESLEY763", "to": "VESLEP61", "value": 0.05005919045850518, "width": 1}, {"color": "rgb(42.594048,176.859136,127.104512)", "from": "MASTAP71", "id": "AVELIL71MASTA__AVELIL72MASTA", "to": "AVELIP71", "value": 0.20853906083557444, "width": 1}, {"color": "rgb(45.420288,112.006912,142.73664)", "from": "MASTAP71", "id": "BOUCHL71MASTA", "to": "BOUCHP71", "value": 3.271399939892793, "width": 1}, {"color": "rgb(42.594048,176.859136,127.104512)", "from": "MASTAP71", "id": "MASTAY741", "to": "MASTAP41", "value": 0.006890751076421706, "width": 1}, {"color": "rgb(81.871104,197.353984,105.254912)", "from": "MASTAP71", "id": "MASTAY761__MASTAY762", "to": "MASTAP61", "value": 0.05069536221029658, "width": 1}]);
+
+                  nodeColors = {};
+                  allNodes = nodes.get({ returnType: "Object" });
+                  for (nodeId in allNodes) {
+                    nodeColors[nodeId] = allNodes[nodeId].color;
+                  }
+                  allEdges = edges.get({ returnType: "Object" });
+                  // adding nodes and edges to the graph
+                  data = {nodes: nodes, edges: edges};
+
+                  var options = {
+    "configure": {
+        "enabled": false
+    },
+    "edges": {
+        "color": {
+            "inherit": true
+        },
+        "smooth": {
+            "enabled": true,
+            "type": "dynamic"
+        }
+    },
+    "interaction": {
+        "dragNodes": true,
+        "hideEdgesOnDrag": false,
+        "hideNodesOnDrag": false
+    },
+    "physics": {
+        "enabled": true,
+        "stabilization": {
+            "enabled": true,
+            "fit": true,
+            "iterations": 1000,
+            "onlyDynamicEdges": false,
+            "updateInterval": 50
+        }
+    }
+};
+
+                  
+
+
+                  
+
+                  network = new vis.Network(container, data, options);
+
+                  
+
+                  
+
+                  
+
+
+                  
+
+                  return network;
+
+              }
+              drawGraph();
+        </script>
+    </body>
+</html>
