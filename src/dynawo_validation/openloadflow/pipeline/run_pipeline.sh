@@ -251,18 +251,15 @@ echo
 # Prepare the Notebook (sets paths, weights & thresholds)
 ##########################################################
 colormsg "*** CREATING THE NOTEBOOK:"
-echo python3 "$OLF_VALIDATION_SRC"/notebooks/generate_notebooks.py \
+python3 "$OLF_VALIDATION_SRC"/notebooks/generate_notebooks.py \
         "$(cd "$(dirname "$RESULTS_DIR")"; pwd)" "$BASECASE" basecase "$RESULTS_BASEDIR"/score_weights.csv
-
-echo Fin ici
-exit
 
 mkdir -p "$RESULTS_DIR"/notebooks
 cp "$OLF_VALIDATION_SRC"/notebooks/Hades_vs_OpenLoadFlow_final.ipynb "$RESULTS_DIR"/notebooks
 rm "$OLF_VALIDATION_SRC"/notebooks/Hades_vs_OpenLoadFlow_final.ipynb
 echo
 
-echo Fin ici
+echo Fin ici avant de coder les contingences
 exit
 
 #######################################
