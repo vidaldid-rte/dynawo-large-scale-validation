@@ -35,8 +35,11 @@
 #
 
 import os
+import argparse
 import math
+import re
 import sys
+import json
 import pandas as pd
 from lxml import etree
 from collections import namedtuple
@@ -48,6 +51,9 @@ sys.path.insert(
 OLF_SOLUTION = "olf.xiidm"
 HDS_INPUT = "entreeHades.xml"
 HDS_SOLUTION = "out.xml"
+HDS_VERSION = "LAUNCHER_HADES"
+OLF_VERSION = "LAUNCHER_OLF"
+OLF_PARAMS = "OLFParams.json"
 OUTPUT_FILE = "pfsolution_HO.csv"
 ERRORS_HADES_FILE = "elements_not_in_Hades.csv"
 ERRORS_OLF_FILE = "elements_not_in_caseOlf.csv"
@@ -64,23 +70,53 @@ Hds_gridinfo = namedtuple(
 )
 Hds_branch_side = namedtuple("Hds_branch_side", ["bus1", "bus2"])
 
-verbose = True
+parser = argparse.ArgumentParser()
+parser.add_argument(
+    "-i",
+    "--launcherInfo",
+    help="extracts solver version and parameters",
+    action='store_true'
+)
+
+parser.add_argument(
+    "-v",
+    "--verbose",
+    help="verbose",
+    action='store_true'
+)
+
+parser.add_argument(
+    "case_dir",
+    help="directory containing the network case"
+)
+
+args = parser.parse_args()
+
+verbose = args.verbose
 
 
 def main():
 
-    if len(sys.argv) != 2:
-        print(f"\nUsage: {sys.argv[0]} case_dir\n")
-        return 2
-    case_dir = sys.argv[1]
+    case_dir = args.case_dir
 
     if verbose:
         print(f"Extracting solution values for case: {case_dir}")
 
     hades_input = os.path.join(case_dir, HDS_INPUT)
     hades_output = os.path.join(case_dir, HDS_SOLUTION)
+    hades_version = os.path.join(case_dir, HDS_VERSION)
+    olf_version = os.path.join(case_dir, OLF_VERSION)
+    olf_params = os.path.join(case_dir, OLF_PARAMS)
     olf_file = os.path.join(case_dir, OLF_SOLUTION)
-    check_inputfiles(case_dir, hades_output, olf_file)
+    check_input_files(case_dir, [hades_output, hades_version, olf_version, olf_params, olf_file])
+
+    if args.launcherInfo:
+        if verbose:
+            print(f"Extracting solver info")
+        hades_info = extract_hades_info(hades_version, hades_input)
+        olf_info = extract_olf_info(olf_version, olf_params)
+        hades_info.to_csv(os.path.join(case_dir, "hadesInfo.csv"),index=False, sep=";", encoding="utf-8")
+        olf_info.to_csv(os.path.join(case_dir, "olfInfo.csv"), index=False, sep=";", encoding="utf-8")
 
 
     # Extract the solution values from Dynawo results
@@ -100,14 +136,17 @@ def main():
 
     return 0
 
-def check_inputfiles(case_dir, solution_1, solution_2):
+
+def check_input_files(case_dir, fileList):
     if not os.path.isdir(case_dir):
         raise ValueError(f"case directory {case_dir} not found")
 
-    if not (
-        os.path.isfile(solution_1) and os.path.isfile(solution_2)
-    ):
-        raise ValueError(f"the expected PF solution files are missing in {case_dir}\n")
+    # TODO: Verifier ce qu'il se passe si un des ficheirs ne converge pas
+    for file in fileList:
+        if not (
+            os.path.isfile(file)
+        ):
+            raise ValueError(f"Expected file missing in {case_dir} : file {file}\n")
 
 
 def extract_iidm_solution(iidm_output):
@@ -619,6 +658,52 @@ def save_nonmatching_elements(df_hds, df_olf, errors_hds_file, errors_olf_file):
             f"saved in file: {errors_olf_file}"
         )
 
+
+def extract_hades_info(hades_version, hades_input):
+    column_list = ["PARAM", "VALUE"]
+
+    lines = open(hades_version, 'r').readlines()
+    regexp = re.compile(r'Hades.*- V.*')
+
+    data=[]
+    version = None
+    for l in lines:
+        if re.match(regexp, l) :
+            version=l.strip()
+    data.append(["Version", version])
+
+    # Get the parameters
+    tree = etree.parse(hades_input)
+    root = tree.getroot()
+    #paramHades
+    modele = root.find("./modele", root.nsmap)
+    params = modele.find("./parametres", root.nsmap)
+    paramHades = params.find("./paramHades", root.nsmap)
+    for name, value in paramHades.items():
+        data.append([name, value])
+
+    return pd.DataFrame(data, columns=column_list)
+
+def extract_olf_info(olf_version, olf_params):
+    column_list = ["PARAM", "VALUE"]
+
+    data=[]
+    lines = open(olf_version, 'r').readlines()
+    for l in lines:
+        if "powsybl-open-loadflow" in l:
+            tokens = l.split('|')
+            data.append(["Version", tokens[1].strip() + " - V" + tokens[2].strip()])
+    jsonparams = json.load(open(olf_params, 'r'))
+    for p in jsonparams:
+        if p not in ["version", "extensions"]:
+            data.append([p, jsonparams[p]])
+        elif p == "extensions":
+            if "open-load-flow-parameters" in jsonparams[p] is not None:
+                olfp = jsonparams[p]["open-load-flow-parameters"]
+                for p2 in olfp:
+                    data.append(["olf."+p2, olfp[p2]])
+
+    return pd.DataFrame(data, columns=column_list)
 
 if __name__ == "__main__":
     sys.exit(main())

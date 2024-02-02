@@ -1633,6 +1633,8 @@ def paint_graph(
 
 # Define the structure of the output
 def show_displays(
+    hades_info,
+    olf_info,
     # globaltap_aut_diffs_A,
     # globaltap_aut_diffs_B,
     # globaltap_container_aut,
@@ -1676,9 +1678,11 @@ def show_displays(
         )
     )
 
+    hades_version = hades_info.loc[hades_info.PARAM == "Version"].VALUE.values[0]
+    olf_version = olf_info.loc[olf_info.PARAM == "Version"].VALUE.values[0]
     display(
         Markdown(
-            "# RESULTS SUMMARY\n"
+            f"# RESULTS SUMMARY {hades_version} vs {olf_version} \n"
             "  * Number of cases that exceed the MAX threshold: "
             f"{compscore_max_n_pass/compscore_total_n_pass:.1%} ({compscore_max_n_pass} of {compscore_total_n_pass})\n"
             "  * Number of cases that exceed the P95 threshold: "
@@ -1860,6 +1864,10 @@ def get_renderers(MAX_THRESH, P95_THRESH, MEAN_THRESH):
     }
     return compscore_renderers
 
+def get_info_data(RESULTS_DIR, BASECASE):
+    hades_file = os.path.join(os.path.join(RESULTS_DIR, BASECASE),"hadesInfo.csv")
+    olf_file = os.path.join(os.path.join(RESULTS_DIR, BASECASE), "olfInfo.csv")
+    return pd.read_csv(hades_file, sep=";"), pd.read_csv(olf_file, sep=";")
 
 def get_iidm_file(RESULTS_DIR, BASECASE):
     return os.path.join(os.path.join(RESULTS_DIR, BASECASE),"olf.xiidm")
@@ -2662,6 +2670,9 @@ def run_all(
         ),
     )
 
+    # Solver info
+    hades_info, olf_info = get_info_data(RESULTS_DIR, BASECASE)
+
     # Graph creation
     # Get iidm file
     netwgraph_iidm_file = get_iidm_file(RESULTS_DIR, BASECASE)
@@ -2741,6 +2752,8 @@ def run_all(
     #
     # # Display all the objects and get html subgraph id
     netwgraph_html_graph = show_displays(
+        hades_info,
+        olf_info,
     #     globaltap_aut_diffs_A_grid,
     #     globaltap_aut_diffs_B_grid,
     #     globaltap_container_aut,

@@ -46,6 +46,7 @@ Usage: $0 [OPTIONS] CASEDIR
     -c | --cleanup  Delete the contingency case after getting the results
     -d | --debug    More debug messages
     -h | --help     This help message
+    -i | --launcherInfo Extract launcher info
     -o | --output   Specify a directory for collecting results (default: RESULTS)
     -v | --verbose  More verbose output
     -H | --launcherH  Defines the launcher for Hades (default hades2.sh)
@@ -88,7 +89,8 @@ run_hades(){
     RUNLOG=Hades.RunStdout.txt
     echo "Running Hades for file: $HADES_FILE"
     set_launcher "$1"
-    $LAUNCHER `basename $HADES_FILE` out.xml log.xml > "$RUNLOG" 2>&1
+    HADES_FILE_SHORT=$(basename "$HADES_FILE")
+    $LAUNCHER "$HADES_FILE_SHORT" out.xml log.xml > "$RUNLOG" 2>&1
     if [ ! -f out.xml ]; then
         echo "Hades run failed. Check the run log: $HADES_DIR/$RUNLOG"
         exit 1
@@ -113,7 +115,9 @@ run_olf(){
     echo "Running OpenLoadFlow for file: $OLF_FILE"
     set_launcher "$1"
     rm -f olf.xiidm
-    $LAUNCHER loadflow --case-file `basename $OLF_FILE` --output-case-file olf.xiidm --output-case-format XIIDM  > "$RUNLOG" 2>&1
+    OLF_FILE_SHORT=$(basename "$OLF_FILE")
+    PARAM_SHORT=$(basename "$OLF_PARAM")
+    $LAUNCHER loadflow --case-file "$OLF_FILE_SHORT" --parameters-file "$PARAM_SHORT" --output-case-file olf.xiidm --output-case-format XIIDM  > "$RUNLOG" 2>&1
     if [ ! -f olf.xiidm ]; then
         echo "OpenLoadFlow run failed. Check the run log: $OLF_DIR/$RUNLOG"
         exit 1
@@ -137,13 +141,15 @@ if [[ $? -ne 4 ]]; then
 fi
 set -e
 
-OPTIONS=cdho:vH:O:
-LONGOPTS=cleanup,debug,help,output:,verbose,launcherH:,launcherO:
+OPTIONS=cdhio:vH:O:
+LONGOPTS=cleanup,debug,help,launcherInfo,output:,verbose,launcherH:,launcherO:
 # -activate quoting/enhanced mode (e.g. by writing out “--options”)
 # -pass arguments only via   -- "$@"   to separate them correctly
 PARSED=$(getopt --options=$OPTIONS --longoptions=$LONGOPTS --name "$0" -- "$@")
 # read getopt’s output this way to handle the quoting right:
 eval set -- "$PARSED"
+
+# TODO Ajouter l'option pour récuperer les infos de param et de version et le coder
 
 # now enjoy the options in order and nicely split until we see --
 c=n d=n h=n outDir="RESULTS" v=n H="hades2.sh" O="itools"
@@ -159,6 +165,11 @@ while true; do
             ;;
         -h|--help )
             h=y
+            shift
+            ;;
+        -i|--launcherInfo )
+        #TODO utiliser ce parametre pour l'extraction
+            i=y
             shift
             ;;
         -o|--output)
@@ -220,11 +231,19 @@ if [ ! -f "$HADES_FILE" ]; then
    exit 1
 fi
 
+# TODO - mettre en XML pour supporter directement du arcade ?
 OLF_FILE=${BASEDIR}/entreeOLF.xiidm
 if [ ! -f "$OLF_FILE" ]; then
    echo "ERROR: OLF input file $OLF_FILE not found."
    exit 1
 fi
+
+OLF_PARAM=${BASEDIR}/OLFParams.json
+if [ ! -f "$OLF_PARAM" ]; then
+   echo "ERROR: OLF parameter file $OLF_PARAM not found."
+   exit 1
+fi
+
 
 #if [ ! -d "$CONTG_CASE" ]; then
 #   echo "ERROR: Contingency case $CONTG_CASE not found."
@@ -248,9 +267,9 @@ mkdir -p "$outDir"/casediffs
 H_basename=$(basename "$H")
 O_basename=$(basename "$O")
 set_launcher "$H"
-"$LAUNCHER" --version > "$outDir"/../.LAUNCHER_HADES_WAS_"$H_basename" 2>&1 || true
+"$LAUNCHER" --version > "$BASEDIR""/LAUNCHER_HADES" 2>&1 || true
 set_launcher "$O"
-"$LAUNCHER" version > "$outDir"/../.LAUNCHER_B_WAS_"$O_basename" 2>&1 || true
+"$LAUNCHER" version > "$BASEDIR""/LAUNCHER_OLF" 2>&1 || true
 #basecase_name=$(basename "BASEDIR")
 scripts_basedir=$(dirname "$0")
 
@@ -265,11 +284,11 @@ run_olf $O
 # using a standardized format to allow comparisons
 scripts_basedir=$(dirname "$0")
 echo "Extracting the powerflow solutions for case: $BASEDIR"
-python3 "$scripts_basedir"/extract_powerflow_values.py "$BASEDIR"
+python3 "$scripts_basedir"/extract_powerflow_values.py -i -v "$BASEDIR"
 
 # Collect and compress all results
 xz -c9 "$BASEDIR"/pfsolution_HO.csv > "$outDir"/pf_sol/"$prefix"_pfsolutionHO.csv.xz
-for error_file in "elements_not_in_case*.csv" ; do
+for error_file in elements_not_in_case*.csv ; do
     if [ -f "$BASEDIR"/"$error_file" ]; then
         xz -c9 "$BASEDIR"/"$error_file" > "$outDir"/pf_sol/"$prefix"-"$error_file".xz
     fi
