@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+    Copyright (c) 2020, RTE (http://www.rte-france.com)
+    This Source Code Form is subject to the terms of the Mozilla Public
+    License, v. 2.0. If a copy of the MPL was not distributed with this
+    file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.powsybl</groupId>
+        <artifactId>powsybl-parent</artifactId>
+        <version>15</version>
+        <relativePath/>
+    </parent>
+    <artifactId>powsybl-distribution</artifactId>
+    <packaging>pom</packaging>
+    <version>2024.0.0-SNAPSHOT</version>
+
+    <properties>
+        <java.version>17</java.version>
+        <logback.version>1.4.14</logback.version>
+        <powsybl-dependencies.version>2023.4.0</powsybl-dependencies.version>
+        <powsybl-core.version>6.1.1</powsybl-core.version> <!--pom import does not reach the build/plugins part-->
+        <slf4j.version>2.0.9</slf4j.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>com.powsybl</groupId>
+                <artifactId>powsybl-dependencies</artifactId>
+                <version>${powsybl-dependencies.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>com.powsybl</groupId>
+                <artifactId>powsybl-itools-packager-maven-plugin</artifactId>
+                <version>${powsybl-core.version}</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>package-zip</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <packageName>powsybl-distribution-${project.version}</packageName>
+                    <copyToEtc>
+                        <files>
+                            <file>${project.basedir}/resources/config/config.yml</file>
+                            <file>${project.basedir}/resources/CGMES/CGMES_v2.4.15_MicroGridTestConfiguration_BC_BE_v2/MicroGridTestConfiguration_BC_BE_DL_V2.xml</file>
+                            <file>${project.basedir}/resources/CGMES/CGMES_v2.4.15_MicroGridTestConfiguration_BC_BE_v2/MicroGridTestConfiguration_BC_BE_DY_V2.xml</file>
+                            <file>${project.basedir}/resources/CGMES/CGMES_v2.4.15_MicroGridTestConfiguration_BC_BE_v2/MicroGridTestConfiguration_BC_BE_EQ_V2.xml</file>
+                            <file>${project.basedir}/resources/CGMES/CGMES_v2.4.15_MicroGridTestConfiguration_BC_BE_v2/MicroGridTestConfiguration_BC_BE_GL_V2.xml</file>
+                            <file>${project.basedir}/resources/CGMES/CGMES_v2.4.15_MicroGridTestConfiguration_BC_BE_v2/MicroGridTestConfiguration_BC_BE_SSH_V2.xml</file>
+                            <file>${project.basedir}/resources/CGMES/CGMES_v2.4.15_MicroGridTestConfiguration_BC_BE_v2/MicroGridTestConfiguration_BC_BE_SV_V2.xml</file>
+                            <file>${project.basedir}/resources/CGMES/CGMES_v2.4.15_MicroGridTestConfiguration_BC_BE_v2/MicroGridTestConfiguration_BC_BE_TP_V2.xml</file>
+                            <file>${project.basedir}/resources/CGMES/CGMES_v2.4.15_MicroGridTestConfiguration_BD_v2/MicroGridTestConfiguration_EQ_BD.xml</file>
+                            <file>${project.basedir}/resources/CGMES/CGMES_v2.4.15_MicroGridTestConfiguration_BD_v2/MicroGridTestConfiguration_TP_BD.xml</file>
+                            <file>${project.basedir}/resources/IEEE/ieee300cdf.txt</file>
+                            <file>${project.basedir}/resources/PSSE/IEEE_30_bus.raw</file>
+                            <file>${project.basedir}/resources/PSSE/IEEE_57_bus.raw</file>
+                            <file>${project.basedir}/resources/PSSE/IEEE_118_bus.raw</file>
+                            <file>${project.basedir}/resources/UCTE/beTestGridForMerging.uct</file>
+                            <file>${project.basedir}/resources/UCTE/frTestGridForMerging.uct</file>
+                            <file>${project.basedir}/resources/UCTE/germanTsos.uct</file>
+                            <file>${project.basedir}/resources/UCTE/uxTestGridForMerging.uct</file>
+                            <file>${project.basedir}/resources/XIIDM/eurostag-tutorial-example1.xml</file>
+                        </files>
+                    </copyToEtc>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+    <dependencies>
+
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>${logback.version}</version>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.powsybl</groupId>
+            <artifactId>powsybl-ampl-converter</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.powsybl</groupId>
+            <artifactId>powsybl-cgmes-conversion</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.powsybl</groupId>
+            <artifactId>powsybl-config-classic</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.powsybl</groupId>
+            <artifactId>powsybl-contingency-dsl</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.powsybl</groupId>
+            <artifactId>powsybl-ieee-cdf-converter</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.powsybl</groupId>
+            <artifactId>powsybl-iidm-impl</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.powsybl</groupId>
+            <artifactId>powsybl-iidm-serde</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.powsybl</groupId>
+            <artifactId>powsybl-matpower-converter</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.powsybl</groupId>
+            <artifactId>powsybl-psse-converter</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.powsybl</groupId>
+            <artifactId>powsybl-iidm-scripting</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.powsybl</groupId>
+            <artifactId>powsybl-security-analysis-api</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.powsybl</groupId>
+            <artifactId>powsybl-ucte-converter</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.powsybl</groupId>
+            <artifactId>powsybl-open-loadflow</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+
+        <dependency>
+            <groupId>com.powsybl</groupId>
+            <artifactId>powsybl-dynamic-simulation-tool</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.powsybl</groupId>
+            <artifactId>powsybl-triple-store-impl-rdf4j</artifactId>
+            <scope>runtime</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>ch.qos.logback</groupId>
+                    <artifactId>logback-classic</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>log4j-over-slf4j</artifactId>
+            <version>${slf4j.version}</version>
+            <scope>runtime</scope>
+        </dependency>
+    </dependencies>
+</project>
