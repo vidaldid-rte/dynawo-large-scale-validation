@@ -692,7 +692,9 @@ def extract_olf_info(olf_version, olf_params):
     for l in lines:
         if "powsybl-open-loadflow" in l:
             tokens = l.split('|')
-            data.append(["Version", tokens[1].strip() + " - V" + tokens[2].strip()])
+            print(len(tokens))
+            if len(tokens) == 7:
+                data.append(["Version", tokens[1].strip() + " - V" + tokens[2].strip()])
     jsonparams = json.load(open(olf_params, 'r'))
     for p in jsonparams:
         if p not in ["version", "extensions"]:

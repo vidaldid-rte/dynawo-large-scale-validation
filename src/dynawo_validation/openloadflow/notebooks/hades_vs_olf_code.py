@@ -1480,6 +1480,7 @@ def create_layouts(
     #     width=WIDTH / 2,
     # )
 
+
     return (
         globaldiffs_layout,
         contgcasediffs_layout,
@@ -1664,6 +1665,8 @@ def show_displays(
     compscore_p95_n_pass,
     compscore_mean_n_pass,
     compscore_total_n_pass,
+    hades_param_grid,
+    olf_param_grid,
     DATA_LIMIT,
 ):
     display(
@@ -1825,6 +1828,16 @@ def show_displays(
     # else:
     #     containergroup = widgets.HBox([contgcasetap_groups_traceA])
     # display(containergroup)
+
+    # #######################################################################
+    # # Part IV: Solver parameters
+    # #######################################################################
+
+    display(Markdown("## Solver Parameters"))
+    display(Markdown(hades_version))
+    display(hades_param_grid)
+    display(Markdown(olf_version))
+    display(olf_param_grid)
 
     return netwgraph_html_graph
 
@@ -2544,6 +2557,7 @@ def run_all(
         contgcasediffs_dropdowny.value,
     )
 
+
     # # Individual trace for contingency taps
     # (
     #     contgcasetap_current_aut_group_traceA,
@@ -2672,6 +2686,19 @@ def run_all(
 
     # Solver info
     hades_info, olf_info = get_info_data(RESULTS_DIR, BASECASE)
+    hades_param_grid = ipydatagrid.DataGrid(
+        (hades_info[hades_info.PARAM != "Version"]).sort_values(by="PARAM").set_index("PARAM"),
+        column_widths={"PARAM":int(WIDTH/3), "VALUE": int(WIDTH/3)}
+    )
+    generic_olf = olf_info[(olf_info.PARAM.str[0:4] != "olf.") & (olf_info.PARAM != "Version")].sort_values(
+        by="PARAM").set_index("PARAM")
+    specific_olf = olf_info[(olf_info.PARAM.str[0:4] == "olf.") & (olf_info.PARAM != "Version")].sort_values(
+        by="PARAM").set_index("PARAM")
+
+    olf_param_grid = ipydatagrid.DataGrid(
+        pd.concat([generic_olf,specific_olf]),
+        column_widths={"PARAM":int(WIDTH/3), "VALUE": int(WIDTH/3)}
+    )
 
     # Graph creation
     # Get iidm file
@@ -2783,6 +2810,8 @@ def run_all(
         compscore_p95_n_pass,
         compscore_mean_n_pass,
         compscore_total_n_pass,
+        hades_param_grid,
+        olf_param_grid,
         DATA_LIMIT,
     )
     #
