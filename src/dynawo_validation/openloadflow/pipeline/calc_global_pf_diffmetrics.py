@@ -38,7 +38,7 @@ def main():
     print(f"Processing {len(files)} cases: ", end="", flush=True)
 
     for filepath in files:
-        contg = filepath.split("#")[-1].split("_pfsolution")[-2]
+        contg = filepath.split("/")[-1].split("#")[-1].split("_pfsolution")[-2]
         delta = pd.read_csv(filepath, sep=";", index_col=False, compression="infer")
         delta["DIFF"] = delta.VALUE_HADES - delta.VALUE_OLF
         delta["DIFF_ABS"] = abs(delta.VALUE_HADES - delta.VALUE_OLF)

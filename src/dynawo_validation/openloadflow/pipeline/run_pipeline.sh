@@ -38,6 +38,7 @@ OLF_VALIDATION_SRC=$(dirname "$0")/..
 # Config options to pass to run_all_contingencies.sh (using a Bash array as a
 # safe way to pass parameters when invoking it)
 declare -a RUNALL_OPTS
+declare -a RUNBASE_OPTS
 
 
 # Nothing else to configure below this point
@@ -50,7 +51,6 @@ find_cmd()
     find "$CASE_DIR" -maxdepth 1 -type d -name "$1"'*'
 }
 # TODO: add -a --allcontg for run all contingencies
-# TODO: add -s/--sequential
 # TODO: add -l / --regextlist egain
 # TODO: add -r --random to run a random sample of contingencies et aussi --prandom/-p
 usage()
@@ -62,6 +62,7 @@ Usage: $0 [OPTIONS] BASECASE RESULTS_DIR
     -O | --launcherO  Defines the launcher for OpenLoadFlow
     -c | --cleanup    Delete input cases after getting the results
     -d | --debug      More debug messages
+    -s | --sequential Run jobs sequentially (defult is parallel)
     -w | --weights    Calculate scores with weights
     -h | --help       This help message
 EOF
@@ -89,8 +90,8 @@ fi
 set -e
 
 
-OPTIONS=H:O:hdcw:
-LONGOPTS=launcherO:,launcherH:,help,debug,cleanup,weights:
+OPTIONS=H:O:hdcsw:
+LONGOPTS=launcherO:,launcherH:,help,debug,cleanup,weights,sequential:
 # -activate quoting/enhanced mode (e.g. by writing out “--options”)
 # -pass arguments only via   -- "$@"   to separate them correctly
 PARSED=$(getopt --options=$OPTIONS --longoptions=$LONGOPTS --name "$0" -- "$@")
@@ -98,7 +99,7 @@ PARSED=$(getopt --options=$OPTIONS --longoptions=$LONGOPTS --name "$0" -- "$@")
 eval set -- "$PARSED"
 
 # now enjoy the options in order and nicely split until we see --
-H="hades2.sh" O="itools" h=n
+H="hades2.sh" O="itools" h=n sequential='n'
 debug=n cleanup=n weightslist="None"
 while true; do
     case "$1" in
@@ -123,6 +124,10 @@ while true; do
             ;;
         -d|--debug)
             debug=y
+            shift
+            ;;
+        -s|--sequential)
+            sequential=y
             shift
             ;;
         -c|--cleanup)
@@ -155,8 +160,16 @@ if [ $debug = "y" ]; then
     RUNALL_OPTS=("${RUNALL_OPTS[@]}" "-d")
 fi
 
+# No cleanup for base case because files are referenced by symbolic links
+RUNBASE_OPTS=("${RUNALL_OPTS[@]}")
+
+# Continue to add options that are specific to contingencies
 if [ $cleanup = "y" ]; then
     RUNALL_OPTS=("${RUNALL_OPTS[@]}" "-c")
+fi
+
+if [ $sequential = "y" ]; then
+    RUNALL_OPTS=("${RUNALL_OPTS[@]}" "-s")
 fi
 
 # handle non-option arguments
@@ -228,7 +241,7 @@ CP_BASECASE=$REAL_BASECASE
 
   RESULTS_DIR="$RESULTS_BASEDIR"/basecase
   mkdir -p "$RESULTS_DIR"
-  "$CONTG_SRC"/run_one_case.sh "${RUNALL_OPTS[@]}" -o "$RESULTS_DIR" -H "$H" -O "$O" \
+  "$CONTG_SRC"/run_one_case.sh "${RUNBASE_OPTS[@]}" -o "$RESULTS_DIR" -H "$H" -O "$O" \
               "$CP_BASECASE"
 
 ###############################
@@ -259,27 +272,33 @@ cp "$OLF_VALIDATION_SRC"/notebooks/Hades_vs_OpenLoadFlow_final.ipynb "$RESULTS_D
 rm "$OLF_VALIDATION_SRC"/notebooks/Hades_vs_OpenLoadFlow_final.ipynb
 echo
 
-echo Fin ici avant de coder les contingences
-exit
 
 #######################################
 # Process all types of contingency
 #######################################
-CASE_DIR=$(dirname "$BASECASE")
+
+# TODO Contingences N-K
+# TODO Contingenes spécifiques Transfo / HVDC / Groupe  (lié au controle de tension ? -- A voir)
+declare -A create_contg
+create_contg[shunt]="create_shunt_contg.py"
+create_contg[load]="create_load_contg.py"
+#create_contg[gen]="create_gen_contg.py"
+#create_contg[branchB]="create_branchB_contg.py"
+
+CASE_DIR=${RESULTS_BASEDIR}
 for DEVICE in "${!create_contg[@]}"; do
     echo
     colormsg "****** PROCESSING CONTINGENCIES OF TYPE: $DEVICE"
     echo
-    
+
     ####################################
     # Creation of the contingency cases
     ####################################
+    CASE_SOURCE_DIR=${RESULTS_BASEDIR}/$(basename "${BASECASE}")
     colormsg "*** CREATING CONTINGENCY CASES:"
-    rm -rf "$CASE_DIR"/"$DEVICE"_*
-    set -x
-    python3 "$CONTG_SRC"/"${create_contg[$DEVICE]}" "${CREATE_OPTS[@]}" "$BASECASE"
-    set +x
+    python3 "$CONTG_SRC"/"${create_contg[$DEVICE]}" "${CREATE_OPTS[@]}" "$CASE_SOURCE_DIR" "$RESULTS_BASEDIR"
     echo
+
 
     #############################################################
     # Run all the contingency cases just created
@@ -293,50 +312,36 @@ for DEVICE in "${!create_contg[@]}"; do
     colormsg "*** RUNNING CONTINGENCY CASES:"
     RESULTS_DIR="$RESULTS_BASEDIR"/"$DEVICE"
     mkdir -p "$RESULTS_DIR"
-    set -x
-    "$CONTG_SRC"/run_all_contg.sh "${RUNALL_OPTS[@]}" -o "$RESULTS_DIR" -A "$A" -B "$B" \
-                "$CASE_DIR" "$BASECASE" "$DEVICE"#
-    set +x
+    "$CONTG_SRC"/run_all_contg.sh "${RUNALL_OPTS[@]}" -o "$RESULTS_DIR" -H "$H" -O "$O" \
+                "$CASE_DIR" "$CASE_SOURCE_DIR" "$DEVICE"#
     echo
 
     ###############################
     # Calculate Power Flow metrics
     ###############################
     colormsg "*** COMPUTING DIFF METRICS:"
-    set -x
     python3 "$CONTG_SRC"/calc_global_pf_diffmetrics.py "$RESULTS_DIR"/pf_sol "$DEVICE#"
-    set +x
     echo
 
     #####################################
     # Calculate the "Top 10" mini-report
     #####################################
     colormsg "*** COMPUTING TOP 10 DIFFS:"
-    set -x
     python3 "$OLF_VALIDATION_SRC"/pipeline/top_10_diffs_dflow.py "$RESULTS_DIR"/pf_sol/ \
             "$RESULTS_DIR"/pf_metrics/ > "$RESULTS_DIR"/../top_10_diffs_"$DEVICE".txt
-    set +x
     echo
 
-    ##############################################################################
-    # Collect all automata changes into a single file & erase the individual ones
-    ##############################################################################
-    colormsg "*** COLLECTING AUT DIFFS:"
-    set -x
-    python3 "$OLF_VALIDATION_SRC"/pipeline/collect_aut_diffs.py "$RESULTS_DIR"/aut/ "$RESULTS_DIR"/../ "$BASECASE"
-    set +x
-    echo
 
     ##########################################################
     # Prepare the Notebook (sets paths, weights & thresholds)
     ##########################################################
     colormsg "*** CREATING THE NOTEBOOK:"
-    echo python3 "$OLF_VALIDATION_SRC"/notebooks/generate_notebooks.py \
+    python3 "$OLF_VALIDATION_SRC"/notebooks/generate_notebooks.py \
             "$(cd "$(dirname "$RESULTS_DIR")"; pwd)" "$BASECASE" "$DEVICE" "$RESULTS_BASEDIR"/score_weights.csv
 
     mkdir -p "$RESULTS_DIR"/notebooks
-    cp "$OLF_VALIDATION_SRC"/notebooks/simulator_A_vs_simulator_B_final.ipynb "$RESULTS_DIR"/notebooks
-    rm "$OLF_VALIDATION_SRC"/notebooks/simulator_A_vs_simulator_B_final.ipynb
+    cp "$OLF_VALIDATION_SRC"/notebooks/Hades_vs_OpenLoadFlow_final.ipynb "$RESULTS_DIR"/notebooks
+    rm "$OLF_VALIDATION_SRC"/notebooks/Hades_vs_OpenLoadFlow_final.ipynb
     echo
 
 done

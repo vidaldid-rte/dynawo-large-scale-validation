@@ -84,8 +84,6 @@ def calculate_error(df1):
 
 # Read a specific contingency
 def read_case(name, PF_SOL_DIR, PREFIX):
-    # TODO - adapt hen contingencies appear again
-    #file_name = PF_SOL_DIR + "/pf_sol/" + PREFIX + "#" + name + "_pfsolutionOH.csv.xz"
     file_name = PF_SOL_DIR + "/pf_sol/" + name + "_pfsolutionHO.csv.xz"
     data = pd.read_csv(file_name, sep=";", index_col=False, compression="infer")
     data["DIFF"] = data.VALUE_HADES - data.VALUE_OLF
@@ -1199,36 +1197,7 @@ def create_dropdowns(
         value=netwgraph_edgemetrictype[0],
         description="Edge metric var: ",
     )
-    # contgcasetap_aut_diff_case = widgets.Dropdown(
-    #     options=sorted(contg_cases),
-    #     value=contgcasediffs_contgcaseinit,
-    #     description="Contg. case: ",
-    # )
-    #
-    # a_var = list(globaltap_aut_diffs_A.index)
-    # for i in range(len(a_var)):
-    #     a_var[i] = a_var[i].split("-")[-1]
-    # a_var = list(set(a_var))
-    #
-    # b_var = list(globaltap_aut_diffs_B.index)
-    # for i in range(len(b_var)):
-    #     b_var[i] = b_var[i].split("-")[-1]
-    # b_var = list(set(b_var))
-    #
-    # contgcasetap_aut_diff_var_A = widgets.Dropdown(
-    #     options=sorted(a_var), value="ratioTapChanger", description="Aut. var A: "
-    # )
-    #
-    # contgcasetap_aut_diff_var_B = widgets.Dropdown(
-    #     options=sorted(b_var), value="ratioTapChanger", description="Aut. var B: "
-    # )
-    #
-    # globaltap_aut_diff_var_plot = widgets.Dropdown(
-    #     options=["ratioTapChanger", "phaseTapChanger"],
-    #     value="ratioTapChanger",
-    #     description="Aut. var: ",
-    # )
-    #
+
     globaldiffs_diff_metric_type = widgets.Dropdown(
         options=["max", "p95", "mean", "ALL"],
         value="max",
@@ -1249,10 +1218,6 @@ def create_dropdowns(
         netwgraph_nodemetrictype_drop,
         netwgraph_edgetype_drop,
         netwgraph_edgemetrictype_drop,
-        # contgcasetap_aut_diff_case,
-        # contgcasetap_aut_diff_var_A,
-        # contgcasetap_aut_diff_var_B,
-        # globaltap_aut_diff_var_plot,
         globaldiffs_diff_metric_type,
     )
 
@@ -1271,14 +1236,6 @@ def create_containers(
     netwgraph_nodemetrictype_drop,
     netwgraph_edgetype_drop,
     netwgraph_edgemetrictype_drop,
-    # contgcasetap_aut_diff_case,
-    # contgcasetap_aut_diff_var_A,
-    # contgcasetap_aut_diff_var_B,
-    # globaltap_checka,
-    # globaltap_checkb,
-    # contgcasetap_checka,
-    # contgcasetap_checkb,
-    # globaltap_aut_trace,
     contgcasediffs_individualtrace,
     contgcasediffs_legendwidget,
     netwgraph_legend1widget,
@@ -1308,19 +1265,6 @@ def create_containers(
         ]
     )
 
-    # globaltap_container_aut = widgets.HBox([globaltap_checka, globaltap_checkb])
-    # contgcasetap_container_aut = widgets.HBox(
-    #     [
-    #         contgcasetap_aut_diff_case,
-    #         contgcasetap_aut_diff_var_A,
-    #         contgcasetap_checka,
-    #         contgcasetap_aut_diff_var_B,
-    #         contgcasetap_checkb,
-    #     ]
-    # )
-    #
-    # globaltap_container_aut_trace = widgets.HBox([globaltap_aut_trace])
-
     contgcasediffs_individualtracecontainer = widgets.HBox(
         [contgcasediffs_individualtrace, contgcasediffs_legendwidget]
     )
@@ -1332,9 +1276,6 @@ def create_containers(
         globaldiffs_container,
         contgcasediffs_container,
         netwgraph_container,
-        # globaltap_container_aut,
-        # contgcasetap_container_aut,
-        # globaltap_container_aut_trace,
         contgcasediffs_individualtracecontainer,
         netwgraph_legendcontainer,
     )
@@ -1471,22 +1412,12 @@ def create_layouts(
         height=HEIGHT,
         width=WIDTH,
     )
-    #
-    # contgcasetap_layout = go.Layout(
-    #     title=dict(text="Case: " + contgcasediffs_contgcaseinit),
-    #     xaxis=dict(title="TIME", range=[0, 200]),
-    #     yaxis=dict(title="EVENT"),
-    #     height=HEIGHT,
-    #     width=WIDTH / 2,
-    # )
-
 
     return (
         globaldiffs_layout,
         contgcasediffs_layout,
         # contgcasetap_layout,
     )
-
 
 # Paint the node colors of the graph
 def paint_graph(
@@ -1636,16 +1567,6 @@ def paint_graph(
 def show_displays(
     hades_info,
     olf_info,
-    # globaltap_aut_diffs_A,
-    # globaltap_aut_diffs_B,
-    # globaltap_container_aut,
-    # contgcasetap_container_aut,
-    # globaltap_container_aut_trace,
-    # contgcasetap_aut_diff_dfA_grid,
-    # contgcasetap_aut_diff_dfB_grid,
-    # globaltap_trace,
-    # contgcasetap_groups_traceA,
-    # contgcasetap_groups_traceB,
     globaldiffs_def_volt_level,
     globaldiffs_diff_metric_type,
     globaldiffs_dfgrid,
@@ -1657,10 +1578,9 @@ def show_displays(
     netwgraph_container,
     netwgraph_C,
     netwgraph_legendcontainer,
-    # globaltap_button_aut,
     globaldiffs_button_case,
     button_download_data,
-    # compscore_grid_score,
+    compscore_grid_score,
     compscore_max_n_pass,
     compscore_p95_n_pass,
     compscore_mean_n_pass,
@@ -1694,31 +1614,31 @@ def show_displays(
             f"{compscore_mean_n_pass/compscore_total_n_pass:.1%} ({compscore_mean_n_pass} of {compscore_total_n_pass})\n"
         )
     )
-    #
-    # #######################################################################
-    # # Part I: Global ranking
-    # #######################################################################
-    # display(Markdown("# GLOBAL RANKING OF CONTINGENCY CASES"))
-    # display(
-    #     Markdown(
-    #         "Contingency cases ranked by **compound score**, which consists in a"
-    #         " weighted sum of the norms of the differences in several classes of"
-    #         " variables, between the A and B power flow solutions.  \nSchematically:\n"
-    #         " > SCORE = W_v * (norm of voltage diffs)"
-    #         " + W_p * (norm of real power diffs)"
-    #         " + W_q * (norm of reactive power diffs)"
-    #         " + W_t * (norm of tap position diffs)\n\n"
-    #         "The score comes in three flavors, depending on the kind of norm used:\n"
-    #         "  * **MAX_SCORE**: the maximum of the diffs (a.k.a. L-infinity norm)\n"
-    #         "  * **P95_SCORE**: the 95% percentile of the diffs\n"
-    #         "  * **MEAN_SCORE**: average of the diffs (a.k.a. L-1 norm, divided by N)\n"
-    #     )
-    # )
-    # display(compscore_grid_score)
-    #
-    # #######################################################################
-    # # Part II: Detailed metrics
-    # #######################################################################
+
+    #######################################################################
+    # Part I: Global ranking
+    #######################################################################
+    display(Markdown("# GLOBAL RANKING OF CONTINGENCY CASES"))
+    display(
+        Markdown(
+            "Contingency cases ranked by **compound score**, which consists in a"
+            " weighted sum of the norms of the differences in several classes of"
+            " variables, between the A and B power flow solutions.  \nSchematically:\n"
+            " > SCORE = W_v * (norm of voltage diffs)"
+            " + W_p * (norm of real power diffs)"
+            " + W_q * (norm of reactive power diffs)"
+            " + W_t * (norm of tap position diffs)\n\n"
+            "The score comes in three flavors, depending on the kind of norm used:\n"
+            "  * **MAX_SCORE**: the maximum of the diffs (a.k.a. L-infinity norm)\n"
+            "  * **P95_SCORE**: the 95% percentile of the diffs\n"
+            "  * **MEAN_SCORE**: average of the diffs (a.k.a. L-1 norm, divided by N)\n"
+        )
+    )
+    display(compscore_grid_score)
+
+    #######################################################################
+    # Part II: Detailed metrics
+    #######################################################################
     display(Markdown("# ANALYSIS OF DIFFERENCES BETWEEN Hades AND OpenLoadFlow"))
 
     display(Markdown("## Configurable X-Y plot of PF solution diff metrics"))
@@ -1988,8 +1908,8 @@ def run_all(
             globaldiffs_generaltrace.layout.yaxis.title = globaldiffs_dropdownvary.value
 
     def contgcasediffs_individual_case(case):
-        # TODO Update when contingencies are here
-        df1 = read_case(BASECASE, PF_SOL_DIR, PREFIX)
+        name = PREFIX+"#"+case if PREFIX in ELEMENTS else case
+        df1 = read_case(name, PF_SOL_DIR, PREFIX)
         globaldiffs_dfgrid.clear_selection()
         with contgcasediffs_individualtrace.batch_update():
             if (
@@ -2407,10 +2327,13 @@ def run_all(
     contg_cases = list(globaldiffs_df["contg_case"].unique())
     contgcasediffs_contgcaseinit = contg_cases[0]
 
+    print(contgcasediffs_contgcaseinit)
+
+
     # Read the base case to put default data
-    # TODO rename the varable with basecase once all is reconnected
+    casename = PREFIX+"#"+contgcasediffs_contgcaseinit if PREFIX in ELEMENTS else BASECASE
     contgcasediffs_data_first_case = read_case(
-        BASECASE, PF_SOL_DIR, PREFIX
+        casename, PF_SOL_DIR, PREFIX
     )
 
     # # Read the groups of the different automatas
@@ -2504,16 +2427,16 @@ def run_all(
     ) = calc_global_score(
          globaldiffs_df, W_V, W_P, W_Q, W_T, MAX_THRESH, MEAN_THRESH, P95_THRESH
     )
-    #
-    # # Paint score grid
-    # compscore_renderers = get_renderers(MAX_THRESH, P95_THRESH, MEAN_THRESH)
-    #
-    # compscore_grid_score = ipydatagrid.DataGrid(
-    #     compscore_df_score,
-    #     base_column_size=int((WIDTH / 2 / 1.1) / len(compscore_df_score.columns)),
-    #     renderers=compscore_renderers,
-    # )
-    #
+
+    # Paint score grid
+    compscore_renderers = get_renderers(MAX_THRESH, P95_THRESH, MEAN_THRESH)
+
+    compscore_grid_score = ipydatagrid.DataGrid(
+        compscore_df_score,
+        base_column_size=int((WIDTH / 2 / 1.1) / len(compscore_df_score.columns)),
+        renderers=compscore_renderers,
+    )
+
     # Individual trace for contingency diffs with filters
     if (
         contgcasediffs_elementdropdown.value != "ALL"
@@ -2802,10 +2725,9 @@ def run_all(
         netwgraph_container,
         netwgraph_C,
         netwgraph_legendcontainer,
-    #     globaltap_button_aut,
         globaldiffs_button_case,
         button_download_data,
-    #     compscore_grid_score,
+        compscore_grid_score,
         compscore_max_n_pass,
         compscore_p95_n_pass,
         compscore_mean_n_pass,
@@ -2835,17 +2757,7 @@ def run_all(
     netwgraph_nodemetrictype_drop.observe(netwgraph_response, names="value")
     netwgraph_edgetype_drop.observe(netwgraph_response, names="value")
     netwgraph_edgemetrictype_drop.observe(netwgraph_response, names="value")
-    #
-    # contgcasetap_aut_diff_var_A.observe(contgcasetap_response_autA, names="value")
-    # contgcasetap_aut_diff_var_B.observe(contgcasetap_response_autB, names="value")
-    # contgcasetap_aut_diff_case.observe(contgcasetap_response_aut, names="value")
-    #
+
     globaldiffs_button_case.observe(contgcasediffs_response_button, "value")
-    # globaltap_button_aut.observe(contgcasetap_response_aut_button, "value")
     button_download_data.observe(response_download_data, "value")
 
-    # globaltap_aut_diff_var_plot.observe(globaltap_response_aut_plot, names="value")
-    # globaltap_checka.observe(globaltap_response_general_aut_A, names="value")
-    # globaltap_checkb.observe(globaltap_response_general_aut_B, names="value")
-    # contgcasetap_checka.observe(contgcasetap_response_autA, names="value")
-    # contgcasetap_checkb.observe(contgcasetap_response_autB, names="value")

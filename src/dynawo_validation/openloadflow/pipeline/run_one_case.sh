@@ -42,7 +42,11 @@ usage()
 
 Usage: $0 [OPTIONS] CASEDIR
   runs entreeHades.xml with Hades (as adn format) and entreeOLF.xiidm with OpenLoadFLow
+  When present REFDIR is used to create a patch file to rebuild the input file
   Options:
+    -b | --basecase basecasedir  Directory containing the base case. If provided,
+                                 patch files are produced to recreate the contingency
+                                 after cleaning
     -c | --cleanup  Delete the contingency case after getting the results
     -d | --debug    More debug messages
     -h | --help     This help message
@@ -141,8 +145,8 @@ if [[ $? -ne 4 ]]; then
 fi
 set -e
 
-OPTIONS=cdhio:vH:O:
-LONGOPTS=cleanup,debug,help,launcherInfo,output:,verbose,launcherH:,launcherO:
+OPTIONS=b:cdhio:vH:O:
+LONGOPTS=basecase:,cleanup,debug,help,launcherInfo,output:,verbose,launcherH:,launcherO:
 # -activate quoting/enhanced mode (e.g. by writing out “--options”)
 # -pass arguments only via   -- "$@"   to separate them correctly
 PARSED=$(getopt --options=$OPTIONS --longoptions=$LONGOPTS --name "$0" -- "$@")
@@ -152,9 +156,13 @@ eval set -- "$PARSED"
 # TODO Ajouter l'option pour récuperer les infos de param et de version et le coder
 
 # now enjoy the options in order and nicely split until we see --
-c=n d=n h=n outDir="RESULTS" v=n H="hades2.sh" O="itools"
+c=n d=n h=n outDir="RESULTS" v=n H="hades2.sh" O="itools" REFDIR=""
 while true; do
     case "$1" in
+        -b|--basecase)
+            REFDIR="$2"
+            shift 2
+            ;;
         -c|--cleanup)
             c=y
             shift
@@ -214,9 +222,9 @@ if [ $d = "y" ]; then
 fi
 
 # handle non-option arguments
-if [[ $# -ne 1 ]]; then
+if [[ $# -ne 1 ]] && [[ $# -ne 2 ]]; then
     echo
-    echo "$0: A file basename is required"
+    echo "$0: Wrong number of arguments"
     usage
     exit 4
 fi
@@ -225,6 +233,7 @@ fi
 # The real meat starts here
 ########################################
 BASEDIR=$1
+
 HADES_FILE=${BASEDIR}/entreeHades.xml
 if [ ! -f "$HADES_FILE" ]; then
    echo "ERROR: Hades input file $HADES_FILE not found."
@@ -245,21 +254,46 @@ if [ ! -f "$OLF_PARAM" ]; then
 fi
 
 
-#if [ ! -d "$CONTG_CASE" ]; then
-#   echo "ERROR: Contingency case $CONTG_CASE not found."
-#   exit 1
-#fi
-
 prefix=$(basename "$BASEDIR")
 
 # Create the output dirs if they don't exist
 mkdir -p "$outDir"/pf_sol
-mkdir -p "$outDir"/aut
 mkdir -p "$outDir"/xml
 mkdir -p "$outDir"/log
-mkdir -p "$outDir"/casediffs
+if [ -n "$REFDIR" ]; then
+  mkdir -p "$outDir"/casediffs
+fi
 
-# TODO diff from base case not done
+
+#################################################
+# Save the case compactly as diffs from BASECASE
+#################################################
+if [ -n "$REFDIR" ]; then
+    DIFFS="$outDir"/casediffs/"$prefix"-patch
+    if diff -bru "$REFDIR" "$BASEDIR" > "$DIFFS"; then
+        echo "ERROR: $BASECASE and $CONTG_CASE are identical."
+        exit 1
+    fi
+    xz -9f "$DIFFS"
+
+    if [ ! -f "$outDir"/casediffs/README ]; then
+    cat <<EOF >"$outDir"/casediffs/README
+    To re-create the contingency case from these patch files:
+
+       1.  cp -a $(basename "$REFDIR") CONTG_CASE
+
+       2.  cd CONTG_CASE
+
+       3.  xzcat CONTG_CASE-patch.xz | patch -l -p2
+
+    And then verify the result with:
+
+       diff -r $(basename "$REFDIR") CONTG_CASE
+
+EOF
+    fi
+fi
+
 
 #####################################################################
 # Detect whether it's dwohds / dwodwo, and run the cases accordingly

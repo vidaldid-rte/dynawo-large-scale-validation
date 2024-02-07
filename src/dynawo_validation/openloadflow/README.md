@@ -25,6 +25,10 @@ You need
  
    * Run the simulation with this command (TODO - Wrapper not implemented yet) 
      * run_pipeline.sh -H ~/tools/hades/hades2-V6.9.0.2/hades2.sh -O ~/tools/powsybl-distribution-2024.0.0-SNAPSHOT/bin/itools  inputDir resultDir
-   * See the result ith this command (TODO - Path not finalized)
-     * jupyter-notebook  myResult/basecase/notebooks/Hades_vs_OpenLoadFlow_final.ipynb
+   * See the result ith this command (TODO - more contingencies to add)
+     * jupyter-notebook  
+       * Notebooks available (basecase and for load and shunt contingencies)
+         * myResult/basecase/notebooks/Hades_vs_OpenLoadFlow_final.ipynb
+         * myResult/shunt/notebooks/Hades_vs_OpenLoadFlow_final.ipynb
+         * myResult/load/notebooks/Hades_vs_OpenLoadFlow_final.ipynb
 

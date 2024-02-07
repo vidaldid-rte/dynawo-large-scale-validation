@@ -56,7 +56,7 @@ OLF_VERSION = "LAUNCHER_OLF"
 OLF_PARAMS = "OLFParams.json"
 OUTPUT_FILE = "pfsolution_HO.csv"
 ERRORS_HADES_FILE = "elements_not_in_Hades.csv"
-ERRORS_OLF_FILE = "elements_not_in_caseOlf.csv"
+ERRORS_OLF_FILE = "elements_not_in_Olf.csv"
 HDS_INACT_BUS = "999999.000000000000000"  # "magic" value used in Hades
 HDS_INACT_SHUNT = "999999"
 HDS_INACT_SHUNT2 = "0"  # we found a few cases where Hades uses this instead!
@@ -631,30 +631,30 @@ def save_nonmatching_elements(df_hds, df_olf, errors_hds_file, errors_olf_file):
     key_fields = ["ELEMENT_TYPE", "ID", "VAR"]
     # Output the diffs. Newer versions of Pandas support df.compare(), but here we do
     # it in a more backwards-compatible way.
-    set_A = frozenset(df_hds["ID"].add(df_hds["ELEMENT_TYPE"]))
-    set_B = frozenset(df_olf["ID"].add(df_olf["ELEMENT_TYPE"]))
-    elements_not_in_A = list(set_B - set_A)
-    elements_not_in_B = list(set_A - set_B)
-    if len(elements_not_in_A) != 0:
-        df_not_in_A = df_olf.loc[
-            (df_olf["ID"] + df_olf["ELEMENT_TYPE"]).isin(elements_not_in_A)
+    set_hds = frozenset(df_hds["ID"].add(df_hds["ELEMENT_TYPE"]))
+    set_olf = frozenset(df_olf["ID"].add(df_olf["ELEMENT_TYPE"]))
+    elements_not_in_hds = list(set_olf - set_hds)
+    elements_not_in_olf = list(set_hds - set_olf)
+    if len(elements_not_in_hds) != 0:
+        df_not_in_hds = df_olf.loc[
+            (df_olf["ID"] + df_olf["ELEMENT_TYPE"]).isin(elements_not_in_hds)
         ]
-        df_not_in_A.sort_values(by=key_fields, ascending=[True, True, True]).to_csv(
+        df_not_in_hds.sort_values(by=key_fields, ascending=[True, True, True]).to_csv(
             errors_hds_file, index=False, sep=";", encoding="utf-8"
         )
         print(
-            f"{len(elements_not_in_A)} elements from case OLF not in case Hades "
+            f"{len(elements_not_in_hds)} elements from case OLF not in case Hades "
             f"saved in file: {errors_hds_file}"
         )
-    if len(elements_not_in_B) != 0:
-        df_not_in_B = df_hds.loc[
-            (df_hds["ID"] + df_hds["ELEMENT_TYPE"]).isin(elements_not_in_B)
+    if len(elements_not_in_olf) != 0:
+        df_not_in_olf = df_hds.loc[
+            (df_hds["ID"] + df_hds["ELEMENT_TYPE"]).isin(elements_not_in_olf)
         ]
-        df_not_in_B.sort_values(by=key_fields, ascending=[True, True, True]).to_csv(
+        df_not_in_olf.sort_values(by=key_fields, ascending=[True, True, True]).to_csv(
             errors_olf_file, index=False, sep=";", encoding="utf-8"
         )
         print(
-            f"{len(elements_not_in_B)} elements from Hades not in case OLF "
+            f"{len(elements_not_in_olf)} elements from Hades not in case OLF "
             f"saved in file: {errors_olf_file}"
         )
 
