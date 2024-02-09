@@ -25,11 +25,11 @@ args = parser.parse_args()
 # Default weights and thresholds to be used for compound scoring.
 # These will be overriden by the user-provided ones, if any.
 # TODO Update for OLF vs Hades
-W_V = 1 / 2
-W_P = 1 / 5
-W_Q = 1 / 10
-W_T = 1 / 3
-MAX_THRESH = 25
+W_V = 1
+W_P = 1
+W_Q = 1
+W_T = 1
+MAX_THRESH = 1
 P95_THRESH = 0.8
 MEAN_THRESH = 0.05
 

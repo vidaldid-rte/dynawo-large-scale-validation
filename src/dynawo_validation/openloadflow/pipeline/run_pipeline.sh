@@ -282,7 +282,7 @@ echo
 declare -A create_contg
 create_contg[shunt]="create_shunt_contg.py"
 create_contg[load]="create_load_contg.py"
-#create_contg[gen]="create_gen_contg.py"
+create_contg[gen]="create_gen_contg.py"
 #create_contg[branchB]="create_branchB_contg.py"
 
 CASE_DIR=${RESULTS_BASEDIR}
@@ -328,7 +328,7 @@ for DEVICE in "${!create_contg[@]}"; do
     #####################################
     colormsg "*** COMPUTING TOP 10 DIFFS:"
     python3 "$OLF_VALIDATION_SRC"/pipeline/top_10_diffs_dflow.py "$RESULTS_DIR"/pf_sol/ \
-            "$RESULTS_DIR"/pf_metrics/ > "$RESULTS_DIR"/../top_10_diffs_"$DEVICE".txt
+            "$RESULTS_DIR"/pf_metrics/ >| "$RESULTS_DIR"/../top_10_diffs_"$DEVICE".txt
     echo
 
 

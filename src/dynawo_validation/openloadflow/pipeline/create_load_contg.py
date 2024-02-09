@@ -164,7 +164,7 @@ def main():
         # Copy the basecase (unchanged files and dir structure)
         copy_basecase(base_case, OLF_FILE, HADES_FILE, PARAM_FILE, contg_casedir)
 
-        # Modify the Dynawo case (DYD,PAR,CRV)
+        # Modify the OLF case
         config_iidm_load_contingency(
             contg_casedir,
             parsed_case.olf_tree,

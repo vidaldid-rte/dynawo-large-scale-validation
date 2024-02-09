@@ -79,7 +79,7 @@ def insert_lines(iidm_tree, G):
             if bus2 is not None:
                 imp = complex(float(line.get("r")), float(line.get("x")))
                 adm = 1 / (math.sqrt(pow(imp.real, 2) + pow(imp.imag, 2)))
-                p1 = abs(float(line.get("p1")))
+                p1 = abs(float(line.get("p1"))) if line.get("p1") is not None else math.nan
                 line_id = line.get("id")
                 if (bus1, bus2) not in G.edges:
                     G.add_edge(bus1, bus2, value=adm, id=line_id, pa=p1, imp=1 / adm)
