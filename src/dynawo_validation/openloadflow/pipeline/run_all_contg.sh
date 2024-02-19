@@ -184,7 +184,7 @@ if [ $s = "y" ] || ! [ -x "$(type -p parallel)" ]; then
 else
     echo "*** Running in parallel (using GNU parallel)"
     set +e    # allow the script to continue if any case fails
-    find_cmd | parallel -j 100% --verbose "$run_case" "${OPTS[@]}" {}
+    find_cmd | parallel --env powsybl_config_dirs -j 100% --verbose "$run_case" "${OPTS[@]}" {}
     EXIT_VAL=$?
     set -e
     if [ "$EXIT_VAL" -ne 0 ]; then

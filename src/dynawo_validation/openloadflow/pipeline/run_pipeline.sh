@@ -232,8 +232,43 @@ fi
 
 CP_BASECASE=$REAL_BASECASE
 
+###################################################
+# Create the itools config directory
+###################################################
 
-# TODO: Need to reconnect ? Process automata changes for the BASECASE run
+ITOOLS_DIR=${REAL_RESULTS_BASEDIR}/.itools
+if [ ! -d  "${ITOOLS_DIR}" ]; then
+    mkdir "${ITOOLS_DIR}"
+
+    cat <<EOF > "${ITOOLS_DIR}"/config.yml
+load-flow:
+  default: "OpenLoadFlow"
+EOF
+
+    cat <<EOF > "${ITOOLS_DIR}"/itools.conf
+powsybl_config_name=config
+java_xmx=8G
+EOF
+
+    cat <<EOF > "${ITOOLS_DIR}"/logback-itools.xml
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <Pattern>%d{yyyy-MM-dd_HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</Pattern>
+        </encoder>
+    </appender>
+    <root level="INFO">
+        <appender-ref ref="STDOUT" />
+    </root>
+</configuration>
+EOF
+
+fi
+
+# Set the config directory variable for itools
+export powsybl_config_dirs="${ITOOLS_DIR}"
+
 
 #######################################
 # Run the base case
