@@ -98,11 +98,6 @@ def main():
 
     print("RNG_SEED used to create contingencies = " + str(RNG_SEED))
 
-    # Check whether it's a Dynawo-vs-Hades or a Dynawo-vs-Dynawo case
-    # And get the Dynawo paths from the JOB file, and the simulation time params
-    dwo_paths, dwohds = (None, None)
-    dwo_pathsA, dwo_pathsB = (None, None)
-
 
     # Parse all XML files in the basecase
     parsed_case = parse_basecase(
@@ -153,7 +148,7 @@ def main():
         )
 
         # We fix any device names with slashes in them (illegal filenames)
-        contg_casedir = dirname + "/gen#" + gen_name.replace("/", "+")
+        contg_casedir = os.path.join(dirname,  "gen#" + gen_name.replace("/", "+").replace(" ","_"))
 
         # Copy the basecase (unchanged files and dir structure)
         copy_basecase(base_case, OLF_FILE, HADES_FILE, PARAM_FILE, contg_casedir)
@@ -170,7 +165,7 @@ def main():
 
 
     # Finally, save the (P,Q) values of disconnected gens in all *processed* cases
-    save_total_genpq(dirname, dwohds, olf_gens, processed_gensPQ)
+    save_total_genpq(dirname, olf_gens, processed_gensPQ)
 
     return 0
 
@@ -183,7 +178,7 @@ def extract_olf_gens(iidm_tree, verbose=False):
 
     # We enumerate all gens and extract their properties
     for gen in root.iter("{%s}generator" % ns):
-        P_val = float(gen.get("p")) if gen.get("p") is not None else gen.get("targetP")
+        P_val = float(gen.get("p")) if gen.get("p") is not None else float(gen.get("targetP"))
         if gen.get("q") is not None:
             Q_val = float(gen.get("q"))
         else:
@@ -252,14 +247,6 @@ def matching_in_hades(hades_tree, olf_gens, verbose=False):
 
     return dict(new_list)
 
-
-def matching_in_dwoB(dynawo_gensA, dynawo_gensB):
-    # Match:
-    new_list = [x for x in dynawo_gensA.items() if x[0] in dynawo_gensB]
-    print("   (matched %d gens against Dynawo A case)\n" % len(new_list))
-    return dict(new_list)
-
-
 def config_olf_gen_contingency(casedir, olf_tree, gen_name):
     iidm_file = os.path.join(casedir, OLF_FILE)
     print("   Configuring file %s" % iidm_file)
@@ -320,6 +307,8 @@ def config_hades_gen_contingency(casedir, hades_tree, gen_name):
     bus_id = hades_gen.get("noeud")
     hades_gen.set("noeud", "-1")
     # Write out the Hades file, preserving the XML format
+    if os.path.exists(hades_file):  # Remove previous file that can be a symbolic link
+        os.remove(hades_file)
     hades_tree.write(
         hades_file,
         pretty_print=True,
@@ -332,50 +321,40 @@ def config_hades_gen_contingency(casedir, hades_tree, gen_name):
     return gen_P, gen_Q
 
 
-def save_total_genpq(dirname, dwohds, dynawo_gens, processed_gens):
+def save_total_genpq(dirname, olf_gens, processed_gensPQ):
     file_name = dirname + "/total_PQ_per_generator.csv"
     # Using a dataframe for sorting
-    if dwohds:
-        column_list = [
-            "GEN",
-            "P_dwo",
-            "P_hds",
-            "Pdiff_pct",
-            "Q_dwo",
-            "Q_hds",
-            "Qdiff_pct",
-            "sumPQdiff_pct",
-        ]
-    else:
-        column_list = [
-            "GEN",
-            "P_dwoA",
-            "P_dwoB",
-            "Pdiff_pct",
-            "Q_dwoA",
-            "Q_dwoB",
-            "Qdiff_pct",
-            "sumPQdiff_pct",
-        ]
+
+    column_list = [
+        "GEN",
+        "P_olf",
+        "P_hds",
+        "Pdiff_pct",
+        "Q_olf",
+        "Q_hds",
+        "Qdiff_pct",
+        "sumPQdiff_pct",
+    ]
+
     # The processed_gens dict (which contains B case data) contains only the cases
     # that have actually been processed (we may have skipped some in the main loop)
     data_list = []
-    for gen_name in processed_gens:
-        P_dwo = dynawo_gens[gen_name].P
-        P_proc = processed_gens[gen_name][0]
-        Pdiff_pct = 100 * (P_dwo - P_proc) / max(abs(P_proc), 0.001)
-        Q_dwo = dynawo_gens[gen_name].Q
-        Q_proc = processed_gens[gen_name][1]
-        Qdiff_pct = 100 * (Q_dwo - Q_proc) / max(abs(Q_proc), 0.001)
+    for gen_name in processed_gensPQ:
+        p_olf = olf_gens[gen_name].P
+        p_hds = processed_gensPQ[gen_name][0]
+        Pdiff_pct = 100 * (p_olf - p_hds) / max(abs(p_hds), 0.001)
+        q_olf = olf_gens[gen_name].Q
+        q_hds = processed_gensPQ[gen_name][1]
+        Qdiff_pct = 100 * (q_olf - q_hds) / max(abs(q_hds), 0.001)
         sumPQdiff_pct = abs(Pdiff_pct) + abs(Qdiff_pct)
         data_list.append(
             [
                 gen_name,
-                P_dwo,
-                P_proc,
+                p_olf,
+                p_hds,
                 Pdiff_pct,
-                Q_dwo,
-                Q_proc,
+                q_olf,
+                q_hds,
                 Qdiff_pct,
                 sumPQdiff_pct,
             ]

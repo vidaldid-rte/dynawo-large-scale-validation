@@ -159,7 +159,7 @@ def main():
         )
 
         # We fix any device names with slashes in them (illegal filenames)
-        contg_casedir = os.path.join(dirname , "load#" + load_name.replace("/", "+"))
+        contg_casedir = os.path.join(dirname , "load#" + load_name.replace("/", "+").replace(" ","_"))
 
         # Copy the basecase (unchanged files and dir structure)
         copy_basecase(base_case, OLF_FILE, HADES_FILE, PARAM_FILE, contg_casedir)
