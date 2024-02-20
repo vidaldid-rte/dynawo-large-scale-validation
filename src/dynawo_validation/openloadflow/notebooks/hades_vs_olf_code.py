@@ -2305,13 +2305,8 @@ def run_all(
     netwgraph_edgetypes = ["p1", "p2", "q1", "q2"]
     netwgraph_edgemetrictype = ["DIFF", "ABS_ERR", "REL_ERR", "VALUE_HADES", "VALUE_OLF"]
 
-    # do_displaybutton() # The button does not hide code with current Jupyter version
-    #
-    # # Get aut diffs
-    # globaltap_aut_diffs_A, globaltap_aut_diffs_B = read_csv_aut_diffs(
-    #     RESULTS_DIR + "/" + PREFIX + "/aut/"
-    # )
-    #
+    do_displaybutton() # The button does not hide code with current Jupyter version
+
     # # Get global diffs
     globaldiffs_df = read_csv_metrics(PF_SOL_DIR)
     #
@@ -2480,7 +2475,7 @@ def run_all(
         contgcasediffs_dropdowny.value,
     )
 
-
+    # TODO: Reconnect this ?
     # # Individual trace for contingency taps
     # (
     #     contgcasetap_current_aut_group_traceA,
