@@ -60,7 +60,6 @@ parser.add_argument(
     help="generate a different random sample of contingencies with defined seed",
 )
 parser.add_argument("base_case", help="base case directory")
-parser.add_argument("result_dir", help="result directory")
 args = parser.parse_args()
 
 
@@ -71,7 +70,6 @@ def main():
     if args.verbose:
         verbose = args.verbose
     base_case = args.base_case
-    result_dir = args.result_dir
     if args.list:
         temp_list = args.list.split("|")
         filter_list = [re.compile(x) for x in temp_list]
@@ -90,8 +88,8 @@ def main():
     if base_case[-1] == "/":
         base_case = base_case[:-1]
 
-    # Contingency cases will be created under the resultDir
-    dirname = os.path.abspath(result_dir)
+    # Contingency cases will be created under the same dir as the basecase
+    dirname = os.path.dirname(os.path.abspath(base_case))
     print("RNG_SEED used to create contingencies = " + str(RNG_SEED))
 
     # Parse all XML files in the basecase

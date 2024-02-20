@@ -59,7 +59,6 @@ parser.add_argument(
     help="generate a different random sample of contingencies with defined seed",
 )
 parser.add_argument("base_case", help="enter base case directory")
-parser.add_argument("result_dir", help="result directory")
 args = parser.parse_args()
 
 

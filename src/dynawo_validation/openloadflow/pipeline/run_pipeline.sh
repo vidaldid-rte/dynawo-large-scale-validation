@@ -329,7 +329,7 @@ for DEVICE in "${!create_contg[@]}"; do
     ####################################
     CASE_SOURCE_DIR=${RESULTS_BASEDIR}/$(basename "${BASECASE}")
     colormsg "*** CREATING CONTINGENCY CASES:"
-    python3 "$CONTG_SRC"/"${create_contg[$DEVICE]}" "${CREATE_OPTS[@]}" "$CASE_SOURCE_DIR" "$RESULTS_BASEDIR"
+    python3 "$CONTG_SRC"/"${create_contg[$DEVICE]}" "${CREATE_OPTS[@]}" "$CASE_SOURCE_DIR" 
     echo
 
 
