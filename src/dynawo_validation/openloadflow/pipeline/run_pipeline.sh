@@ -276,7 +276,7 @@ export powsybl_config_dirs="${ITOOLS_DIR}"
 
   RESULTS_DIR="$RESULTS_BASEDIR"/basecase
   mkdir -p "$RESULTS_DIR"
-  "$CONTG_SRC"/run_one_case.sh "${RUNBASE_OPTS[@]}" -o "$RESULTS_DIR" -H "$H" -O "$O" \
+  "$CONTG_SRC"/run_one_case.sh "${RUNBASE_OPTS[@]}" --launcherInfo -o "$RESULTS_DIR" -H "$H" -O "$O" \
               "$CP_BASECASE"
 
 ###############################

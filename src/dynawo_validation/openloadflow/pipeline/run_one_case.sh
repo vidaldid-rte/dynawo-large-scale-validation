@@ -153,10 +153,8 @@ PARSED=$(getopt --options=$OPTIONS --longoptions=$LONGOPTS --name "$0" -- "$@")
 # read getopt’s output this way to handle the quoting right:
 eval set -- "$PARSED"
 
-# TODO Ajouter l'option pour récuperer les infos de param et de version et le coder
-
 # now enjoy the options in order and nicely split until we see --
-c=n d=n h=n outDir="RESULTS" v=n H="hades2.sh" O="itools" REFDIR=""
+c=n d=n h=n outDir="RESULTS" v=n H="hades2.sh" O="itools" REFDIR="" i=""
 while true; do
     case "$1" in
         -b|--basecase)
@@ -176,8 +174,7 @@ while true; do
             shift
             ;;
         -i|--launcherInfo )
-        #TODO utiliser ce parametre pour l'extraction
-            i=y
+            i="-i"
             shift
             ;;
         -o|--output)
@@ -240,7 +237,6 @@ if [ ! -f "$HADES_FILE" ]; then
    exit 1
 fi
 
-# TODO - mettre en XML pour supporter directement du arcade ?
 OLF_FILE=${BASEDIR}/entreeOLF.xiidm
 if [ ! -f "$OLF_FILE" ]; then
    echo "ERROR: OLF input file $OLF_FILE not found."
@@ -318,7 +314,7 @@ run_olf $O
 # using a standardized format to allow comparisons
 scripts_basedir=$(dirname "$0")
 echo "Extracting the powerflow solutions for case: $BASEDIR"
-python3 "$scripts_basedir"/extract_powerflow_values.py -i -v "$BASEDIR"
+python3 "$scripts_basedir"/extract_powerflow_values.py $i -v "$BASEDIR"
 
 # Collect and compress all results
 xz -c9 "$BASEDIR"/pfsolution_HO.csv > "$outDir"/pf_sol/"$prefix"_pfsolutionHO.csv.xz

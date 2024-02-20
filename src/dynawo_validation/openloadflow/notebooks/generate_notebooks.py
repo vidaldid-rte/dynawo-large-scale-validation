@@ -54,7 +54,6 @@ def main():
         contg_type = contg_type[:-1]
     if base_case[-1] == "/":
         base_case = base_case[:-1]
-    # TODO Supprmier et utiliser des path.join
     if case_dir[-1] != "/":
         case_dir = case_dir + "/"
 
