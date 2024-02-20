@@ -56,7 +56,7 @@ find_cmd()
 usage()
 {
     cat <<EOF
-Usage: $0 [OPTIONS] BASECASE RESULTS_DIR
+Usage: olf_run_validation [OPTIONS] BASECASE RESULTS_DIR
   Options:
     -H | --launcherH  Defines the launcher for Hades
     -O | --launcherO  Defines the launcher for OpenLoadFlow
@@ -89,6 +89,8 @@ if [[ $? -ne 4 ]]; then
 fi
 set -e
 
+#TODO remove this trace
+echo args: "$@"
 
 OPTIONS=H:O:hdcsw:
 LONGOPTS=launcherO:,launcherH:,help,debug,cleanup,weights,sequential:
@@ -175,7 +177,7 @@ fi
 # handle non-option arguments
 if [[ $# -ne 2 ]]; then
     echo
-    echo "$0: Two arguments are required."
+    echo "olf_run_validation: Two arguments are required."
     usage
     exit 4
 fi

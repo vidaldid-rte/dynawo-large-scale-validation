@@ -1,0 +1,17 @@
+#!/usr/bin/env python3
+import os
+import sys
+import subprocess
+from subprocess import run
+from dynawo_validation.openloadflow.pipeline import dirutil
+
+
+def main():
+    file_path = dirutil.get_pipeline_dir()
+    run(os.path.join(file_path, "run_pipeline.sh") + " " + " ".join(sys.argv[1:]),
+        shell=True)
+
+
+
+if __name__ == "__main__":
+    sys.exit(main())

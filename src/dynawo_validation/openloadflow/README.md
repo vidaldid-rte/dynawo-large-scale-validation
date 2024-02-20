@@ -23,12 +23,13 @@ You need
 
 ## Running the simulation
  
-   * Run the simulation with this command (TODO - Wrapper not implemented yet) 
-     * run_pipeline.sh -H ~/tools/hades/hades2-V6.9.0.2/hades2.sh -O ~/tools/powsybl-distribution-2024.0.0-SNAPSHOT/bin/itools  inputDir resultDir
+   * Run the simulation with this command 
+     * olf_run_validation -H ~/tools/hades/hades2-V6.9.0.2/hades2.sh -O ~/tools/powsybl-distribution-2024.0.0-SNAPSHOT/bin/itools -c inputDir resultDir
    * See the result ith this command (TODO - more contingencies to add)
      * jupyter-notebook  
-       * Notebooks available (basecase and for load and shunt contingencies)
+       * Notebooks available (basecase and for load, gen and shunt contingencies)
          * myResult/basecase/notebooks/Hades_vs_OpenLoadFlow_final.ipynb
          * myResult/shunt/notebooks/Hades_vs_OpenLoadFlow_final.ipynb
          * myResult/load/notebooks/Hades_vs_OpenLoadFlow_final.ipynb
+         * myResult/gen/notebooks/Hades_vs_OpenLoadFlow_final.ipynb
 
