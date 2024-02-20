@@ -24,7 +24,7 @@
 
 # For saner programming:
 set -o nounset -o noclobber
-set -o errexit -o pipefail 
+set -o errexit -o pipefail
 
 
 # TODO: put again the code that creates the contingencies
@@ -88,9 +88,6 @@ if [[ $? -ne 4 ]]; then
     exit 1
 fi
 set -e
-
-#TODO remove this trace
-echo args: "$@"
 
 OPTIONS=H:O:hdcsw:
 LONGOPTS=launcherO:,launcherH:,help,debug,cleanup,weights,sequential:
@@ -314,13 +311,12 @@ echo
 # Process all types of contingency
 #######################################
 
-# TODO Contingences N-K
 # TODO Contingenes spécifiques Transfo / HVDC / Groupe  (lié au controle de tension ? -- A voir)
 declare -A create_contg
 create_contg[shunt]="create_shunt_contg.py"
 create_contg[load]="create_load_contg.py"
 create_contg[gen]="create_gen_contg.py"
-#create_contg[branchB]="create_branchB_contg.py"
+create_contg[branchB]="create_branchB_contg.py"
 
 CASE_DIR=${RESULTS_BASEDIR}
 for DEVICE in "${!create_contg[@]}"; do

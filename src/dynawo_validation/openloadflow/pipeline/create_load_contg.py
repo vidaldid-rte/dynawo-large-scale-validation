@@ -24,7 +24,7 @@ sys.path.insert(
     1, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 )
 
-MAX_NCASES = 10  # limits the no. of contingency cases (via random sampling)
+MAX_NCASES = 35  # limits the no. of contingency cases (via random sampling)
 HADES_FILE = "entreeHades.xml"
 OLF_FILE = "entreeOLF.xiidm"
 PARAM_FILE = "OLFParams.json"
@@ -301,7 +301,7 @@ def config_iidm_load_contingency(casedir, olf_tree, load_name):
     olf_tree.write(
         iidm_file,
         pretty_print=True,
-        xml_declaration='<?xml version="1.0" encoding="ISO-8859-1"?>',
+        xml_declaration='<?xml version="1.0" encoding="UTF-8"?>',
         encoding="UTF-8",
         standalone=False,
     )
