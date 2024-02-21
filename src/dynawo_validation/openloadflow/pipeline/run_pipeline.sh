@@ -6,7 +6,6 @@
 # A simple high-level "driver" script that runs the whole processing
 # pipeline.  Given a directory containing Hades vs. OpenLoadFlow
 #
-#   TODO: create and run contingencies
 #
 #   (a) runs the two models
 #
@@ -26,8 +25,6 @@
 set -o nounset -o noclobber
 set -o errexit -o pipefail
 
-
-# TODO: put again the code that creates the contingencies
 
 # Note this assumes all scripts are under the Github src dir structure
 # (otherwise, you'll have to edit the correct paths below)
@@ -62,6 +59,7 @@ Usage: olf_run_validation [OPTIONS] BASECASE RESULTS_DIR
     -O | --launcherO  Defines the launcher for OpenLoadFlow
     -c | --cleanup    Delete input cases after getting the results
     -d | --debug      More debug messages
+    -m | --max        Maximum number of contingencies for each type (default 20)
     -s | --sequential Run jobs sequentially (defult is parallel)
     -w | --weights    Calculate scores with weights
     -h | --help       This help message
@@ -89,8 +87,8 @@ if [[ $? -ne 4 ]]; then
 fi
 set -e
 
-OPTIONS=H:O:hdcsw:
-LONGOPTS=launcherO:,launcherH:,help,debug,cleanup,weights,sequential:
+OPTIONS=H:O:hdcm:sw:
+LONGOPTS=launcherO:,launcherH:,help,debug,cleanup,weights,max:,sequential:
 # -activate quoting/enhanced mode (e.g. by writing out “--options”)
 # -pass arguments only via   -- "$@"   to separate them correctly
 PARSED=$(getopt --options=$OPTIONS --longoptions=$LONGOPTS --name "$0" -- "$@")
@@ -98,7 +96,7 @@ PARSED=$(getopt --options=$OPTIONS --longoptions=$LONGOPTS --name "$0" -- "$@")
 eval set -- "$PARSED"
 
 # now enjoy the options in order and nicely split until we see --
-H="hades2.sh" O="itools" h=n sequential='n'
+H="hades2.sh" O="itools" h=n sequential='n' maxCont=20
 debug=n cleanup=n weightslist="None"
 while true; do
     case "$1" in
@@ -124,6 +122,11 @@ while true; do
         -d|--debug)
             debug=y
             shift
+            ;;
+        -m|--max)
+            maxCont="$2"
+            echo "Maximum number of contingency per type: $2"
+            shift 2
             ;;
         -s|--sequential)
             sequential=y
@@ -153,7 +156,6 @@ fi
 
 
 # handle options for run_all.s
-# TODO: update RUNALL_OPTS when sequential is introdeced again
 
 if [ $debug = "y" ]; then
     RUNALL_OPTS=("${RUNALL_OPTS[@]}" "-d")
@@ -329,7 +331,7 @@ for DEVICE in "${!create_contg[@]}"; do
     ####################################
     CASE_SOURCE_DIR=${RESULTS_BASEDIR}/$(basename "${BASECASE}")
     colormsg "*** CREATING CONTINGENCY CASES:"
-    python3 "$CONTG_SRC"/"${create_contg[$DEVICE]}" "${CREATE_OPTS[@]}" "$CASE_SOURCE_DIR" 
+    python3 "$CONTG_SRC"/"${create_contg[$DEVICE]}" --max "${maxCont}" "$CASE_SOURCE_DIR"
     echo
 
 

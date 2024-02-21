@@ -25,7 +25,6 @@ sys.path.insert(
 # Alternatively, you could set PYTHONPATH to PYTHONPATH="/<dir>/dynawo-validation-AIA"
 
 
-MAX_NCASES = 35  # limits the no. of contingency cases (via random sampling)
 HADES_FILE = "entreeHades.xml"
 OLF_FILE = "entreeOLF.xiidm"
 PARAM_FILE = "OLFParams.json"
@@ -48,6 +47,13 @@ parser.add_argument(
     "string form separated with pipe(|)",
 )
 parser.add_argument(
+    "-m",
+    "--max",
+    type=int,
+    default=20,
+    help="maximum number of contingencies to generate",
+)
+parser.add_argument(
     "-a", "--allcontg", help="generate all the contingencies", action="store_true"
 )
 parser.add_argument(
@@ -67,6 +73,7 @@ args = parser.parse_args()
 
 def main():
     RNG_SEED = 42
+    max_ncases = args.max
     # args management
     filter_list = []
     verbose = False
@@ -113,12 +120,12 @@ def main():
 
     # Prepare for random sampling if there's too many
     if not args.allcontg:
-        sampling_ratio = MAX_NCASES / len(olf_gens)
+        sampling_ratio = max_ncases / len(olf_gens)
         random.seed(RNG_SEED)
         if len(filter_list) == 0 and sampling_ratio < 1:
             print(
                 "LIMITING to a sample of about %d cases (%.2f%% of all cases)"
-                % (MAX_NCASES, 100 * sampling_ratio)
+                % (max_ncases, 100 * sampling_ratio)
             )
     else:
         sampling_ratio = 1

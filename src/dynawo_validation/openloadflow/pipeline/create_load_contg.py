@@ -24,7 +24,6 @@ sys.path.insert(
     1, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 )
 
-MAX_NCASES = 35  # limits the no. of contingency cases (via random sampling)
 HADES_FILE = "entreeHades.xml"
 OLF_FILE = "entreeOLF.xiidm"
 PARAM_FILE = "OLFParams.json"
@@ -56,6 +55,13 @@ parser.add_argument(
     "-v", "--verbose", help="increase output verbosity", action="store_true"
 )
 parser.add_argument(
+    "-m",
+    "--max",
+    type=int,
+    default=20,
+    help="maximum number of contingencies to generate",
+)
+parser.add_argument(
     "-l",
     "--list",
     help="enter regular expressions or contingencies in "
@@ -81,6 +87,7 @@ args = parser.parse_args()
 
 def main():
     RNG_SEED = 42
+    max_ncases = args.max
     filter_list = []
     verbose = False
     if args.verbose:
@@ -125,12 +132,12 @@ def main():
 
     # Prepare for random sampling if there's too many
     if not args.allcontg:
-        sampling_ratio = MAX_NCASES / len(olf_loads)
+        sampling_ratio = max_ncases / len(olf_loads)
         random.seed(RNG_SEED)
         if len(filter_list) == 0 and sampling_ratio < 1:
             print(
                 "LIMITING to a sample of about %d cases (%.2f%% of all cases)"
-                % (MAX_NCASES, 100 * sampling_ratio)
+                % (max_ncases, 100 * sampling_ratio)
             )
     else:
         sampling_ratio = 1
