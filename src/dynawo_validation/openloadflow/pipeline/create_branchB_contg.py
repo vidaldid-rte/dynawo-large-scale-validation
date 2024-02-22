@@ -64,6 +64,12 @@ parser.add_argument(
     "--prandom",
     help="generate a different random sample of contingencies with defined seed",
 )
+parser.add_argument(
+    "--minP",
+    type=int,
+    default=0,
+    help="minimum power for contingencies",
+)
 parser.add_argument("base_case", help="enter base case directory")
 args = parser.parse_args()
 
@@ -118,6 +124,10 @@ def main():
     olf_branches = matching_in_hades(
         parsed_case.hades_tree, olf_branches, verbose
     )
+
+    # finally only keep those with active power greater than minP
+    olf_branches = {branch:olf_branches[branch] for branch in olf_branches if abs(olf_branches[branch].P) >= args.minP}
+    print("   (kept {0} branches with P > {1})\n".format(len(olf_branches), args.minP))
 
     # Prepare for random sampling if there's too many
     if not args.allcontg:

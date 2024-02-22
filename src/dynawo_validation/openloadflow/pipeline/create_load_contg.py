@@ -81,6 +81,12 @@ parser.add_argument(
     "--prandom",
     help="generate a different random sample of contingencies with defined seed",
 )
+parser.add_argument(
+    "--minP",
+    type=int,
+    default=0,
+    help="minimum power for contingencies",
+)
 parser.add_argument("base_case", help="base case directory")
 args = parser.parse_args()
 
@@ -128,6 +134,10 @@ def main():
 
     # And reduce the list to those LOADS that are matched in Hades
     olf_loads = matching_in_hades(parsed_case.hades_tree, olf_loads, verbose)
+
+    # finally only keep those with active power greater than minP
+    olf_loads = {load:olf_loads[load] for load in olf_loads if abs(olf_loads[load].P) >= args.minP}
+    print("   (kept {0} loads with P > {1})\n".format(len(olf_loads), args.minP))
 
 
     # Prepare for random sampling if there's too many

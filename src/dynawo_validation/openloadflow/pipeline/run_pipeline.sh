@@ -60,6 +60,7 @@ Usage: olf_run_validation [OPTIONS] BASECASE RESULTS_DIR
     -c | --cleanup    Delete input cases after getting the results
     -d | --debug      More debug messages
     -m | --max        Maximum number of contingencies for each type (default 20)
+    --minP            Minimum active power in MW for contingencies on gen, load, line (default 0)
     -s | --sequential Run jobs sequentially (defult is parallel)
     -w | --weights    Calculate scores with weights
     -h | --help       This help message
@@ -88,7 +89,7 @@ fi
 set -e
 
 OPTIONS=H:O:hdcm:sw:
-LONGOPTS=launcherO:,launcherH:,help,debug,cleanup,weights,max:,sequential:
+LONGOPTS=launcherO:,launcherH:,help,debug,cleanup,weights,max:,minP:,sequential:
 # -activate quoting/enhanced mode (e.g. by writing out “--options”)
 # -pass arguments only via   -- "$@"   to separate them correctly
 PARSED=$(getopt --options=$OPTIONS --longoptions=$LONGOPTS --name "$0" -- "$@")
@@ -96,7 +97,7 @@ PARSED=$(getopt --options=$OPTIONS --longoptions=$LONGOPTS --name "$0" -- "$@")
 eval set -- "$PARSED"
 
 # now enjoy the options in order and nicely split until we see --
-H="hades2.sh" O="itools" h=n sequential='n' maxCont=20
+H="hades2.sh" O="itools" h=n sequential='n' maxCont=20 minP=0
 debug=n cleanup=n weightslist="None"
 while true; do
     case "$1" in
@@ -126,6 +127,11 @@ while true; do
         -m|--max)
             maxCont="$2"
             echo "Maximum number of contingency per type: $2"
+            shift 2
+            ;;
+        --minP)
+            minP="$2"
+            echo "Minimum active power for contingencies: $2"
             shift 2
             ;;
         -s|--sequential)
@@ -331,7 +337,7 @@ for DEVICE in "${!create_contg[@]}"; do
     ####################################
     CASE_SOURCE_DIR=${RESULTS_BASEDIR}/$(basename "${BASECASE}")
     colormsg "*** CREATING CONTINGENCY CASES:"
-    python3 "$CONTG_SRC"/"${create_contg[$DEVICE]}" --max "${maxCont}" "$CASE_SOURCE_DIR"
+    python3 "$CONTG_SRC"/"${create_contg[$DEVICE]}" --max "${maxCont}" --minP "${minP}" "$CASE_SOURCE_DIR"
     echo
 
 

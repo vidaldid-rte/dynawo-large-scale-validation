@@ -65,6 +65,10 @@ parser.add_argument(
     "--prandom",
     help="generate a different random sample of contingencies with defined seed",
 )
+parser.add_argument(
+    "--minP",
+    help="minimum power for contingencies (ignored for shunt)",
+)
 parser.add_argument("base_case", help="base case directory")
 args = parser.parse_args()
 
