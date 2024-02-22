@@ -52,6 +52,8 @@ def main():
             if i not in data_files_list and re.match(j + "_pfsolutionHO.csv.xz", i):
                 data_files_list.append(i)
 
+
+    convergence_mismatch = []
     for i in data_files_list:
         # If it is the first iteration, we must initialize all the total metrics
         if first_iteration:
@@ -108,6 +110,7 @@ def main():
             databusq = data.loc[(data.VAR == "q") & (data.ELEMENT_TYPE == "bus")]
             databusqsortedabs = databusq.sort_values("ABS_ERR", ascending=False)
             databusqsortedrel = databusq.sort_values("REL_ERR", ascending=False)
+
 
             # We check if the 10 largest values ​​in the current case belong to the biggest
             # general differences. To save computation, we check if they are greater than
@@ -224,6 +227,12 @@ def main():
                     )[:10]
                 else:
                     break
+        # Either it is first or next iteration, identify cases with convergence issue
+        status_df = data[data.ID == "status#code"]
+        if status_df.iloc[0]["ABS_ERR"] > 0:
+            convergence_mismatch.append([split_contg,
+                                         status_df.iloc[0]["VALUE_HADES"],
+                                         status_df.iloc[0]["VALUE_OLF"]])
 
     if first_iteration:
         raise ValueError(
@@ -278,6 +287,13 @@ def main():
         + str(df_weights["P95_THRESH"].to_list()[0])
         + "\n"
     )
+    if len(convergence_mismatch) > 0:
+
+        print(
+        "\n\nCONVERGENCE ISSUE: CASES WITH DIFFERENT CONVERGENCE STATUS in HADES and OLF "
+        )
+        print(pd.DataFrame(convergence_mismatch, columns=["Case", "Hades Status", "OLF Status"]))
+
     print(
         "\n\nCOMPOUND SCORES: TOP 10 MAX METRIC --- # of cases exceeding threshold = "
         + str(max_n_pass)

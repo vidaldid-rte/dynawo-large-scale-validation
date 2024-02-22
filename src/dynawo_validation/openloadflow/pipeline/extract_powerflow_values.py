@@ -29,6 +29,7 @@ sys.path.insert(
 )
 
 OLF_SOLUTION = "olf.xiidm"
+OLF_LOG = "OLF.RunStdout.txt"
 HDS_INPUT = "entreeHades.xml"
 HDS_SOLUTION = "out.xml"
 HDS_VERSION = "LAUNCHER_HADES"
@@ -88,6 +89,7 @@ def main():
     olf_version = os.path.join(case_dir, OLF_VERSION)
     olf_params = os.path.join(case_dir, OLF_PARAMS)
     olf_file = os.path.join(case_dir, OLF_SOLUTION)
+    olf_log = os.path.join(case_dir, OLF_LOG)
     check_input_files(case_dir, [hades_output, hades_version, olf_version, olf_params, olf_file])
 
     if args.launcherInfo:
@@ -101,11 +103,13 @@ def main():
 
     # Extract the solution values from Dynawo results
     df_olf, vl_nomV, branch_info = extract_iidm_solution(olf_file)
+    extract_olf_status(df_olf, olf_log)
 
     # Extract the solution values from Hades results
     df_hds = extract_hades_solution(
         hades_input, hades_output, vl_nomV, branch_info
     )
+    extract_hades_status(df_hds, hades_output)
 
     # Merge, sort, and save
     save_extracted_values(df_hds, df_olf, os.path.join(case_dir,OUTPUT_FILE))
@@ -126,6 +130,47 @@ def check_input_files(case_dir, fileList):
             os.path.isfile(file)
         ):
             raise ValueError(f"Expected file missing in {case_dir} : file {file}\n")
+
+
+def extract_olf_status(df_olf, olf_log):
+    # Assuming only one component
+    with open(olf_log) as f:
+        found = False
+        for line in f.readlines():
+            if '|' in line:
+                tokens = line.split('|')
+                if len(tokens) == 11 and found:
+                    status_string = tokens[3].strip()
+                    slack = float(tokens[8].replace(",","."))
+                    break
+                if len(tokens) == 11 and "Slack bus mismatch" in tokens[8]:
+                    found = True
+
+    #TODO: Add new statuts as they occur in tests
+    if status_string=="CONVERGED":
+        status_code = 0
+    else:
+        raise Exception("Unknown OLF status: " + status_string)
+    # Hades:
+    #    2 (cause 3) si nonVentilé trop fort
+
+    df_olf.loc[len(df_olf)] = ["status#code", "status", None, "status", status_code]
+    df_olf.loc[len(df_olf)] = ["status#slack", "status", None, "p", slack]
+
+
+def extract_hades_status(df_hds, hades_output):
+    tree = etree.parse(hades_output)
+    root = tree.getroot()
+
+    # Assume only one connected component
+    result = root.find("./modele/sorties/sortieHades", root.nsmap)
+    slack = float(result.get("ecartNoeudBilan"))
+    res_lf = result.find("./resLF", root.nsmap)
+    status = res_lf.get("statut")
+    slack = 0.000999 if res_lf.get("nonVentile") is None else float(res_lf.get("nonVentile"))
+
+    df_hds.loc[len(df_hds)] = ["status#code", "status", "status", status]
+    df_hds.loc[len(df_hds)] = ["status#slack", "status", "p", slack]
 
 
 def extract_iidm_solution(iidm_output):

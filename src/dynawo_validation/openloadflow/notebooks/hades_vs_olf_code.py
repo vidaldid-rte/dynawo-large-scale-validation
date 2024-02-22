@@ -1138,7 +1138,7 @@ def create_dropdowns(
     )
 
     globaldiffs_dropdownvary = widgets.Dropdown(
-        options=df.columns[2:], value="v_p95", description="Y: "
+        options=df.columns[2:], value="p_max", description="Y: "
     )
 
     contgcasediffs_dropdowndev = widgets.Dropdown(
@@ -1567,6 +1567,7 @@ def paint_graph(
 def show_displays(
     hades_info,
     olf_info,
+    globaldiffs_df,
     globaldiffs_def_volt_level,
     globaldiffs_diff_metric_type,
     globaldiffs_dfgrid,
@@ -1603,9 +1604,13 @@ def show_displays(
 
     hades_version = hades_info.loc[hades_info.PARAM == "Version"].VALUE.values[0]
     olf_version = olf_info.loc[olf_info.PARAM == "Version"].VALUE.values[0]
+    cvg_issue = globaldiffs_df[globaldiffs_df.status_max > 0]
+    cvg_issue_count = cvg_issue.shape[0]
     display(
         Markdown(
             f"# RESULTS SUMMARY {hades_version} vs {olf_version} \n"
+            "  * Number of cases with different convergence status in OLF and Hades: "
+            f"{cvg_issue_count/compscore_total_n_pass:.1%} ({cvg_issue_count} of {compscore_total_n_pass})\n"
             "  * Number of cases that exceed the MAX threshold: "
             f"{compscore_max_n_pass/compscore_total_n_pass:.1%} ({compscore_max_n_pass} of {compscore_total_n_pass})\n"
             "  * Number of cases that exceed the P95 threshold: "
@@ -1843,6 +1848,7 @@ def run_all(
                     "q2_max",
                     "tap_max",
                     "v_max",
+                    "status_max",
                 ]
             ]
         elif globaldiffs_diff_metric_type.value == "p95":
@@ -1859,6 +1865,7 @@ def run_all(
                     "q2_p95",
                     "tap_p95",
                     "v_p95",
+                    "status_p95",
                 ]
             ]
         elif globaldiffs_diff_metric_type.value == "mean":
@@ -1875,6 +1882,7 @@ def run_all(
                     "q2_mean",
                     "tap_mean",
                     "v_mean",
+                    "status_mean"
                 ]
             ]
         else:
@@ -2255,6 +2263,7 @@ def run_all(
                     "q2_max",
                     "tap_max",
                     "v_max",
+                    "status_max",
                 ]
             ]
         elif globaldiffs_diff_metric_type.value == "p95":
@@ -2271,6 +2280,7 @@ def run_all(
                     "q2_p95",
                     "tap_p95",
                     "v_p95",
+                    "status_p95",
                 ]
             ]
         elif globaldiffs_diff_metric_type.value == "mean":
@@ -2287,6 +2297,7 @@ def run_all(
                     "q2_mean",
                     "tap_mean",
                     "v_mean",
+                    "status_mean"
                 ]
             ]
         return globaldiffs_matching_df
@@ -2564,7 +2575,7 @@ def run_all(
 
     globaldiffs_dfgrid = ipydatagrid.DataGrid(
         globaldiffs_matching_df,
-        base_column_size=int((WIDTH / 1.03) / len(globaldiffs_matching_df.columns)),
+        base_column_size=int((WIDTH / 1.03) / (1+len(globaldiffs_matching_df.columns))),
         selection_mode="row",
     )
     #
@@ -2709,6 +2720,7 @@ def run_all(
     #     globaltap_trace,
     #     contgcasetap_groups_traceA,
     #     contgcasetap_groups_traceB,
+        globaldiffs_df,
         globaldiffs_def_volt_level,
         globaldiffs_diff_metric_type,
         globaldiffs_dfgrid,
