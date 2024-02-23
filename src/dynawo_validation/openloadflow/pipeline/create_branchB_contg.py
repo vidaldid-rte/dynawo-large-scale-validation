@@ -70,6 +70,12 @@ parser.add_argument(
     default=0,
     help="minimum power for contingencies",
 )
+parser.add_argument(
+    "--maxP",
+    type=int,
+    default=-1,
+    help="minimum power for contingencies",
+)
 parser.add_argument("base_case", help="enter base case directory")
 args = parser.parse_args()
 
@@ -127,7 +133,11 @@ def main():
 
     # finally only keep those with active power greater than minP
     olf_branches = {branch:olf_branches[branch] for branch in olf_branches if abs(olf_branches[branch].P) >= args.minP}
-    print("   (kept {0} branches with P > {1})\n".format(len(olf_branches), args.minP))
+    if args.maxP >= 0:
+        olf_branches = {branch: olf_branches[branch] for branch in olf_branches if abs(olf_branches[branch].P) <= args.maxP}
+        print("   (kept {0} branches with {1} <= P <= {2})\n".format(len(olf_branches), args.minP, args.maxP))
+    else:
+        print("   (kept {0} branches with P > {1})\n".format(len(olf_branches), args.minP))
 
     # Prepare for random sampling if there's too many
     if not args.allcontg:

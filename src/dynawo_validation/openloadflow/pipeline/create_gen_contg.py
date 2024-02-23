@@ -73,6 +73,12 @@ parser.add_argument(
     default=0,
     help="minimum power for contingencies",
 )
+parser.add_argument(
+    "--maxP",
+    type=int,
+    default=-1,
+    help="minimum power for contingencies",
+)
 parser.add_argument("base_case", help="base case directory")
 args = parser.parse_args()
 
@@ -125,7 +131,11 @@ def main():
 
     # finally only keep those with active power greater than minP
     olf_gens = {gen:olf_gens[gen] for gen in olf_gens if abs(olf_gens[gen].P) >= args.minP}
-    print("   (kept {0} gens with P > {1})\n".format(len(olf_gens), args.minP))
+    if args.maxP > 0:
+        olf_gens = {gen: olf_gens[gen] for gen in olf_gens if abs(olf_gens[gen].P) <= args.maxP}
+        print("   (kept {0} gens with {1} <= P <= {2})\n".format(len(olf_gens), args.minP, args.maxP))
+    else:
+        print("   (kept {0} gens with P >= {1})\n".format(len(olf_gens), args.minP))
 
     # Prepare for random sampling if there's too many
     if not args.allcontg:
