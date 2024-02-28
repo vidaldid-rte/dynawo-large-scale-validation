@@ -217,15 +217,9 @@ def extract_olf_gens(iidm_tree, verbose=False):
         if topo_val == "BUS_BREAKER":
             bus_name = gen.get("bus")
         elif topo_val == "NODE_BREAKER":
-            # don't try to resolve the topology, just take the first active busbar
-            bus_name = None
-            vl = gen.getparent()
-            topology = vl.find("{%s}nodeBreakerTopology" % ns)
-            for node in topology:
-                node_type = etree.QName(node).localname
-                if node_type == "busbarSection" and node.get("v") is not None:
-                    bus_name = node.get("id")
-                    break
+            # To complex to generate contingencies in node breaker (we need to open a switch in all path)
+            print(gen_name + " in node breaker technology. Ignoring")
+            continue
         else:
             raise ValueError("TopologyKind not found for generator: %s" % gen_name)
         gens[gen_name] = Gen_info(

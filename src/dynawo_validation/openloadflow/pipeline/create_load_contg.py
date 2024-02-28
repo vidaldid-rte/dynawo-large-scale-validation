@@ -226,21 +226,8 @@ def extract_olf_loads(iidm_tree, verbose=False):
             if bus_name is None:
                 continue
         elif topo_val == "NODE_BREAKER":
-            bus_name = None
-            load_node = load.get("node")
-            vl = load.getparent()
-            topology = vl.find("./iidm:nodeBreakerTopology", root.nsmap)
-            for node in topology:
-                node_type = etree.QName(node).localname
-                if node_type == "busbarSection" and node.get("node") == load_node:
-                    bus_name = node.get("id")
-                    break
-                # bus connected to mutiple nodes are ignored because not matched with hades..
-                if node_type == "bus" and node.get("nodes") is not None:
-                    if load_node in node.get("nodes").split(","):
-                        bus_name=node.get("nodes")
-                        break
-
+            print(load_name + "ignored. Node breake topology")
+            continue
         else:
             raise ValueError("TopologyKind not found for load: %s" % load_name)
 

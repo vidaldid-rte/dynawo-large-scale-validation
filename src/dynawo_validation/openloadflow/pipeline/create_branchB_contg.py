@@ -242,9 +242,10 @@ def extract_olf_branches(iidm_tree, verbose=False):
             print("   WARNING: unknown branch type %s (skipping)" % branch_name)
             continue
         # Find its FROM and TO buses
-        bus_from = get_endbus(root, branch, branch_type, side="1")
-        bus_to = get_endbus(root, branch, branch_type, side="2")
-        if bus_from is None or bus_to is None:  # skip branch
+        bus_from = branch.get("bus1")
+        bus_to = branch.get("bus2")
+        if bus_from is None or bus_to is None:
+            # Ignoring disconnected branches or branches connected to a node breaker topology
             print(
                 "   WARNING: couldn't find bus FROM/TO for %s %s (skipping)"
                 % (branch_type, branch_name)
@@ -274,32 +275,6 @@ def extract_olf_branches(iidm_tree, verbose=False):
         print()
 
     return branches
-
-
-def get_endbus(root, branch, branch_type, side):
-    ns = etree.QName(root).namespace
-    end_bus = branch.get("bus" + side)
-    if end_bus is None:
-        end_bus = branch.get("connectableBus" + side)
-    if end_bus is None:
-        # bummer, the bus is NODE_BREAKER
-        topo = []
-        #  for xfmers, we only need to search the VLs within the substation
-        if branch_type == "Line":
-            pnode = root
-        else:
-            pnode = branch.getparent()
-        for vl in pnode.iter("{%s}voltageLevel" % ns):
-            if vl.get("id") == branch.get("voltageLevelId" + side):
-                topo = vl.find("{%s}nodeBreakerTopology" % ns)
-                break
-        # we won't resolve the actual topo connectivity; just take the first busbar
-        for node in topo:
-            node_type = etree.QName(node).localname
-            if node_type == "busbarSection" and node.get("v") is not None:
-                end_bus = node.get("id")
-                break
-    return end_bus
 
 
 def matching_in_hades(hades_tree, dynawo_branches, verbose=False):
