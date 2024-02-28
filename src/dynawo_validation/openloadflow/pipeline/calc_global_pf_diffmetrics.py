@@ -28,6 +28,7 @@ def main():
     PF_METRICS_DIR = PF_SOL_DIR + "/../pf_metrics"
     Path(PF_METRICS_DIR).mkdir(parents=False, exist_ok=True)
 
+    noconv= []
     res = []
     files = list(glob.iglob(PF_SOL_DIR + "/" + PREFIX + "*_pfsolutionHO.csv.xz"))
     print(f"Processing {len(files)} cases: ", end="", flush=True)
@@ -35,6 +36,7 @@ def main():
     for filepath in files:
         contg = filepath.split("/")[-1].split("#")[-1].split("_pfsolution")[-2]
         delta = pd.read_csv(filepath, sep=";", index_col=False, compression="infer")
+
         delta["DIFF"] = delta.VALUE_HADES - delta.VALUE_OLF
         delta["DIFF_ABS"] = abs(delta.VALUE_HADES - delta.VALUE_OLF)
         delta_mean = delta.groupby("VAR").mean(numeric_only=True).sort_values("VAR")
@@ -51,6 +53,12 @@ def main():
         res = res + [res1]
 
         volt_levels = np.sort(delta["VOLT_LEVEL"].unique())
+
+        status_df = delta[delta.ID == "status#code"]
+        if status_df.iloc[0]["DIFF_ABS"] == 0 and status_df.iloc[0]["VALUE_HADES"] > 0:
+            noconv.append([contg,
+                           status_df.iloc[0]["VALUE_HADES"],
+                           status_df.iloc[0]["VALUE_OLF"]])
 
         for volt_level in volt_levels:
             if math.isnan(volt_level):
@@ -90,6 +98,11 @@ def main():
     )
     fileName = os.path.join(PF_METRICS_DIR, "metrics.csv.xz")
     df.to_csv(fileName, compression="xz")
+
+    noconv_df = pd.DataFrame(noconv, columns=["contg_case", "VALUE_HADES", "VALUE_OLF"])
+    fileName = os.path.join(PF_METRICS_DIR, "noconv.csv.xz")
+    noconv_df.to_csv(fileName, compression="xz")
+
     print(" (saved to file OK).", fileName)
 
     return 0

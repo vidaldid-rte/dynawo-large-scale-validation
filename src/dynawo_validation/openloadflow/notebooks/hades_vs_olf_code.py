@@ -4,7 +4,7 @@ from dynawo_validation.openloadflow.notebooks import create_graph
 from dynawo_validation.dynaflow.pipeline.common_funcs import calc_global_score
 from IPython.display import display, HTML, Markdown
 import ipydatagrid
-from ipywidgets import widgets, AppLayout
+from ipywidgets import widgets
 from matplotlib import cm, patches, pyplot
 import pylab as pl
 import numpy as np
@@ -13,10 +13,15 @@ import lzma
 import os
 import copy
 
+global contgcasediffs_data
 
 # Read the metric file
 def read_csv_metrics(pf_dir):
     data = pd.read_csv(pf_dir + "/pf_metrics/metrics.csv.xz", index_col=0)
+    return data
+
+def read_noconv(pf_dir):
+    data = pd.read_csv(pf_dir + "/pf_metrics/noconv.csv.xz", index_col=0)
     return data
 
 
@@ -1562,12 +1567,82 @@ def paint_graph(
 
     return C
 
+def show_style():
+    display(
+        HTML(
+            data="""
+    <style>
+        div#notebook-container    { width: 95%; }
+        div#menubar-container     { width: 65%; }
+        div#maintoolbar-container { width: 99%; }
+    </style>
+    """
+        )
+    )
+
+def show_summary(hades_info,
+                 olf_info,
+                 noconv_df,
+                 globaldiffs_df,
+                 compscore_total_n_pass,
+                 compscore_max_n_pass,
+                 compscore_p95_n_pass,
+                 compscore_mean_n_pass):
+    hades_version = hades_info.loc[hades_info.PARAM == "Version"].VALUE.values[0]
+    olf_version = olf_info.loc[olf_info.PARAM == "Version"].VALUE.values[0]
+    cvg_issue = globaldiffs_df[globaldiffs_df.status_max > 0]
+    cvg_issue_count = cvg_issue.shape[0]
+    display(
+        Markdown(
+            f"# RESULTS SUMMARY {hades_version} vs {olf_version} \n"
+            "  * Number of cases that did not converge: "
+            f"{len(noconv_df)/compscore_total_n_pass:.1%} ({len(noconv_df)} of {compscore_total_n_pass})\n"
+            "  * Number of cases with different convergence status in OLF and Hades: "
+            f"{cvg_issue_count/compscore_total_n_pass:.1%} ({cvg_issue_count} of {compscore_total_n_pass})\n"
+            "  * Number of cases that exceed the MAX threshold: "
+            f"{compscore_max_n_pass/compscore_total_n_pass:.1%} ({compscore_max_n_pass} of {compscore_total_n_pass})\n"
+            "  * Number of cases that exceed the P95 threshold: "
+            f"{compscore_p95_n_pass/compscore_total_n_pass:.1%} ({compscore_p95_n_pass} of {compscore_total_n_pass})\n"
+            f"  * Number of cases that exceed the MEAN threshold: "
+            f"{compscore_mean_n_pass/compscore_total_n_pass:.1%} ({compscore_mean_n_pass} of {compscore_total_n_pass})\n"
+        )
+    )
+
+def show_noconv(noconv_df, WIDTH):
+    if len(noconv_df) > 0:
+        noconv_grid = ipydatagrid.DataGrid(
+            noconv_df,
+            base_column_size = int(WIDTH/4))
+        display(Markdown("## Cases that did not converge"))
+        display(noconv_grid)
+
+def show_parameters(hades_info,
+                    olf_info,
+                    WIDTH):
+    hades_version = hades_info.loc[hades_info.PARAM == "Version"].VALUE.values[0]
+    olf_version = olf_info.loc[olf_info.PARAM == "Version"].VALUE.values[0]
+    hades_param_grid = ipydatagrid.DataGrid(
+        (hades_info[hades_info.PARAM != "Version"]).sort_values(by="PARAM").set_index("PARAM"),
+        column_widths={"PARAM":int(WIDTH/3), "VALUE": int(WIDTH/3)}
+    )
+    generic_olf = olf_info[(olf_info.PARAM.str[0:4] != "olf.") & (olf_info.PARAM != "Version")].sort_values(
+        by="PARAM").set_index("PARAM")
+    specific_olf = olf_info[(olf_info.PARAM.str[0:4] == "olf.") & (olf_info.PARAM != "Version")].sort_values(
+        by="PARAM").set_index("PARAM")
+
+    olf_param_grid = ipydatagrid.DataGrid(
+        pd.concat([generic_olf,specific_olf]),
+        column_widths={"PARAM":int(WIDTH/3), "VALUE": int(WIDTH/3)}
+    )
+    display(Markdown("## Solver Parameters"))
+    display(Markdown(hades_version))
+    display(hades_param_grid)
+    display(Markdown(olf_version))
+    display(olf_param_grid)
+
 
 # Define the structure of the output
 def show_displays(
-    hades_info,
-    olf_info,
-    globaldiffs_df,
     globaldiffs_def_volt_level,
     globaldiffs_diff_metric_type,
     globaldiffs_dfgrid,
@@ -1582,43 +1657,8 @@ def show_displays(
     globaldiffs_button_case,
     button_download_data,
     compscore_grid_score,
-    compscore_max_n_pass,
-    compscore_p95_n_pass,
-    compscore_mean_n_pass,
-    compscore_total_n_pass,
-    hades_param_grid,
-    olf_param_grid,
     DATA_LIMIT,
 ):
-    display(
-        HTML(
-            data="""
-    <style>
-        div#notebook-container    { width: 95%; }
-        div#menubar-container     { width: 65%; }
-        div#maintoolbar-container { width: 99%; }
-    </style>
-    """
-        )
-    )
-
-    hades_version = hades_info.loc[hades_info.PARAM == "Version"].VALUE.values[0]
-    olf_version = olf_info.loc[olf_info.PARAM == "Version"].VALUE.values[0]
-    cvg_issue = globaldiffs_df[globaldiffs_df.status_max > 0]
-    cvg_issue_count = cvg_issue.shape[0]
-    display(
-        Markdown(
-            f"# RESULTS SUMMARY {hades_version} vs {olf_version} \n"
-            "  * Number of cases with different convergence status in OLF and Hades: "
-            f"{cvg_issue_count/compscore_total_n_pass:.1%} ({cvg_issue_count} of {compscore_total_n_pass})\n"
-            "  * Number of cases that exceed the MAX threshold: "
-            f"{compscore_max_n_pass/compscore_total_n_pass:.1%} ({compscore_max_n_pass} of {compscore_total_n_pass})\n"
-            "  * Number of cases that exceed the P95 threshold: "
-            f"{compscore_p95_n_pass/compscore_total_n_pass:.1%} ({compscore_p95_n_pass} of {compscore_total_n_pass})\n"
-            f"  * Number of cases that exceed the MEAN threshold: "
-            f"{compscore_mean_n_pass/compscore_total_n_pass:.1%} ({compscore_mean_n_pass} of {compscore_total_n_pass})\n"
-        )
-    )
 
     #######################################################################
     # Part I: Global ranking
@@ -1753,16 +1793,6 @@ def show_displays(
     # else:
     #     containergroup = widgets.HBox([contgcasetap_groups_traceA])
     # display(containergroup)
-
-    # #######################################################################
-    # # Part IV: Solver parameters
-    # #######################################################################
-
-    display(Markdown("## Solver Parameters"))
-    display(Markdown(hades_version))
-    display(hades_param_grid)
-    display(Markdown(olf_version))
-    display(olf_param_grid)
 
     return netwgraph_html_graph
 
@@ -1965,6 +1995,8 @@ def run_all(
             )
             contgcasediffs_individualtrace.layout.title.text = "Case: " + case
             contgcasediffs_dropdowndev.value = case
+            global  contgcasediffs_data
+            contgcasediffs_data = df1
     #
     # def contgcasetap_individual_aut_group(case):
     #     df1, df2 = read_aut_group(case, PF_SOL_DIR, DWO_DWO, PREFIX)
@@ -2232,9 +2264,10 @@ def run_all(
             C = create_graph.get_subgraph(
                 netwgraph_G, netwgraph_graph.value, SUBGRAPH_TYPE, SUBGRAPH_VALUE
             )
+            global contgcasediffs_data
             C = paint_graph(
                 C,
-                contgcasediffs_data_first_case,
+                contgcasediffs_data,
                 netwgraph_nodetype_drop.value,
                 netwgraph_nodemetrictype_drop.value,
                 netwgraph_edgetype_drop.value,
@@ -2332,9 +2365,6 @@ def run_all(
     # # Get list of contingency cases
     contg_cases = list(globaldiffs_df["contg_case"].unique())
     contgcasediffs_contgcaseinit = contg_cases[0]
-
-    print(contgcasediffs_contgcaseinit)
-
 
     # Read the base case to put default data
     casename = PREFIX+"#"+contgcasediffs_contgcaseinit if PREFIX in ELEMENTS else BASECASE
@@ -2588,6 +2618,9 @@ def run_all(
         data=[contgcasediffs_current_individual_trace], layout=contgcasediffs_layout
     )
 
+    global contgcasediffs_data
+    contgcasediffs_data = contgcasediffs_data_first_case
+
     # # Create individual tap trace widget
     # contgcasetap_groups_traceA = go.FigureWidget(
     #     data=[contgcasetap_current_aut_group_traceA], layout=contgcasetap_layout
@@ -2611,22 +2644,6 @@ def run_all(
         base_column_size=int(
             (WIDTH / 1.03) / len(contgcasediffs_data_first_case_filter.columns)
         ),
-    )
-
-    # Solver info
-    hades_info, olf_info = get_info_data(RESULTS_DIR, BASECASE)
-    hades_param_grid = ipydatagrid.DataGrid(
-        (hades_info[hades_info.PARAM != "Version"]).sort_values(by="PARAM").set_index("PARAM"),
-        column_widths={"PARAM":int(WIDTH/3), "VALUE": int(WIDTH/3)}
-    )
-    generic_olf = olf_info[(olf_info.PARAM.str[0:4] != "olf.") & (olf_info.PARAM != "Version")].sort_values(
-        by="PARAM").set_index("PARAM")
-    specific_olf = olf_info[(olf_info.PARAM.str[0:4] == "olf.") & (olf_info.PARAM != "Version")].sort_values(
-        by="PARAM").set_index("PARAM")
-
-    olf_param_grid = ipydatagrid.DataGrid(
-        pd.concat([generic_olf,specific_olf]),
-        column_widths={"PARAM":int(WIDTH/3), "VALUE": int(WIDTH/3)}
     )
 
     # Graph creation
@@ -2705,11 +2722,22 @@ def run_all(
         netwgraph_legend1widget,
         netwgraph_legend2widget,
     )
+
+    hades_info, olf_info = get_info_data(RESULTS_DIR, BASECASE)
+    noconv_df = read_noconv(PF_SOL_DIR)
     #
     # # Display all the objects and get html subgraph id
+    show_style()
+    show_summary(hades_info,
+                 olf_info,
+                 noconv_df,
+                 globaldiffs_df,
+                 compscore_total_n_pass,
+                 compscore_max_n_pass,
+                 compscore_p95_n_pass,
+                 compscore_mean_n_pass)
+    show_noconv(noconv_df, WIDTH)
     netwgraph_html_graph = show_displays(
-        hades_info,
-        olf_info,
     #     globaltap_aut_diffs_A_grid,
     #     globaltap_aut_diffs_B_grid,
     #     globaltap_container_aut,
@@ -2720,7 +2748,6 @@ def run_all(
     #     globaltap_trace,
     #     contgcasetap_groups_traceA,
     #     contgcasetap_groups_traceB,
-        globaldiffs_df,
         globaldiffs_def_volt_level,
         globaldiffs_diff_metric_type,
         globaldiffs_dfgrid,
@@ -2735,14 +2762,12 @@ def run_all(
         globaldiffs_button_case,
         button_download_data,
         compscore_grid_score,
-        compscore_max_n_pass,
-        compscore_p95_n_pass,
-        compscore_mean_n_pass,
-        compscore_total_n_pass,
-        hades_param_grid,
-        olf_param_grid,
         DATA_LIMIT,
     )
+    show_parameters(hades_info,
+                    olf_info,
+                    WIDTH
+                    )
     #
     # # Observe selection events to update graphics
     globaldiffs_def_volt_level.observe(globaldiffs_response, names="value")
@@ -2759,6 +2784,7 @@ def run_all(
     contgcasediffs_elementdropdown.observe(contgcasediffs_response, names="value")
     contgcasediffs_vardropdown.observe(contgcasediffs_response, names="value")
 
+    contgcasediffs_dropdowndev.observe(netwgraph_response, names="value")
     netwgraph_graph.observe(netwgraph_response, names="value")
     netwgraph_nodetype_drop.observe(netwgraph_response, names="value")
     netwgraph_nodemetrictype_drop.observe(netwgraph_response, names="value")

@@ -100,7 +100,6 @@ def main():
         hades_info.to_csv(os.path.join(case_dir, "hadesInfo.csv"),index=False, sep=";", encoding="utf-8")
         olf_info.to_csv(os.path.join(case_dir, "olfInfo.csv"), index=False, sep=";", encoding="utf-8")
 
-
     # Extract the solution values from Dynawo results
     df_olf, vl_nomV, branch_info = extract_iidm_solution(olf_file)
     extract_olf_status(df_olf, olf_log)
@@ -149,13 +148,20 @@ def extract_olf_status(df_olf, olf_log):
     #TODO: Add new statuts as they occur in tests
     if status_string=="CONVERGED":
         status_code = 0
+    elif status_string=="MAX_ITERATION_REACHED":
+        status_code = 1
     else:
         raise Exception("Unknown OLF status: " + status_string)
     # Hades:
     #    2 (cause 3) si nonVentilé trop fort
 
+    if status_code > 0 :
+        # Remove all values as they make no sense
+        df_olf.drop(df_olf.index, axis=0, inplace=True)
+
     df_olf.loc[len(df_olf)] = ["status#code", "status", None, "status", status_code]
     df_olf.loc[len(df_olf)] = ["status#slack", "status", None, "p", slack]
+
 
 
 def extract_hades_status(df_hds, hades_output):
@@ -635,10 +641,11 @@ def save_extracted_values(df_a, df_b, output_file):
     psxfmr_p1 = (df["ELEMENT_TYPE"] == "psxfmr") & (df["VAR"] == "p1")
     print(f" {len(df.loc[psxfmr_p1]):3d} psxfmrs")
     # Adjust the bus angles to those of solution A
-    swing_idx = df.loc[bus_angles, "VALUE_OLF"].abs().idxmin()
-    angle_offset = df.at[swing_idx, "VALUE_HADES"] - df.at[swing_idx, "VALUE_OLF"]
-    df.loc[bus_angles, "VALUE_HADES"] -= angle_offset
-    print(f'   (angle offset adjusted; zero angle at bus: {df.at[swing_idx, "ID"]})')
+    if len(df.loc[bus_angles]) > 0:
+        swing_idx = df.loc[bus_angles, "VALUE_OLF"].abs().idxmin()
+        angle_offset = df.at[swing_idx, "VALUE_HADES"] - df.at[swing_idx, "VALUE_OLF"]
+        df.loc[bus_angles, "VALUE_HADES"] -= angle_offset
+        print(f'   (angle offset adjusted; zero angle at bus: {df.at[swing_idx, "ID"]})')
     # Sort and save to file
     sort_order = [True, True, True]
     tempcol = df.pop("VOLT_LEVEL")

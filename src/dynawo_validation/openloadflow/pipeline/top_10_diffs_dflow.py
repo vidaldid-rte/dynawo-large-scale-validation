@@ -52,192 +52,88 @@ def main():
             if i not in data_files_list and re.match(j + "_pfsolutionHO.csv.xz", i):
                 data_files_list.append(i)
 
-
     convergence_mismatch = []
+    noconv=[]
+    databusvoltsortedabstotal = None
+    databusvoltsortedreltotal = None
+    databranchpsortedabstotal = None
+    databranchpsortedreltotal = None
+    databuspsortedabstotal = None
+    databuspsortedreltotal = None
+    databusqsortedabstotal = None
+    databusqsortedreltotal = None
     for i in data_files_list:
-        # If it is the first iteration, we must initialize all the total metrics
-        if first_iteration:
-            first_iteration = False
-            # Reading the cases and ordering the values ​​according to the metrics
-            data = read_case(pf_solutions_dir + i)
-            split_contg = i[:-20].split("#")[-1]
-            data.insert(0, "CONTG_ID", split_contg)
-            databusvolt = data.loc[(data.VAR == "v") & (data.ELEMENT_TYPE == "bus")]
-            databusvoltsortedabs = databusvolt.sort_values("ABS_ERR", ascending=False)
-            databusvoltsortedrel = databusvolt.sort_values("REL_ERR", ascending=False)
 
-            databranchp = data.loc[
-                ((data.VAR == "p1") | (data.VAR == "p2")) & (data.ELEMENT_TYPE != "bus")
+        # Reading the cases and ordering the values according to the metrics
+        data = read_case(pf_solutions_dir + i)
+        split_contg = i[:-20].split("#")[-1]
+        data.insert(0, "CONTG_ID", split_contg)
+
+        databusvolt = data.loc[(data.VAR == "v") & (data.ELEMENT_TYPE == "bus")]
+        databusvoltsortedabs = databusvolt.sort_values("ABS_ERR", ascending=False)
+        databusvoltsortedrel = databusvolt.sort_values("REL_ERR", ascending=False)
+        databusvoltsortedabstotal = add_top_ten(databusvoltsortedabs, databusvoltsortedabstotal)
+        databusvoltsortedreltotal = add_top_ten(databusvoltsortedrel, databusvoltsortedreltotal)
+
+        databranchp = data.loc[
+            ((data.VAR == "p1") | (data.VAR == "p2")) & (data.ELEMENT_TYPE != "bus")
             ]
-            databranchpsortedabs = databranchp.sort_values("ABS_ERR", ascending=False)
-            databranchpsortedrel = databranchp.sort_values("REL_ERR", ascending=False)
+        databranchpsortedabs = databranchp.sort_values("ABS_ERR", ascending=False)
+        databranchpsortedrel = databranchp.sort_values("REL_ERR", ascending=False)
+        databranchpsortedabstotal = add_top_ten(databranchpsortedabs, databranchpsortedabstotal)
+        databranchpsortedreltotal = add_top_ten(databranchpsortedrel, databranchpsortedreltotal)
 
-            databusp = data.loc[(data.VAR == "p") & (data.ELEMENT_TYPE == "bus")]
-            databuspsortedabs = databusp.sort_values("ABS_ERR", ascending=False)
-            databuspsortedrel = databusp.sort_values("REL_ERR", ascending=False)
+        databusp = data.loc[(data.VAR == "p") & (data.ELEMENT_TYPE == "bus")]
+        databuspsortedabs = databusp.sort_values("ABS_ERR", ascending=False)
+        databuspsortedrel = databusp.sort_values("REL_ERR", ascending=False)
+        databuspsortedabstotal = add_top_ten(databuspsortedabs, databuspsortedabstotal)
+        databuspsortedreltotal = add_top_ten(databuspsortedrel, databuspsortedreltotal)
 
-            databusq = data.loc[(data.VAR == "q") & (data.ELEMENT_TYPE == "bus")]
-            databusqsortedabs = databusq.sort_values("ABS_ERR", ascending=False)
-            databusqsortedrel = databusq.sort_values("REL_ERR", ascending=False)
+        databusq = data.loc[(data.VAR == "q") & (data.ELEMENT_TYPE == "bus")]
+        databusqsortedabs = databusq.sort_values("ABS_ERR", ascending=False)
+        databusqsortedrel = databusq.sort_values("REL_ERR", ascending=False)
+        databusqsortedabstotal = add_top_ten(databusqsortedabs, databusqsortedabstotal)
+        databusqsortedreltotal = add_top_ten(databusqsortedrel, databusqsortedreltotal)
 
-            databusvoltsortedabstotal = databusvoltsortedabs[:10]
-            databusvoltsortedreltotal = databusvoltsortedrel[:10]
-            databranchpsortedabstotal = databranchpsortedabs[:10]
-            databranchpsortedreltotal = databranchpsortedrel[:10]
-            databuspsortedabstotal = databuspsortedabs[:10]
-            databuspsortedreltotal = databuspsortedrel[:10]
-            databusqsortedabstotal = databusqsortedabs[:10]
-            databusqsortedreltotal = databusqsortedrel[:10]
-        else:
-            # Reading the cases and ordering the values ​​according to the metrics
-            data = read_case(pf_solutions_dir + i)
-            split_contg = i[:-20].split("#")[-1]
-            data.insert(0, "CONTG_ID", split_contg)
-            databusvolt = data.loc[(data.VAR == "v") & (data.ELEMENT_TYPE == "bus")]
-            databusvoltsortedabs = databusvolt.sort_values("ABS_ERR", ascending=False)
-            databusvoltsortedrel = databusvolt.sort_values("REL_ERR", ascending=False)
-
-            databranchp = data.loc[
-                ((data.VAR == "p1") | (data.VAR == "p2")) & (data.ELEMENT_TYPE != "bus")
-            ]
-            databranchpsortedabs = databranchp.sort_values("ABS_ERR", ascending=False)
-            databranchpsortedrel = databranchp.sort_values("REL_ERR", ascending=False)
-
-            databusp = data.loc[(data.VAR == "p") & (data.ELEMENT_TYPE == "bus")]
-            databuspsortedabs = databusp.sort_values("ABS_ERR", ascending=False)
-            databuspsortedrel = databusp.sort_values("REL_ERR", ascending=False)
-
-            databusq = data.loc[(data.VAR == "q") & (data.ELEMENT_TYPE == "bus")]
-            databusqsortedabs = databusq.sort_values("ABS_ERR", ascending=False)
-            databusqsortedrel = databusq.sort_values("REL_ERR", ascending=False)
-
-
-            # We check if the 10 largest values ​​in the current case belong to the biggest
-            # general differences. To save computation, we check if they are greater than
-            # the last value of the global list and if they are not, the following values ​​of
-            # the current case will never be greater than those of the global list
-            for i in range(10):
-                if (
-                    databusvoltsortedabs.iloc[i]["ABS_ERR"]
-                    > databusvoltsortedabstotal.iloc[9]["ABS_ERR"]
-                ):
-                    databusvoltsortedabstotal = pd.concat(
-                        [databusvoltsortedabstotal, databusvoltsortedabs[i : i + 1]]
-                    )
-                    databusvoltsortedabstotal = databusvoltsortedabstotal.sort_values(
-                        "ABS_ERR", ascending=False
-                    )[:10]
-                else:
-                    break
-
-            for i in range(10):
-                if (
-                    databusvoltsortedrel.iloc[i]["REL_ERR"]
-                    > databusvoltsortedreltotal.iloc[9]["REL_ERR"]
-                ):
-                    databusvoltsortedreltotal = pd.concat(
-                        [databusvoltsortedreltotal, databusvoltsortedrel[i : i + 1]]
-                    )
-                    databusvoltsortedreltotal = databusvoltsortedreltotal.sort_values(
-                        "REL_ERR", ascending=False
-                    )[:10]
-                else:
-                    break
-
-            for i in range(10):
-                if (
-                    databranchpsortedabs.iloc[i]["ABS_ERR"]
-                    > databranchpsortedabstotal.iloc[9]["ABS_ERR"]
-                ):
-                    databranchpsortedabstotal = pd.concat(
-                        [databranchpsortedabstotal, databranchpsortedabs[i : i + 1]]
-                    )
-                    databranchpsortedabstotal = databranchpsortedabstotal.sort_values(
-                        "ABS_ERR", ascending=False
-                    )[:10]
-                else:
-                    break
-
-            for i in range(10):
-                if (
-                    databranchpsortedrel.iloc[i]["REL_ERR"]
-                    > databranchpsortedreltotal.iloc[9]["REL_ERR"]
-                ):
-                    databranchpsortedreltotal = pd.concat(
-                        [databranchpsortedreltotal, databranchpsortedrel[i : i + 1]]
-                    )
-                    databranchpsortedreltotal = databranchpsortedreltotal.sort_values(
-                        "REL_ERR", ascending=False
-                    )[:10]
-                else:
-                    break
-
-            for i in range(10):
-                if (
-                    databuspsortedabs.iloc[i]["ABS_ERR"]
-                    > databuspsortedabstotal.iloc[9]["ABS_ERR"]
-                ):
-                    databuspsortedabstotal = pd.concat(
-                        [databuspsortedabstotal, databuspsortedabs[i : i + 1]]
-                    )
-                    databuspsortedabstotal = databuspsortedabstotal.sort_values(
-                        "ABS_ERR", ascending=False
-                    )[:10]
-                else:
-                    break
-
-            for i in range(10):
-                if (
-                    databuspsortedrel.iloc[i]["REL_ERR"]
-                    > databuspsortedreltotal.iloc[9]["REL_ERR"]
-                ):
-                    databuspsortedreltotal = pd.concat(
-                        [databuspsortedreltotal, databuspsortedrel[i : i + 1]]
-                    )
-                    databuspsortedreltotal = databuspsortedreltotal.sort_values(
-                        "REL_ERR", ascending=False
-                    )[:10]
-                else:
-                    break
-
-            for i in range(10):
-                if (
-                    databusqsortedabs.iloc[i]["ABS_ERR"]
-                    > databusqsortedabstotal.iloc[9]["ABS_ERR"]
-                ):
-                    databusqsortedabstotal = pd.concat(
-                        [databusqsortedabstotal, databusqsortedabs[i : i + 1]]
-                    )
-                    databusqsortedabstotal = databusqsortedabstotal.sort_values(
-                        "ABS_ERR", ascending=False
-                    )[:10]
-                else:
-                    break
-
-            for i in range(10):
-                if (
-                    databusqsortedrel.iloc[i]["REL_ERR"]
-                    > databusqsortedreltotal.iloc[9]["REL_ERR"]
-                ):
-                    databusqsortedreltotal = pd.concat(
-                        [databusqsortedreltotal, databusqsortedrel[i : i + 1]]
-                    )
-                    databusqsortedreltotal = databusqsortedreltotal.sort_values(
-                        "REL_ERR", ascending=False
-                    )[:10]
-                else:
-                    break
-        # Either it is first or next iteration, identify cases with convergence issue
         status_df = data[data.ID == "status#code"]
         if status_df.iloc[0]["ABS_ERR"] > 0:
             convergence_mismatch.append([split_contg,
                                          status_df.iloc[0]["VALUE_HADES"],
                                          status_df.iloc[0]["VALUE_OLF"]])
+        elif status_df.iloc[0]["VALUE_HADES"] > 0:
+            noconv.append([split_contg,
+                           status_df.iloc[0]["VALUE_HADES"],
+                           status_df.iloc[0]["VALUE_OLF"]])
 
-    if first_iteration:
+    if databusvoltsortedabstotal is None:
         raise ValueError(
             f"Neither regular expression matches or there are no cases defined"
         )
+
+    databusvoltsortedabstotal = databusvoltsortedabstotal.sort_values(
+                        "ABS_ERR", ascending=False
+                    )[:10]
+    databusvoltsortedreltotal = databusvoltsortedreltotal.sort_values(
+                        "REL_ERR", ascending=False
+                    )[:10]
+    databranchpsortedabstotal = databranchpsortedabstotal.sort_values(
+                        "ABS_ERR", ascending=False
+                    )[:10]
+    databranchpsortedreltotal = databranchpsortedreltotal.sort_values(
+                        "REL_ERR", ascending=False
+                    )[:10]
+    databuspsortedabstotal = databuspsortedabstotal.sort_values(
+                        "ABS_ERR", ascending=False
+                    )[:10]
+    databuspsortedreltotal = databuspsortedreltotal.sort_values(
+                        "REL_ERR", ascending=False
+                    )[:10]
+    databusqsortedabstotal = databusqsortedabstotal.sort_values(
+                        "ABS_ERR", ascending=False
+                    )[:10]
+    databusqsortedreltotal = databusqsortedreltotal.sort_values(
+                        "REL_ERR", ascending=False
+                    )[:10]
 
     df_metrics = pd.read_csv(pf_metrics_dir + "metrics.csv.xz", index_col=0)
     df_weights = pd.read_csv(
@@ -259,14 +155,10 @@ def main():
     datascore_p95 = datascore.sort_values("P95_SCORE", ascending=False)
     datascore_mean = datascore.sort_values("MEAN_SCORE", ascending=False)
 
-    if len(datascore.index) < 10:
-        datascore_max_total = datascore_max
-        datascore_p95_total = datascore_p95
-        datascore_mean_total = datascore_mean
-    else:
-        datascore_max_total = datascore_max[:10]
-        datascore_p95_total = datascore_p95[:10]
-        datascore_mean_total = datascore_mean[:10]
+
+    datascore_max_total = datascore_max[:10]
+    datascore_p95_total = datascore_p95[:10]
+    datascore_mean_total = datascore_mean[:10]
 
     # Print results on screen
     print("WEIGHTS AND THRESHOLDS USED FOR SCORE CALCULATIONS:")
@@ -287,12 +179,17 @@ def main():
         + str(df_weights["P95_THRESH"].to_list()[0])
         + "\n"
     )
-    if len(convergence_mismatch) > 0:
+    if len(noconv) > 0:
+        print(
+        "\n\nCONTINGENCES THAT DID NOT CONVERGE"
+        )
+        print(pd.DataFrame(noconv, columns=["Case", "Hades Status", "OLF Status"]).to_string(index=False))
 
+    if len(convergence_mismatch) > 0:
         print(
         "\n\nCONVERGENCE ISSUE: CASES WITH DIFFERENT CONVERGENCE STATUS in HADES and OLF "
         )
-        print(pd.DataFrame(convergence_mismatch, columns=["Case", "Hades Status", "OLF Status"]))
+        print(pd.DataFrame(convergence_mismatch, columns=["Case", "Hades Status", "OLF Status"]).to_string(index=False))
 
     print(
         "\n\nCOMPOUND SCORES: TOP 10 MAX METRIC --- # of cases exceeding threshold = "
@@ -344,6 +241,10 @@ def calculate_error(df1):
     df1["ABS_ERR"] = (df1["VALUE_HADES"] - df1["VALUE_OLF"]).abs()
     df1["REL_ERR"] = df1["ABS_ERR"] / df1["VALUE_HADES"].abs().clip(lower=REL_ERR_CLIPPING)
     return df1
+
+
+def add_top_ten(new_df, previous_df):
+    return new_df[:10] if previous_df is None else pd.concat([previous_df, new_df[:10]])
 
 
 if __name__ == "__main__":
