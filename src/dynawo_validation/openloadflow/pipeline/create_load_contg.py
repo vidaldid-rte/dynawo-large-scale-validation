@@ -226,7 +226,7 @@ def extract_olf_loads(iidm_tree, verbose=False):
             if bus_name is None:
                 continue
         elif topo_val == "NODE_BREAKER":
-            print(load_name + "ignored. Node breake topology")
+            print(load_name + " ignored. Node breaker topology")
             continue
         else:
             raise ValueError("TopologyKind not found for load: %s" % load_name)

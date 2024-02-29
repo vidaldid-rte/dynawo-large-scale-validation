@@ -1948,6 +1948,8 @@ def run_all(
     def contgcasediffs_individual_case(case):
         name = PREFIX+"#"+case if PREFIX in ELEMENTS else case
         df1 = read_case(name, PF_SOL_DIR, PREFIX)
+        global contgcasediffs_data
+        contgcasediffs_data = df1
         globaldiffs_dfgrid.clear_selection()
         with contgcasediffs_individualtrace.batch_update():
             if (
@@ -1995,8 +1997,7 @@ def run_all(
             )
             contgcasediffs_individualtrace.layout.title.text = "Case: " + case
             contgcasediffs_dropdowndev.value = case
-            global  contgcasediffs_data
-            contgcasediffs_data = df1
+
     #
     # def contgcasetap_individual_aut_group(case):
     #     df1, df2 = read_aut_group(case, PF_SOL_DIR, DWO_DWO, PREFIX)

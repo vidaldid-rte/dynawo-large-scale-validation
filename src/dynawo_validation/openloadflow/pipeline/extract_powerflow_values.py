@@ -193,14 +193,14 @@ def extract_iidm_solution(iidm_output):
     data = []
     print("   found in IIDM file: ", end="")
     # Buses: get V & angle
-    extract_iidm_buses(root, data, vl_nomv)
+    valid_buses = extract_iidm_buses(root, data, vl_nomv)
     # Lines: p & q flows
     extract_iidm_lines(root, data, vl_nomv, branches)
     # Transformers and phase shifters: p & q flows
     extract_iidm_xfmrs(root, data, vl_nomv, branches)
 
     # Aggregate bus injections (loads, generators, shunts, VSCs)
-    extract_iidm_bus_inj(root, data, vl_nomv)
+    extract_iidm_bus_inj(root, data, vl_nomv, valid_buses)
 
     return pd.DataFrame(data, columns=column_list), vl_nomv, branches
 
@@ -209,6 +209,7 @@ def extract_iidm_buses(root, data, vl_nomv):
     """Read V & angles, and update data. Also update the vl_nomv dict"""
     ctr = 0
     ign = 0
+    validBuses = []
     for bus in root.iterfind(".//iidm:bus", root.nsmap):
         bus_name = bus.get("id")
         v = bus.get("v")
@@ -222,12 +223,14 @@ def extract_iidm_buses(root, data, vl_nomv):
             # unnamed bus in node breaker mode cannot be matched with Hades so they are ignored
             ign += 1
             continue
+        validBuses.append(bus_name)
         volt_level = vl_nomv[bus_name]
         data.append([bus_name, "bus", volt_level, "v", float(v)])
         data.append([bus_name, "bus", volt_level, "angle", float(angle)])
         ctr += 1
     print(f" {ctr:5d} buses", end="")
     print(f" {ign:5d} ignored buses", end="")
+    return validBuses
 
 def floatOrZero(v):
     return 0 if v is None else float(v)
@@ -333,7 +336,7 @@ def extract_iidm_xfmrs(root, data, vl_nomv, branches):
     print(f" {psctr:3d} psxfmrs", end="")
 
 
-def extract_iidm_bus_inj(root, data, vl_nomv):
+def extract_iidm_bus_inj(root, data, vl_nomv, valid_buses):
     """Aggregate injections (loads, gens, shunts, VSCs) by bus, and update data."""
     # Since a voltage level may contain more than one bus, it is easier to keep the
     # aggregate injections in dicts indexed by bus, and then output at the end.
@@ -342,6 +345,7 @@ def extract_iidm_bus_inj(root, data, vl_nomv):
     injection_types = (
         "load",
         "generator",
+        "battery",
         "shunt",
         "vscConverterStation",
         "staticVarCompensator",
@@ -357,15 +361,17 @@ def extract_iidm_bus_inj(root, data, vl_nomv):
                     p_inj[bus_name] = p_inj.get(bus_name, 0.0) + float(element.get("p"))
                 if element.get("q") is not None:
                     q_inj[bus_name] = q_inj.get(bus_name, 0.0) + float(element.get("q"))
+    # Set 0 to buses without injection
+    for b in valid_buses:
+        if not b in p_inj:
+            p_inj[b]=0
+        if not b in q_inj:
+            q_inj[b]=0
     # update data
     for bus_name in p_inj:
-        p = p_inj[bus_name]
-        if abs(p) > ZEROPQ_TOL:
-            data.append([bus_name, "bus", vl_nomv[bus_name], "p", p])
+        data.append([bus_name, "bus", vl_nomv[bus_name], "p", p_inj[bus_name]])
     for bus_name in q_inj:
-        q = q_inj[bus_name]
-        if abs(q) > ZEROPQ_TOL:
-            data.append([bus_name, "bus", vl_nomv[bus_name], "q", q])
+        data.append([bus_name, "bus", vl_nomv[bus_name], "q", q_inj[bus_name]])
     print("                         ", end="")  # Hades has extra output here
     print(f" {len(p_inj):5d} P-injections", end="")
     print(f" {len(q_inj):5d} Q-injections")
@@ -603,18 +609,16 @@ def extract_hds_bus_inj(gridinfo, root, data):
             continue  # skip inactive buses
         # update data (note the opposite sign convention w.r.t. Dynawo)
         p = -float(bus_vars.get("injact"))
-        if abs(p) > ZEROPQ_TOL:
-            data.append([bus_name, "bus", "p", p])
-            pctr += 1
+        data.append([bus_name, "bus", "p", p])
+        pctr += 1
         # SVC's fixed shunt Q values are calculated here because we need the bus V
         q = (
             -float(bus_vars.get("injrea"))
             + shunt_qcorr.get(bus_name, 0)
             - (svc_qfixed.get(bus_name, 0) * float(bus_vars.get("v")) ** 2)
         )
-        if abs(q) > ZEROPQ_TOL:
-            data.append([bus_name, "bus", "q", q])
-            qctr += 1
+        data.append([bus_name, "bus", "q", q])
+        qctr += 1
     print(f" {pctr:5d} P-injections", end="")
     print(f" {qctr:5d} Q-injections")
 
