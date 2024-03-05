@@ -292,14 +292,6 @@ def extract_iidm_xfmrs(root, data, vl_nomv, branches):
                 bus1=xfmr.get("connectableBus1"),
                 bus2=xfmr.get("connectableBus2"),
             )
-        # skip inactive xfmrs (beware threshold effect when comparing to the other case)
-        if (
-            abs(p1) < ZEROPQ_TOL
-            and abs(q1) < ZEROPQ_TOL
-            and abs(p2) < ZEROPQ_TOL
-            and abs(q2) < ZEROPQ_TOL
-        ):
-            continue
         volt_level = vl_nomv[xfmr.get("connectableBus2")]  # side 2 assumed always HV
         data.append([xfmr_name, branches[xfmr_name].type, volt_level, "p1", p1])
         data.append([xfmr_name, branches[xfmr_name].type, volt_level, "q1", q1])
@@ -494,21 +486,14 @@ def extract_hds_branches(dwo_branches, gridinfo, root, data):
         q2 = float(quadrip[0].get("qex"))
         # magic number 999999 is used for disconnected branches
         if p1 > 999_990:
-            p1 = 0.0
+            p1 = math.nan
         if q1 > 999_990:
-            q1 = 0.0
+            q1 = math.nan
         if p2 > 999_990:
-            p2 = 0.0
+            p2 = math.nan
         if q2 > 999_990:
-            q2 = 0.0
-        # skip inactive lines
-        if (
-            abs(p1) < ZEROPQ_TOL
-            and abs(q1) < ZEROPQ_TOL
-            and abs(p2) < ZEROPQ_TOL
-            and abs(q2) < ZEROPQ_TOL
-        ):
-            continue
+            q2 = math.nan
+
         # find out whether it is a line/xfmr/psxfmr by looking it up in Dynawo case
         dwo_branch_info = dwo_branches.get(quadrip_name)
         if dwo_branch_info is not None:
