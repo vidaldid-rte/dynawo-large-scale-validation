@@ -37,6 +37,15 @@ def main():
         contg = filepath.split("/")[-1].split("#")[-1].split("_pfsolution")[-2]
         delta = pd.read_csv(filepath, sep=";", index_col=False, compression="infer")
 
+        status_df = delta[delta.ID == "status#code"]
+        if status_df.iloc[0]["VALUE_OLF"] > 0 and status_df.iloc[0]["VALUE_HADES"] > 0:
+            noconv.append([contg,
+                           status_df.iloc[0]["VALUE_HADES"],
+                           status_df.iloc[0]["VALUE_OLF"]])
+            # Both solver failed - no data
+            continue
+
+
         delta["DIFF"] = delta.VALUE_HADES - delta.VALUE_OLF
         delta["DIFF_ABS"] = abs(delta.VALUE_HADES - delta.VALUE_OLF)
         delta_mean = delta.groupby("VAR").mean(numeric_only=True).sort_values("VAR")
@@ -53,12 +62,6 @@ def main():
         res = res + [res1]
 
         volt_levels = np.sort(delta["VOLT_LEVEL"].unique())
-
-        status_df = delta[delta.ID == "status#code"]
-        if status_df.iloc[0]["DIFF_ABS"] == 0 and status_df.iloc[0]["VALUE_HADES"] > 0:
-            noconv.append([contg,
-                           status_df.iloc[0]["VALUE_HADES"],
-                           status_df.iloc[0]["VALUE_OLF"]])
 
         for volt_level in volt_levels:
             if math.isnan(volt_level):
