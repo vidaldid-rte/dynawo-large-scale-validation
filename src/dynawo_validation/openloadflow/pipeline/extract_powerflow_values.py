@@ -150,6 +150,8 @@ def extract_olf_status(df_olf, olf_log):
         status_code = 0
     elif status_string=="MAX_ITERATION_REACHED":
         status_code = 1
+    elif status_string == "FAILED":
+        status_code = 2
     else:
         raise Exception("Unknown OLF status: " + status_string)
     # Hades:
