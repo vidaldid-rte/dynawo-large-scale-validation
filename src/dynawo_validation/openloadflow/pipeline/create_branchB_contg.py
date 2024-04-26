@@ -196,7 +196,7 @@ def main():
 
         # Modify the Hades case, and obtain the disconnected generation (P,Q)
         processed_branchesPQ[branch_name] = config_hades_branch_contingency(
-            contg_casedir, parsed_case.hades_tree, branch_name, disconn_mode
+            contg_casedir, parsed_case.hades_tree, branch_name, olf_branches[branch_name],disconn_mode
         )
 
 
@@ -351,7 +351,7 @@ def config_olf_branch_contingency(
     return 0
 
 
-def config_hades_branch_contingency(casedir, hades_tree, branch_name, disc_mode):
+def config_hades_branch_contingency(casedir, hades_tree, branch_name, branchInfo, disc_mode):
     hades_file = os.path.join(casedir, HADES_FILE)
     print("   Configuring file %s" % hades_file)
     root = hades_tree.getroot()
@@ -388,6 +388,19 @@ def config_hades_branch_contingency(casedir, hades_tree, branch_name, disc_mode)
         hades_branch.set("nex", "-1")
         hades_branch.set("nor", "-1")
 
+    regleur=None
+    if branchInfo.branchType == 'Transformer':
+        # Deactivate asscciated 'Regleur"
+        ptrregleur = hades_branch.get("ptrregleur")
+        donneesRegleurs = reseau.find("./donneesRegleurs", root.nsmap)
+        for r in donneesRegleurs.iterfind("./regleur", root.nsmap):
+            if r.get("num") == ptrregleur:
+                regleur = r
+                break
+        if regleur is not None:
+            ndreg = regleur.get("ndreg")
+            regleur.set("ndreg", "-1")
+
     # Write out the Hades file, preserving the XML format
     if os.path.exists(hades_file):
         os.remove(hades_file)
@@ -401,6 +414,8 @@ def config_hades_branch_contingency(casedir, hades_tree, branch_name, disc_mode)
     # IMPORTANT: undo the changes we made, as we'll be reusing this parsed tree!
     hades_branch.set("nor", bus_id1)
     hades_branch.set("nex", bus_id2)
+    if regleur is not None:
+        regleur.set("ndreg", ndreg)
     return branch_P, branch_Q
 
 
