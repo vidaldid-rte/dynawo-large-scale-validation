@@ -1933,7 +1933,7 @@ def run_all(
             df1 = df1[-DATA_LIMIT:]
 
         with globaldiffs_generaltrace.batch_update():
-            globaldiffs_dfgrid.data = df2
+            globaldiffs_dfgrid.data = df2[df2.volt_level=="ALL"]
             globaldiffs_generaltrace.data[0].x = df1[globaldiffs_dropdownvarx.value]
             globaldiffs_generaltrace.data[0].y = df1[globaldiffs_dropdownvary.value]
             globaldiffs_generaltrace.data[0].name = (
@@ -2605,7 +2605,7 @@ def run_all(
     globaldiffs_matching_df = get_matching_df()
 
     globaldiffs_dfgrid = ipydatagrid.DataGrid(
-        globaldiffs_matching_df,
+        globaldiffs_matching_df[globaldiffs_matching_df.volt_level=="ALL"],
         base_column_size=int((WIDTH / 1.03) / (1+len(globaldiffs_matching_df.columns))),
         selection_mode="row",
     )
