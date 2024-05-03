@@ -28,6 +28,8 @@ def main():
     PF_METRICS_DIR = PF_SOL_DIR + "/../pf_metrics"
     Path(PF_METRICS_DIR).mkdir(parents=False, exist_ok=True)
 
+
+    all_tap_score = []
     noconv= []
     res = []
     files = list(glob.iglob(PF_SOL_DIR + "/" + PREFIX + "*_pfsolutionHO.csv.xz"))
@@ -36,6 +38,11 @@ def main():
     for filepath in files:
         contg = filepath.split("/")[-1].split("#")[-1].split("_pfsolution")[-2]
         delta = pd.read_csv(filepath, sep=";", index_col=False, compression="infer")
+        score_filepath= filepath[:-len("pfsolutionHO.csv.xz")] + "tapScore.csv"
+        tap_score = pd.read_csv(score_filepath, sep=";", index_col=False)
+        tap_score.insert(0, "contg", contg)
+
+        all_tap_score.append(tap_score)
 
         status_df = delta[delta.ID == "status#code"]
         if status_df.iloc[0]["VALUE_OLF"] > 0 and status_df.iloc[0]["VALUE_HADES"] > 0:
@@ -101,6 +108,16 @@ def main():
     )
     fileName = os.path.join(PF_METRICS_DIR, "metrics.csv.xz")
     df.to_csv(fileName, compression="xz")
+
+    all_tap_score_df = pd.concat(all_tap_score, ignore_index=True)
+    all_tap_score_df.insert(1, "warning", None)
+    all_tap_score_df.warning=(all_tap_score_df.max_tap_diff > 1).astype(int) + \
+        (all_tap_score_df.nb_tap_diff > all_tap_score_df.computed_tap*0.11).astype(int) + \
+        (all_tap_score_df.max_q1_diff >= 10).astype(int) + \
+        (all_tap_score_df.q1_2_count > 5 * all_tap_score_df.nb_tap_diff).astype(int) + \
+        (all_tap_score_df.max_p1_diff >= 2).astype(int)
+    all_tap_score_df.sort_values(by=["warning"], inplace=True, ascending=False)
+    all_tap_score_df.to_csv(os.path.join(PF_METRICS_DIR, "tap_score.csv"))
 
     noconv_df = pd.DataFrame(noconv, columns=["contg_case", "VALUE_HADES", "VALUE_OLF"])
     fileName = os.path.join(PF_METRICS_DIR, "noconv.csv.xz")

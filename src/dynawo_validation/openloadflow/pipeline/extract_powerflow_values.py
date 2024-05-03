@@ -36,6 +36,7 @@ HDS_VERSION = "LAUNCHER_HADES"
 OLF_VERSION = "LAUNCHER_OLF"
 OLF_PARAMS = "OLFParams.json"
 OUTPUT_FILE = "pfsolution_HO.csv"
+TAP_SCORE_FILE = "tapScore.csv"
 ERRORS_HADES_FILE = "elements_not_in_Hades.csv"
 ERRORS_OLF_FILE = "elements_not_in_Olf.csv"
 HDS_INACT_BUS = "999999.000000000000000"  # "magic" value used in Hades
@@ -44,7 +45,7 @@ HDS_INACT_SHUNT2 = "0"  # we found a few cases where Hades uses this instead!
 ZEROPQ_TOL = 1.0e-5  # inactivity detection: flows below this (in MW) considered zero
 
 # named tuples
-Branch_info = namedtuple("Branch_info", ["type", "bus1", "bus2"])
+Branch_info = namedtuple("Branch_info", ["type", "bus1", "bus2","compute_tap"])
 Hds_gridinfo = namedtuple(
     "Hds_gridinfo",
     ["branch_sides", "tap2xfmr", "pstap2xfmr", "shunt2busname", "svc_qfixed"],
@@ -104,6 +105,9 @@ def main():
     df_olf, vl_nomV, branch_info = extract_iidm_solution(olf_file)
     extract_olf_status(df_olf, olf_log)
 
+    # TODO - faire les psTap aussi  (lorsque indicateurs dispos)
+    nb_computed_tap=sum(1 for b in branch_info if branch_info[b].type=="xfmr" and branch_info[b].compute_tap)
+
     # Extract the solution values from Hades results
     df_hds = extract_hades_solution(
         hades_input, hades_output, vl_nomV, branch_info
@@ -111,7 +115,7 @@ def main():
     extract_hades_status(df_hds, hades_output)
 
     # Merge, sort, and save
-    save_extracted_values(df_hds, df_olf, os.path.join(case_dir,OUTPUT_FILE))
+    save_extracted_values(df_hds, df_olf, case_dir, nb_computed_tap)
     save_nonmatching_elements(
         df_hds, df_olf, os.path.join(case_dir, ERRORS_HADES_FILE), os.path.join(case_dir,ERRORS_OLF_FILE)
     )
@@ -251,6 +255,7 @@ def extract_iidm_lines(root, data, vl_nomv, branches):
             type="line",
             bus1=line.get("connectableBus1"),
             bus2=line.get("connectableBus2"),
+            compute_tap=False,
         )
         # skip inactive lines (beware threshold effect when comparing to the other case)
         if (
@@ -287,12 +292,14 @@ def extract_iidm_xfmrs(root, data, vl_nomv, branches):
                 type="psxfmr",
                 bus1=xfmr.get("connectableBus1"),
                 bus2=xfmr.get("connectableBus2"),
+                compute_tap=False, # TODO
             )
         else:
             branches[xfmr_name] = Branch_info(
                 type="xfmr",
                 bus1=xfmr.get("connectableBus1"),
                 bus2=xfmr.get("connectableBus2"),
+                compute_tap=tap.get("regulating") == "true",
             )
         volt_level = vl_nomv[xfmr.get("connectableBus2")]  # side 2 assumed always HV
         data.append([xfmr_name, branches[xfmr_name].type, volt_level, "p1", p1])
@@ -528,7 +535,7 @@ def extract_hds_branches(dwo_branches, gridinfo, root, data):
             bad_ctr += 1
     print(
         f" {lctr:5d} lines {xctr:5d} xfmrs {psctr:3d} psxfmrs"
-        f" ({bad_ctr} quadrip. not in Dwo) ",
+        f" ({bad_ctr} quadrip. not in XIIDM) ",
         end=""
     )
 
@@ -609,14 +616,39 @@ def extract_hds_bus_inj(gridinfo, root, data):
     print(f" {pctr:5d} P-injections", end="")
     print(f" {qctr:5d} Q-injections")
 
+def save_tap_score(df, nb_computed_tap, case_dir):
+    Tap_score = namedtuple("tap_score",
+                           ["computed_tap",
+                            "max_tap_diff",
+                            "nb_tap_diff",
+                            "max_q1_diff",
+                            "q1_2_count",
+                            "max_p1_diff"])
+    df_xfmr = df[df.ELEMENT_TYPE=="xfmr"].copy()
+    df_xfmr["DIFF"]=abs(df_xfmr.VALUE_HADES - df_xfmr.VALUE_OLF)
+    df_q1 = df[df.VAR=="q1"].copy()
+    df_q1["DIFF"]=abs(df_q1.VALUE_HADES - df_q1.VALUE_OLF)
+    df_p1 = df[df.VAR == "p1"].copy()
+    df_p1["DIFF"] = abs(df_p1.VALUE_HADES - df_p1.VALUE_OLF)
+    score = Tap_score(
+        computed_tap=nb_computed_tap,
+        max_tap_diff=int(df_xfmr[df_xfmr.VAR=="tap"].DIFF.max()),
+        nb_tap_diff=len(df_xfmr[(df_xfmr.VAR=="tap") & (df_xfmr.DIFF>0)]),
+        max_q1_diff= df_q1.DIFF.max(),
+        q1_2_count=len(df_q1[df_q1.DIFF > 2]),
+        max_p1_diff=df_p1.DIFF.max(),
+    )
+    score_df = pd.DataFrame(columns=Tap_score._fields, data=[score])
+    output_file=os.path.join(case_dir,TAP_SCORE_FILE)
+    score_df.to_csv(output_file, index=False, sep=";", encoding="utf-8")
 
-def save_extracted_values(df_a, df_b, output_file):
+def save_extracted_values(df_hds, df_olf, case_dir, nb_computed_tap):
     """Save the values for all elements that are matched in both outputs."""
     # Merge (inner join) the two dataframes, checking for duplicates (just in case)
     key_fields = ["ELEMENT_TYPE", "ID", "VAR"]
     df = pd.merge(
-        df_a,
-        df_b,
+        df_hds,
+        df_olf,
         how="inner",
         on=key_fields,
         validate="one_to_one",
@@ -644,8 +676,10 @@ def save_extracted_values(df_a, df_b, output_file):
     df.sort_values(
         by=key_fields, ascending=sort_order, inplace=True, na_position="first"
     )
+    output_file=os.path.join(case_dir,OUTPUT_FILE)
     df.to_csv(output_file, index=False, sep=";", encoding="utf-8")
     print(f"Saved output to file: {output_file}... ")
+    save_tap_score(df, nb_computed_tap, case_dir)
 
 
 def save_nonmatching_elements(df_hds, df_olf, errors_hds_file, errors_olf_file):

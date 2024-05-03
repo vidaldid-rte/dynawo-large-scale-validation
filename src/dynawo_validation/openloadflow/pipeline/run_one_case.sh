@@ -318,6 +318,7 @@ python3 "$scripts_basedir"/extract_powerflow_values.py $i -v "$BASEDIR"
 
 # Collect and compress all results
 xz -c9 "$BASEDIR"/pfsolution_HO.csv > "$outDir"/pf_sol/"$prefix"_pfsolutionHO.csv.xz
+cp "$BASEDIR"/tapScore.csv "$outDir"/pf_sol/"$prefix"_tapScore.csv
 for error_file in elements_not_in_case*.csv ; do
     if [ -f "$BASEDIR"/"$error_file" ]; then
         xz -c9 "$BASEDIR"/"$error_file" > "$outDir"/pf_sol/"$prefix"-"$error_file".xz
