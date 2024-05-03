@@ -1640,6 +1640,91 @@ def show_parameters(hades_info,
     display(Markdown(olf_version))
     display(olf_param_grid)
 
+def show_score(globaldiffs_df,compscore_grid_score, pf_dir):
+    #######################################################################
+    # Part I: Global ranking
+    #######################################################################
+    if globaldiffs_df.tap_max.max() == 0:
+        display(Markdown("# GLOBAL RANKING OF CONTINGENCY CASES"))
+        display(
+            Markdown(
+                "Contingency cases ranked by **compound score**, which consists in a"
+                " weighted sum of the norms of the differences in several classes of"
+                " variables, between the A and B power flow solutions.  \nSchematically:\n"
+                " > SCORE = W_v * (norm of voltage diffs)"
+                " + W_p * (norm of real power diffs)"
+                " + W_q * (norm of reactive power diffs)"
+                " + W_t * (norm of tap position diffs)\n\n"
+                "The score comes in three flavors, depending on the kind of norm used:\n"
+                "  * **MAX_SCORE**: the maximum of the diffs (a.k.a. L-infinity norm)\n"
+                "  * **P95_SCORE**: the 95% percentile of the diffs\n"
+                "  * **MEAN_SCORE**: average of the diffs (a.k.a. L-1 norm, divided by N)\n"
+            )
+        )
+        display(compscore_grid_score)
+    else:
+        display(Markdown("# SCORE RANKINK FOR TAP COMPUTATION"))
+        display(
+            Markdown(
+                "  * max_tap_diff: maximum tap difference - expected less than 1\n"
+                "  * nb_tap_diff:  number of tap with difference - expected less than 11% of all taps\n"
+                "  * max_q1_diff:  max reactive difference on a branch - expected less than 10MVar \n"
+                "  * q1_2_count:  number of branches with more thant 2Mvar difference. Expected less than 5 per transfo with tap difference\n"
+                "  * max_p1_diff:  max active power difference on a branch - expected less than 2MW \n"
+            )
+        )
+        tap_score_df = pd.read_csv(pf_dir + "/pf_metrics/tap_score.csv", index_col=0)
+        tap_grid_score = ipydatagrid.DataGrid(
+            tap_score_df,
+            base_column_size=120,
+            renderers={
+        "warning": ipydatagrid.TextRenderer(
+            text_color="black",
+            background_color=ipydatagrid.Expr(
+                '"red" if '
+                + '2 <= cell.value else "orange" if '
+                + ' 1 <= cell.value else "green"'
+            ),
+        ),
+        "max_tap_diff": ipydatagrid.TextRenderer(
+            text_color="black",
+            background_color=ipydatagrid.Expr(
+                '"red" if '
+                + '2 <= cell.value else "green" '
+            ),
+        ),
+        "nb_tap_diff": ipydatagrid.TextRenderer(
+            text_color="black",
+            background_color=ipydatagrid.Expr(
+                '"red" if '
+                + 'cell.metadata.data["computed_tap"]*0.11'
+                + ' < cell.value else "green"'
+            ),
+        ),
+        "max_q1_diff": ipydatagrid.TextRenderer(
+            text_color="black",
+            background_color=ipydatagrid.Expr(
+                '"red" if '
+                + '10 < cell.value else "green"'
+            ),
+        ),
+        "q1_2_count": ipydatagrid.TextRenderer(
+            text_color="black",
+            background_color=ipydatagrid.Expr(
+                '"red" if '
+                + 'cell.metadata.data["nb_tap_diff"]*5 < cell.value else "green"'
+            ),
+        ),
+        "max_p1_diff": ipydatagrid.TextRenderer(
+            text_color="black",
+            background_color=ipydatagrid.Expr(
+                '"red" if '
+                + '2 <= cell.value else "green"'
+            ),
+        ),
+    },
+        )
+        display(tap_grid_score)
 
 # Define the structure of the output
 def show_displays(
@@ -1656,30 +1741,9 @@ def show_displays(
     netwgraph_legendcontainer,
     globaldiffs_button_case,
     button_download_data,
-    compscore_grid_score,
     DATA_LIMIT,
 ):
 
-    #######################################################################
-    # Part I: Global ranking
-    #######################################################################
-    display(Markdown("# GLOBAL RANKING OF CONTINGENCY CASES"))
-    display(
-        Markdown(
-            "Contingency cases ranked by **compound score**, which consists in a"
-            " weighted sum of the norms of the differences in several classes of"
-            " variables, between the A and B power flow solutions.  \nSchematically:\n"
-            " > SCORE = W_v * (norm of voltage diffs)"
-            " + W_p * (norm of real power diffs)"
-            " + W_q * (norm of reactive power diffs)"
-            " + W_t * (norm of tap position diffs)\n\n"
-            "The score comes in three flavors, depending on the kind of norm used:\n"
-            "  * **MAX_SCORE**: the maximum of the diffs (a.k.a. L-infinity norm)\n"
-            "  * **P95_SCORE**: the 95% percentile of the diffs\n"
-            "  * **MEAN_SCORE**: average of the diffs (a.k.a. L-1 norm, divided by N)\n"
-        )
-    )
-    display(compscore_grid_score)
 
     #######################################################################
     # Part II: Detailed metrics
@@ -2738,6 +2802,7 @@ def run_all(
                  compscore_p95_n_pass,
                  compscore_mean_n_pass)
     show_noconv(noconv_df, WIDTH)
+    show_score(globaldiffs_df,compscore_grid_score, PF_SOL_DIR)
     netwgraph_html_graph = show_displays(
     #     globaltap_aut_diffs_A_grid,
     #     globaltap_aut_diffs_B_grid,
@@ -2762,7 +2827,6 @@ def run_all(
         netwgraph_legendcontainer,
         globaldiffs_button_case,
         button_download_data,
-        compscore_grid_score,
         DATA_LIMIT,
     )
     show_parameters(hades_info,
