@@ -624,20 +624,31 @@ def save_tap_score(df, nb_computed_tap, case_dir):
                             "max_q1_diff",
                             "q1_2_count",
                             "max_p1_diff"])
-    df_xfmr = df[df.ELEMENT_TYPE=="xfmr"].copy()
-    df_xfmr["DIFF"]=abs(df_xfmr.VALUE_HADES - df_xfmr.VALUE_OLF)
-    df_q1 = df[df.VAR=="q1"].copy()
-    df_q1["DIFF"]=abs(df_q1.VALUE_HADES - df_q1.VALUE_OLF)
-    df_p1 = df[df.VAR == "p1"].copy()
-    df_p1["DIFF"] = abs(df_p1.VALUE_HADES - df_p1.VALUE_OLF)
-    score = Tap_score(
-        computed_tap=nb_computed_tap,
-        max_tap_diff=int(df_xfmr[df_xfmr.VAR=="tap"].DIFF.max()),
-        nb_tap_diff=len(df_xfmr[(df_xfmr.VAR=="tap") & (df_xfmr.DIFF>0)]),
-        max_q1_diff= df_q1.DIFF.max(),
-        q1_2_count=len(df_q1[df_q1.DIFF > 2]),
-        max_p1_diff=df_p1.DIFF.max(),
-    )
+    if df[df.ID=="status#code"].VALUE_HADES.min() == 0 or df[df.ID=="status#code"].VALUE_OLF.min() == 0:
+        df_xfmr = df[df.ELEMENT_TYPE=="xfmr"].copy()
+        df_xfmr["DIFF"]=abs(df_xfmr.VALUE_HADES - df_xfmr.VALUE_OLF)
+        df_q1 = df[df.VAR=="q1"].copy()
+        df_q1["DIFF"]=abs(df_q1.VALUE_HADES - df_q1.VALUE_OLF)
+        df_p1 = df[df.VAR == "p1"].copy()
+        df_p1["DIFF"] = abs(df_p1.VALUE_HADES - df_p1.VALUE_OLF)
+        score = Tap_score(
+            computed_tap=nb_computed_tap,
+            max_tap_diff=int(df_xfmr[df_xfmr.VAR=="tap"].DIFF.max()),
+            nb_tap_diff=len(df_xfmr[(df_xfmr.VAR=="tap") & (df_xfmr.DIFF>0)]),
+            max_q1_diff= df_q1.DIFF.max(),
+            q1_2_count=len(df_q1[df_q1.DIFF > 2]),
+            max_p1_diff=df_p1.DIFF.max(),
+        )
+    else:
+        score = Tap_score(
+            computed_tap=None,
+            max_tap_diff=None,
+            nb_tap_diff=None,
+            max_q1_diff= None,
+            q1_2_count=None,
+            max_p1_diff=None,
+        )
+
     score_df = pd.DataFrame(columns=Tap_score._fields, data=[score])
     output_file=os.path.join(case_dir,TAP_SCORE_FILE)
     score_df.to_csv(output_file, index=False, sep=";", encoding="utf-8")
