@@ -47,9 +47,7 @@ find_cmd()
 {
     find "$CASE_DIR" -maxdepth 1 -type d -name "$1"'*'
 }
-# TODO: add -a --allcontg for run all contingencies
-# TODO: add -l / --regextlist egain
-# TODO: add -r --random to run a random sample of contingencies et aussi --prandom/-p
+
 usage()
 {
     cat <<EOF
@@ -58,6 +56,7 @@ Usage: olf_run_validation [OPTIONS] BASECASE RESULTS_DIR
     -H | --launcherH  Defines the launcher for Hades
     -O | --launcherO  Defines the launcher for OpenLoadFlow
     -c | --cleanup    Delete input cases after getting the results
+    -t | --contingence-type Contingences to play (all, none, shunt, gen, branch,load)
     -d | --debug      More debug messages
     -m | --max        Maximum number of contingencies for each type (default 20)
     --minP            Minimum active power in MW for contingencies on gen, load, line (default 0)
@@ -89,8 +88,8 @@ if [[ $? -ne 4 ]]; then
 fi
 set -e
 
-OPTIONS=H:O:hdcm:sw:
-LONGOPTS=launcherO:,launcherH:,help,debug,cleanup,weights,max:,minP:,maxP:,sequential:
+OPTIONS=H:O:hdcm:sw:t:
+LONGOPTS=launcherO:,launcherH:,help,debug,cleanup,weights,max:,minP:,maxP:,sequential,contingence-type:
 # -activate quoting/enhanced mode (e.g. by writing out “--options”)
 # -pass arguments only via   -- "$@"   to separate them correctly
 PARSED=$(getopt --options=$OPTIONS --longoptions=$LONGOPTS --name "$0" -- "$@")
@@ -99,7 +98,7 @@ eval set -- "$PARSED"
 
 # now enjoy the options in order and nicely split until we see --
 H="hades2.sh" O="itools" h=n sequential='n' maxCont=20 minP=0 maxP=-1
-debug=n cleanup=n weightslist="None"
+debug=n cleanup=n weightslist="None" ctype="all"
 while true; do
     case "$1" in
         -H|--launcherH)
@@ -143,6 +142,11 @@ while true; do
         -s|--sequential)
             sequential=y
             shift
+            ;;
+        -t|--contingence-type)
+            ctype="$2"
+            echo "Contingence type: $2"
+            shift 2
             ;;
         -c|--cleanup)
             cleanup=y
@@ -327,10 +331,18 @@ echo
 
 # TODO Contingenes spécifiques Transfo / HVDC / Groupe  (lié au controle de tension ? -- A voir)
 declare -A create_contg
-create_contg[shunt]="create_shunt_contg.py"
-create_contg[load]="create_load_contg.py"
-create_contg[gen]="create_gen_contg.py"
-create_contg[branchB]="create_branchB_contg.py"
+if [ $ctype = "all" ] || [ $ctype = "shunt" ]; then
+  create_contg[shunt]="create_shunt_contg.py"
+fi
+if [ $ctype = "all" ] || [ $ctype = "load" ]; then
+  create_contg[load]="create_load_contg.py"
+fi
+if [ $ctype = "all" ] || [ $ctype = "gen" ]; then
+  create_contg[gen]="create_gen_contg.py"
+fi
+if [ $ctype = "all" ] || [ $ctype = "branch" ]; then
+  create_contg[branchB]="create_branchB_contg.py"
+fi
 
 CASE_DIR=${RESULTS_BASEDIR}
 for DEVICE in "${!create_contg[@]}"; do
