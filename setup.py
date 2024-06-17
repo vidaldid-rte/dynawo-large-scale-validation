@@ -15,6 +15,7 @@ setup(
     "ipydatagrid>=1.1.6, < 1.2",
     "notebook>=6.4.12, < 7.0.0",
     "jupyter_contrib_nbextensions",
+    "jupyter-server<2.0.0",
     "numpy>=1.21.0",
     "matplotlib>=3.4.2",
     "ipywidgets>=7.6.3, < 8.0",
