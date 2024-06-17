@@ -426,7 +426,7 @@ def extract_iidm_xfmrs(root, data, vl_nomv, branches, bus_connections):
                     branches[xfmr_name].type,
                     volt_level,
                     "pstap",
-                    int(ps_tap.get("tapPosition")),
+                    int(ps_tap.get("tapPosition")) - int(ps_tap.get("lowTapPosition")),
                 ]
             )
         # counters
