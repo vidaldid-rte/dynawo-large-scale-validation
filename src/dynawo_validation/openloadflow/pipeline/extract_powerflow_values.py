@@ -246,9 +246,9 @@ def get_bus_name(bus, voltage_level, toplogy, root, bus_connections):
             if l.get("node") in nodes and l.get("id") in bus_connections:
                 return bus_connections[l.get("id")]
 
-        # If nothing found in voltage level check transformers
+        # If nothing found in voltage level check transformers and lines
         substation = voltage_level.getparent()
-        for t in substation.iterfind(".//iidm:twoWindingsTransformer", root.nsmap):
+        for t in chain(substation.iterfind(".//iidm:twoWindingsTransformer", root.nsmap), root.iterfind(".//iidm:line", root.nsmap)):
             t_vl1 = t.get("voltageLevelId1")
             if t_vl1 == vlid and t.get("node1") in nodes and (t.get("id"), t_vl1) in bus_connections:
                 return bus_connections[(t.get("id"), t_vl1)]
@@ -273,6 +273,9 @@ def extract_iidm_buses(root, data, vl_nomv, bus_connections):
             bus_name = get_bus_name(bus, voltage_level, toplogy, root, bus_connections)
             if bus_name is None:
                 print("Bus ignored in vl " + voltage_level.get("id"))
+                continue
+            if bus_name in vl_nomv:
+                # in node breaker mode a bus node has already been visited
                 continue
             v = bus.get("v")
             angle = bus.get("angle")
@@ -328,7 +331,7 @@ def get_line_bus2(line, bus_connections):
 
 def get_line_vnom_bus1(line, vl_nomv, bus_connections):
     bus1 = get_line_bus1(line, bus_connections)
-    if bus1 is not None:
+    if bus1 is not None and bus1 in vl_nomv:
         return vl_nomv[bus1]
     else:
         None
@@ -472,9 +475,11 @@ def extract_iidm_bus_inj(root, data, vl_nomv, valid_buses, bus_connections):
             q_inj[b]=0
     # update data
     for bus_name in p_inj:
-        data.append([bus_name, "bus", vl_nomv[bus_name], "p", p_inj[bus_name]])
+        if bus_name is not None and bus_name in vl_nomv:
+            data.append([bus_name, "bus", vl_nomv[bus_name], "p", p_inj[bus_name]])
     for bus_name in q_inj:
-        data.append([bus_name, "bus", vl_nomv[bus_name], "q", q_inj[bus_name]])
+        if bus_name is not None and bus_name in vl_nomv:
+            data.append([bus_name, "bus", vl_nomv[bus_name], "q", q_inj[bus_name]])
     print("                         ", end="")  # Hades has extra output here
     print(f" {len(p_inj):5d} P-injections", end="")
     print(f" {len(q_inj):5d} Q-injections")
@@ -580,7 +585,8 @@ def extract_hds_gridinfo(hades_input):
     donneesQuadripoles = reseau.find("./donneesQuadripoles", root.nsmap)
     for branch in donneesQuadripoles.iterfind("./quadripole", root.nsmap):
         branch_sides[branch.get("nom")] = Hds_branch_side(
-            bus1=buses[branch.get("nor")], bus2=buses[branch.get("nex")]
+            bus1=buses[branch.get("nor")] if branch.get("nor") is not None else None,
+            bus2=buses[branch.get("nex")] if branch.get("nex") is not None else None
         )
     # Build a dict that maps "regleur" IDs to their transformer's name AND a dict
     # that maps "dephaseur" IDs to their transformer's name
@@ -598,7 +604,7 @@ def extract_hds_gridinfo(hades_input):
     donneesShunts = reseau.find("./donneesShunts", root.nsmap)
     for shunt in donneesShunts.iterfind("./shunt", root.nsmap):
         bus_num = shunt.get("noeud")
-        if bus_num != "-1":
+        if bus_num != "-1" and bus_num is not None:
             shunt2busname[shunt.get("num")] = buses[bus_num]
     # Build a dict that maps bus names to total QFixed originated from SVCs (if any)
     svc_qfixed = dict()
@@ -819,6 +825,7 @@ def save_extracted_values(df_hds, df_olf, case_dir, nb_computed_tap):
     """Save the values for all elements that are matched in both outputs."""
     # Merge (inner join) the two dataframes, checking for duplicates (just in case)
     key_fields = ["ELEMENT_TYPE", "ID", "VAR"]
+
     df = pd.merge(
         df_hds,
         df_olf,
