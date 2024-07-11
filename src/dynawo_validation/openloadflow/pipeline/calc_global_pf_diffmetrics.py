@@ -18,9 +18,12 @@ import numpy as np
 parser = argparse.ArgumentParser()
 parser.add_argument("pfsoldir", help="PF_SOL_DIR directory")
 parser.add_argument("prefix", help="Contingency prefix")
+parser.add_argument("--filter", help="enter fitler file", default=None)
 args = parser.parse_args()
 
-
+def read_filter(filter_file) :
+    file = open(filter_file, 'r')
+    return [l.strip() for l in file.readlines()]
 def main():
     PF_SOL_DIR = args.pfsoldir
     PREFIX = args.prefix
@@ -28,6 +31,9 @@ def main():
     PF_METRICS_DIR = PF_SOL_DIR + "/../pf_metrics"
     Path(PF_METRICS_DIR).mkdir(parents=False, exist_ok=True)
 
+    filter_file = args.filter
+
+    filters = read_filter(filter_file) if filter_file is not None else []
 
     all_tap_score = []
     noconv= []
@@ -41,6 +47,9 @@ def main():
         score_filepath= filepath[:-len("pfsolutionHO.csv.xz")] + "tapScore.csv"
         tap_score = pd.read_csv(score_filepath, sep=";", index_col=False)
         tap_score.insert(0, "contg", contg)
+
+        if len(filters) > 0:
+            delta.drop(delta[delta['ID'].isin(filters)].index, inplace = True)
 
         all_tap_score.append(tap_score)
 

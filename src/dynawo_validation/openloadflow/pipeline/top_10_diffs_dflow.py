@@ -23,7 +23,12 @@ parser = argparse.ArgumentParser()
 parser.add_argument("pf_solutions_dir", help="enter pf_solutions_dir directory")
 parser.add_argument("pf_metrics_dir", help="enter pf_metrics_dir directory")
 parser.add_argument("--regex", nargs="+", help="enter prefix name", default=[".*"])
+parser.add_argument("--filter", help="enter fitler file", default=None)
 args = parser.parse_args()
+
+def read_filter(filter_file) :
+    file = open(filter_file, 'r')
+    return [l.strip() for l in file.readlines()]
 
 
 def main():
@@ -33,6 +38,10 @@ def main():
 
     # argument management
     pf_solutions_dir = args.pf_solutions_dir
+
+    filter_file = args.filter
+
+    filters = read_filter(filter_file) if filter_file is not None else []
 
     if pf_solutions_dir[-1] != "/":
         pf_solutions_dir = pf_solutions_dir + "/"
@@ -68,6 +77,9 @@ def main():
 
         # Reading the cases and ordering the values according to the metrics
         data = read_case(pf_solutions_dir + i)
+        if len(filters) > 0:
+            data.drop(data[data['ID'].isin(filters)].index, inplace = True)
+
         split_contg = i[:-20].split("#")[-1]
         data.insert(0, "CONTG_ID", split_contg)
 
@@ -147,6 +159,8 @@ def main():
     databranchqsortedabstotal = databranchqsortedabstotal.sort_values(
                         "ABS_ERR", ascending=False
                     )[:10]
+
+
 
     df_metrics = pd.read_csv(pf_metrics_dir + "metrics.csv.xz", index_col=0)
     df_weights = pd.read_csv(
