@@ -62,6 +62,8 @@ def main():
     databuspsortedreltotal = None
     databusqsortedabstotal = None
     databusqsortedreltotal = None
+    databranchqsortedabstotal = None
+    databranchqsortedreltotal = None
     for i in data_files_list:
 
         # Reading the cases and ordering the values according to the metrics
@@ -94,6 +96,14 @@ def main():
         databusqsortedrel = databusq.sort_values("REL_ERR", ascending=False)
         databusqsortedabstotal = add_top_ten(databusqsortedabs, databusqsortedabstotal)
         databusqsortedreltotal = add_top_ten(databusqsortedrel, databusqsortedreltotal)
+
+        databranchq = data.loc[
+            ((data.VAR == "q1") | (data.VAR == "q2")) & (data.ELEMENT_TYPE != "bus")
+            ]
+        databranchqsortedabs = databranchq.sort_values("ABS_ERR", ascending=False)
+        databranchqsortedrel = databranchq.sort_values("REL_ERR", ascending=False)
+        databranchqsortedabstotal = add_top_ten(databranchqsortedabs, databranchqsortedabstotal)
+        databranchqsortedreltotal = add_top_ten(databranchqsortedrel, databranchqsortedreltotal)
 
         status_df = data[data.ID == "status#code"]
         if status_df.iloc[0]["ABS_ERR"] > 0:
@@ -133,6 +143,9 @@ def main():
                     )[:10]
     databusqsortedreltotal = databusqsortedreltotal.sort_values(
                         "REL_ERR", ascending=False
+                    )[:10]
+    databranchqsortedabstotal = databranchqsortedabstotal.sort_values(
+                        "ABS_ERR", ascending=False
                     )[:10]
 
     df_metrics = pd.read_csv(pf_metrics_dir + "metrics.csv.xz", index_col=0)
@@ -197,34 +210,36 @@ def main():
         + "\n"
     )
     print(datascore_max_total.to_string(index=False))
-    print(
-        "\n\nCOMPOUND SCORES: TOP 10 P95 METRIC --- # of cases exceeding threshold = "
-        + str(p95_n_pass)
-        + "\n"
-    )
-    print(datascore_p95_total.to_string(index=False))
-    print(
-        "\n\nCOMPOUND SCORES: TOP 10 MEAN METRIC --- # of cases exceeding threshold = "
-        + str(mean_n_pass)
-        + "\n"
-    )
-    print(datascore_mean_total.to_string(index=False))
+    # print(
+    #     "\n\nCOMPOUND SCORES: TOP 10 P95 METRIC --- # of cases exceeding threshold = "
+    #     + str(p95_n_pass)
+    #     + "\n"
+    # )
+    # print(datascore_p95_total.to_string(index=False))
+    # print(
+    #     "\n\nCOMPOUND SCORES: TOP 10 MEAN METRIC --- # of cases exceeding threshold = "
+    #     + str(mean_n_pass)
+    #     + "\n"
+    # )
+    # print(datascore_mean_total.to_string(index=False))
     print("\n\n\n\nTOP 10 VALUES BUS-V OF ABS_ERR\n")
     print(databusvoltsortedabstotal.to_string(index=False))
-    print("\n\nTOP 10 VALUES BUS-V OF REL_ERR\n")
-    print(databusvoltsortedreltotal.to_string(index=False))
+    # print("\n\nTOP 10 VALUES BUS-V OF REL_ERR\n")
+    # print(databusvoltsortedreltotal.to_string(index=False))
     print("\n\n\n\nTOP 10 VALUES BRANCH-P OF ABS_ERR\n")
     print(databranchpsortedabstotal.to_string(index=False))
-    print("\n\nTOP 10 VALUES BRANCH-P OF REL_ERR\n")
-    print(databranchpsortedreltotal.to_string(index=False))
+    # print("\n\nTOP 10 VALUES BRANCH-P OF REL_ERR\n")
+    # print(databranchpsortedreltotal.to_string(index=False))
     print("\n\n\n\nTOP 10 VALUES BUS-P OF ABS_ERR\n")
     print(databuspsortedabstotal.to_string(index=False))
-    print("\n\nTOP 10 VALUES BUS-P OF REL_ERR\n")
-    print(databuspsortedreltotal.to_string(index=False))
+    # print("\n\nTOP 10 VALUES BUS-P OF REL_ERR\n")
+    # print(databuspsortedreltotal.to_string(index=False))
     print("\n\n\n\nTOP 10 VALUES BUS-Q OF ABS_ERR\n")
     print(databusqsortedabstotal.to_string(index=False))
-    print("\n\nTOP 10 VALUES BUS-Q OF REL_ERR\n")
-    print(databusqsortedreltotal.to_string(index=False))
+    # print("\n\nTOP 10 VALUES BUS-Q OF REL_ERR\n")
+    # print(databusqsortedreltotal.to_string(index=False))
+    print("\n\n\n\nTOP 10 VALUES BRANCH-Q OF ABS_ERR\n")
+    print(databranchqsortedabstotal.to_string(index=False))
 
 
 # Read a specific contingency

@@ -130,7 +130,6 @@ def check_input_files(case_dir, fileList):
     if not os.path.isdir(case_dir):
         raise ValueError(f"case directory {case_dir} not found")
 
-    # TODO: Verifier ce qu'il se passe si un des fichiers ne converge pas
     for file in fileList:
         if not (
             os.path.isfile(file)
