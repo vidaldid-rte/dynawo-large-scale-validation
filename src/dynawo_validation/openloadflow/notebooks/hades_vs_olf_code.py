@@ -42,8 +42,8 @@ def read_aut_case(aut_dir, var):
 
 
 # Create the first graph
-def get_initial_graph(netwgraph_iidm_file, value, t, c):
-    return create_graph.get_graph(netwgraph_iidm_file, value, t, c)
+def get_initial_graph(netwgraph_iidm_file, branch_info_file, value, t, c):
+    return create_graph.get_graph(netwgraph_iidm_file, branch_info_file, value, t, c)
 
 
 # For hiding code cells
@@ -1902,7 +1902,7 @@ def get_info_data(RESULTS_DIR, BASECASE):
     return pd.read_csv(hades_file, sep=";"), pd.read_csv(olf_file, sep=";")
 
 def get_iidm_file(RESULTS_DIR, BASECASE):
-    return os.path.join(os.path.join(RESULTS_DIR, BASECASE),"olf.xiidm")
+    return os.path.join(os.path.join(RESULTS_DIR, BASECASE),"olf.xiidm"), os.path.join(os.path.join(RESULTS_DIR, BASECASE),"branches.csv")
 
 
 # Run the program
@@ -2713,11 +2713,11 @@ def run_all(
 
     # Graph creation
     # Get iidm file
-    netwgraph_iidm_file = get_iidm_file(RESULTS_DIR, BASECASE)
+    netwgraph_iidm_file, branch_info_file = get_iidm_file(RESULTS_DIR, BASECASE)
 
     # Get default graph
     netwgraph_G, netwgraph_C = get_initial_graph(
-        netwgraph_iidm_file, netwgraph_graph.value, SUBGRAPH_TYPE, SUBGRAPH_VALUE
+        netwgraph_iidm_file, branch_info_file, netwgraph_graph.value, SUBGRAPH_TYPE, SUBGRAPH_VALUE
     )
 
     # Paint with colors the graph

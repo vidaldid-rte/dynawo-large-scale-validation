@@ -37,6 +37,7 @@ HDS_VERSION = "LAUNCHER_HADES"
 OLF_VERSION = "LAUNCHER_OLF"
 OLF_PARAMS = "OLFParams.json"
 OUTPUT_FILE = "pfsolution_HO.csv"
+BRANCH_FILE= "branches.csv"
 TAP_SCORE_FILE = "tapScore.csv"
 ERRORS_HADES_FILE = "elements_not_in_Hades.csv"
 ERRORS_OLF_FILE = "elements_not_in_Olf.csv"
@@ -119,6 +120,7 @@ def main():
 
     # Merge, sort, and save
     save_extracted_values(df_hds, df_olf, case_dir, nb_computed_tap)
+    save_branch_info(branch_info, case_dir)
     save_nonmatching_elements(
         df_hds, df_olf, os.path.join(case_dir, ERRORS_HADES_FILE), os.path.join(case_dir,ERRORS_OLF_FILE)
     )
@@ -819,6 +821,12 @@ def save_tap_score(df, nb_computed_tap, case_dir):
     score_df = pd.DataFrame(columns=Tap_score._fields, data=[score])
     output_file=os.path.join(case_dir,TAP_SCORE_FILE)
     score_df.to_csv(output_file, index=False, sep=";", encoding="utf-8")
+
+def save_branch_info(branch_info, case_dir):
+    data=[(id, branch_info[id].bus1, branch_info[id].bus2) for id in branch_info]
+    df = pd.DataFrame(data = data, columns = ["id", "bus1", "bus2"])
+    output_file=os.path.join(case_dir,BRANCH_FILE)
+    df.to_csv(output_file, index=False, sep=";", encoding="utf-8")
 
 def save_extracted_values(df_hds, df_olf, case_dir, nb_computed_tap):
     """Save the values for all elements that are matched in both outputs."""

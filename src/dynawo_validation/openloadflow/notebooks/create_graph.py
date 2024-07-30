@@ -10,16 +10,19 @@
 # rendering the buses as nodes and the lines, transforms and the HVDCLines as edges.
 
 import math
-import sys
+
+import pandas as pd
 from lxml import etree
 import networkx as nx
 from pyvis.network import Network
 
 
-def get_graph(xiidm_file, id_node_subgraph, subgraph_type, subgraph_value):
+def get_graph(xiidm_file, branch_info_file, id_node_subgraph, subgraph_type, subgraph_value):
     # Remove a possible trailing slash
     if xiidm_file[-1] == "/":
         xiidm_file = xiidm_file[:-1]
+
+    branch_info = pd.read_csv(branch_info_file, sep=";",index_col="id")
 
     # Parse XML file
     iidmTree = etree.parse(xiidm_file, etree.XMLParser(remove_blank_text=True))
@@ -28,14 +31,14 @@ def get_graph(xiidm_file, id_node_subgraph, subgraph_type, subgraph_value):
     G = nx.Graph()
 
     # Call the function that will insert all the buses as nodes of the graph
-    G = insert_buses(iidmTree, G)
+    G = insert_buses(branch_info, G)
 
     # Call the function that will insert the lines as edges
-    G = insert_lines(iidmTree, G)
+    G = insert_lines(iidmTree, branch_info, G)
 
     # Call the function that will insert the transformers as edges
     n_edges = G.number_of_edges()
-    G = insert_transformers(iidmTree, G, n_edges)
+    G = insert_transformers(iidmTree, branch_info, G, n_edges)
 
     # Call the function that will insert the HVDCLines as edges
     n_edges = G.number_of_edges()
@@ -54,29 +57,27 @@ def get_subgraph(G, id_node_subgraph, subgraph_type, subgraph_value):
     return net
 
 
-def insert_buses(iidm_tree, G):
-    root = iidm_tree.getroot()
-    ns = etree.QName(root).namespace
+def insert_buses(branch_info, G):
+    buses = set(branch_info.bus1.unique()).union(set(branch_info.bus2.unique()))
 
     # We enumerate all buses and put them in the graph
-    for bus in root.iter("{%s}bus" % ns):
-        idb = bus.get("id")
-        if idb is not None:
-            G.add_node(idb)
+    for bus in buses:
+        G.add_node(bus)
 
     return G
 
 
-def insert_lines(iidm_tree, G):
+def insert_lines(iidm_tree, branch_info, G):
     root = iidm_tree.getroot()
     ns = etree.QName(root).namespace
 
     # We enumerate all lines and put them in the graph
     for line in root.iter("{%s}line" % ns):
-        bus1 = line.get("bus1")
-        if bus1 is not None:
-            bus2 = line.get("bus2")
-            if bus2 is not None:
+        lid = line.get("id")
+        bus1 = branch_info.loc[lid].bus1
+        if pd.notna(bus1):
+            bus2 = branch_info.loc[lid].bus2
+            if pd.notna(bus2):
                 imp = complex(float(line.get("r")), float(line.get("x")))
                 adm = 1 / (math.sqrt(pow(imp.real, 2) + pow(imp.imag, 2)))
                 p1 = abs(float(line.get("p1"))) if line.get("p1") is not None else math.nan
@@ -97,7 +98,7 @@ def insert_lines(iidm_tree, G):
     return G
 
 
-def insert_transformers(iidm_tree, G, n_edges):
+def insert_transformers(iidm_tree, branch_info, G, n_edges):
     root = iidm_tree.getroot()
     ns = etree.QName(root).namespace
 
@@ -105,10 +106,11 @@ def insert_transformers(iidm_tree, G, n_edges):
     for trans in root.iter("{%s}twoWindingsTransformer" % ns):
         if trans.get("p1") is None:
             continue
-        bus1 = trans.get("bus1")
-        if bus1 is not None:
-            bus2 = trans.get("bus2")
-            if bus2 is not None:
+        tid = trans.get("id")
+        bus1 = branch_info.loc[tid].bus1
+        if pd.notna(bus1):
+            bus2 = branch_info.loc[tid].bus2
+            if pd.notna(bus2):
                 imp = complex(float(trans.get("r")), float(trans.get("x")))
                 adm = 1 / (math.sqrt(pow(imp.real, 2) + pow(imp.imag, 2)))
                 trans_id = trans.get("id")
