@@ -1669,7 +1669,7 @@ def show_score(globaldiffs_df,compscore_grid_score, pf_dir):
                 "  * max_tap_diff: maximum tap difference - expected less than 1\n"
                 "  * nb_tap_diff:  number of tap with difference - expected less than 11% of all taps\n"
                 "  * max_q1_diff:  max reactive difference on a branch - expected less than 10MVar \n"
-                "  * q1_2_count:  number of branches with more thant 2Mvar difference. Expected less than 5 per transfo with tap difference\n"
+                "  * q1_2_count:  number of branches with more thant 2Mvar difference. Expected less than 10 per transfo with tap difference\n"
                 "  * max_p1_diff:  max active power difference on a branch - expected less than 2MW \n"
             )
         )
