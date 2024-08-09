@@ -72,3 +72,23 @@ def parse_basecase(base_case, hades_file, olf_file):
         olf_tree=olf_tree,
     )
 
+def disconnect_vl_item_from_node(vl_item, root):
+    vl = vl_item.getparent()
+    topoElt = vl.find(".//iidm:nodeBreakerTopology", root.nsmap)
+    tag = etree.QName(root.nsmap.get("iidm"), "switch")
+    switch = etree.SubElement(topoElt, tag)
+    switch.set("id", "broken")
+    switch.set("name", "broken")
+    switch.set("node2", "999")
+    switch.set("node1", "0")
+    switch.set("open", "true")
+    switch.set("retained", "false")
+    switch.set("kind", "BREAKER")
+    topoElt.append(switch)
+    item_node = vl_item.get("node")
+    vl_item.set("node", "999")
+    return (switch, item_node)
+
+def reconnect_vl_item_to_node(vl_item, switch, item_node):
+    switch.getparent().remove(switch)
+    vl_item.set("node", item_node)

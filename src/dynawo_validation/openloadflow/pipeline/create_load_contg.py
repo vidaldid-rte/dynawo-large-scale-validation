@@ -10,7 +10,7 @@ import random
 import re
 import sys
 from collections import namedtuple
-from common_funcs import parse_basecase, copy_basecase
+from common_funcs import parse_basecase, copy_basecase, disconnect_vl_item_from_node, reconnect_vl_item_to_node
 from lxml import etree
 import pandas as pd
 from frozendict import frozendict
@@ -226,8 +226,7 @@ def extract_olf_loads(iidm_tree, verbose=False):
             if bus_name is None:
                 continue
         elif topo_val == "NODE_BREAKER":
-            print(load_name + " ignored. Node breaker topology")
-            continue
+            bus_name = load.get("node")
         else:
             raise ValueError("TopologyKind not found for load: %s" % load_name)
 
@@ -298,15 +297,17 @@ def config_iidm_load_contingency(casedir, olf_tree, load_name):
     for load in root.iterfind(".//iidm:load", root.nsmap):
         if load.get("id") == load_name:
             olf_load = load
+            vl = load.getparent()
+            topo_val = vl.get("topologyKind")
             break
-    # the shunt should always be found, because they have been previously matched
-    load_bus = olf_load.get("bus")
-    if load_bus is not None:
-        del olf_load.attrib["bus"]  # bus breaker case
-    load_node = olf_load.get("node")
-    if load_node is not None:
-        del olf_load.attrib["node"] # node breaker case
 
+
+    if topo_val == "BUS_BREAKER":
+        load_bus = olf_load.get("bus")
+        if load_bus is not None:
+            del olf_load.attrib["bus"]  # bus breaker case
+    else:
+        switch, load_node = disconnect_vl_item_from_node(olf_load, root)
 
     # Remove symbolic link if exists
     if os.path.exists(iidm_file):
@@ -319,11 +320,12 @@ def config_iidm_load_contingency(casedir, olf_tree, load_name):
         standalone=False,
     )
     # IMPORTANT: undo the changes we made, as we'll be reusing this parsed tree!
-    if load_bus is not None:
-        olf_load.set("bus", load_bus)
-    if load_node is not None:
-        olf_load.set("node", load_node)
-
+    if topo_val == "BUS_BREAKER":
+        if load_bus is not None:
+            olf_load.set("bus", load_bus)
+    else:
+        if switch is not None:
+            reconnect_vl_item_to_node(olf_load, switch, load_node)
     return
 
 

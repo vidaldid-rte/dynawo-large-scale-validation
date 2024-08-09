@@ -10,7 +10,7 @@ import random
 import re
 import sys
 from collections import namedtuple
-from common_funcs import parse_basecase, copy_basecase
+from common_funcs import parse_basecase, copy_basecase, disconnect_vl_item_from_node, reconnect_vl_item_to_node
 from lxml import etree
 import pandas as pd
 import argparse
@@ -217,9 +217,7 @@ def extract_olf_gens(iidm_tree, verbose=False):
         if topo_val == "BUS_BREAKER":
             bus_name = gen.get("bus")
         elif topo_val == "NODE_BREAKER":
-            # To complex to generate contingencies in node breaker (we need to open a switch in all path)
-            print(gen_name + " in node breaker technology. Ignoring")
-            continue
+            bus_name = gen.get("node")
         else:
             raise ValueError("TopologyKind not found for generator: %s" % gen_name)
         gens[gen_name] = Gen_info(
@@ -272,17 +270,24 @@ def config_olf_gen_contingency(casedir, olf_tree, gen_name):
     root = olf_tree.getroot()
 
     olf_gen = None
+    vl = None
+    topo_val = None
     for generator in root.iterfind(".//iidm:generator", root.nsmap):
         if generator.get("id") == gen_name:
             olf_gen = generator
+            vl = generator.getparent()
+            topo_val = vl.get("topologyKind")
             break
-    # the shunt should always be found, because they have been previously matched
-    gen_bus = olf_gen.get("bus")
-    if gen_bus is not None:
-        del olf_gen.attrib["bus"]  # bus breaker case
-    gen_node = olf_gen.get("node")
-    if gen_node is not None:
-        del olf_gen.attrib["node"] # node breaker case
+    # the generators should always be found, because they have been previously matched
+
+
+    if topo_val == "BUS_BREAKER":
+        gen_bus = olf_gen.get("bus")
+        if gen_bus is not None:
+            del olf_gen.attrib["bus"]  # bus breaker case
+    else:
+        switch, gen_node = disconnect_vl_item_from_node(olf_gen, root)
+
 
 
     # Remove symbolic link if exists
@@ -296,10 +301,12 @@ def config_olf_gen_contingency(casedir, olf_tree, gen_name):
         standalone=False,
     )
     # IMPORTANT: undo the changes we made, as we'll be reusing this parsed tree!
-    if gen_bus is not None:
-        olf_gen.set("bus", gen_bus)
-    if gen_node is not None:
-        olf_gen.set("node", gen_node)
+    if topo_val == "BUS_BREAKER":
+        if gen_bus is not None:
+            olf_gen.set("bus", gen_bus)
+    else:
+        if switch is not None:
+            reconnect_vl_item_to_node(olf_gen, switch, gen_node)
 
     return
 

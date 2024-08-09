@@ -12,7 +12,7 @@ from collections import namedtuple
 from lxml import etree
 import pandas as pd
 import argparse
-from common_funcs import parse_basecase, copy_basecase
+from common_funcs import parse_basecase, copy_basecase, disconnect_vl_item_from_node, reconnect_vl_item_to_node
 
 # Relative imports only work for proper Python packages, but we do not want (yet) to
 # structure all these as a package; we'd like to keep them as a collection of loose
@@ -186,13 +186,14 @@ def extract_iidm_shunts(iidm_tree, verbose=False):
 
     # We enumerate all shunts and extract their properties
     for shunt in root.iter("{%s}shunt" % ns):
-        if shunt.get("bus") is not None:
+        if shunt.get("bus") is not None or shunt.get("node") is not None:
             shunt_name = shunt.get("id")
-            shunts[shunt_name] = Shunt_info(
-                Q=float(shunt.get("q")),
-                bus=shunt.get("bus"),
-                busTopology=shunt.getparent().get("topologyKind"),
-            )
+            if shunt.get("q") is not None:
+                shunts[shunt_name] = Shunt_info(
+                    Q=float(shunt.get("q")),
+                    bus=shunt.get("bus"),
+                    busTopology=shunt.getparent().get("topologyKind"),
+                )
 
     print("\nFound %d ACTIVE shunts in the IIDM file" % len(shunts))
     if verbose:
@@ -246,10 +247,15 @@ def config_iidm_shunt_contingency(casedir, olf_tree, shunt_name):
     for shunt in root.iterfind(".//iidm:shunt", root.nsmap):
         if shunt.get("id") == shunt_name:
             olf_shunt = shunt
+            vl = shunt.getparent()
+            topo_val = vl.get("topologyKind")
             break
     # the shunt should always be found, because they have been previously matched
-    shunt_bus=olf_shunt.get("bus")
-    del olf_shunt.attrib["bus"]
+    if topo_val == "BUS_BREAKER":
+        shunt_bus=olf_shunt.get("bus")
+        del olf_shunt.attrib["bus"]
+    else:
+        switch, load_node = disconnect_vl_item_from_node(olf_shunt, root)
 
     # Remove symbolic link if exists
     if os.path.exists(iidm_file):
@@ -262,7 +268,11 @@ def config_iidm_shunt_contingency(casedir, olf_tree, shunt_name):
         standalone=False,
     )
     # IMPORTANT: undo the changes we made, as we'll be reusing this parsed tree!
-    olf_shunt.set("bus", shunt_bus)
+    if topo_val == "BUS_BREAKER":
+        olf_shunt.set("bus", shunt_bus)
+    else:
+        if switch is not None:
+            reconnect_vl_item_to_node(olf_shunt, switch, load_node)
     return
 
 def config_hades_shunt_contingency(casedir, hades_tree, shunt_name):
