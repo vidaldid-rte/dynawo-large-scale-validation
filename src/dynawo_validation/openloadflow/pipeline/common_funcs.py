@@ -71,24 +71,36 @@ def parse_basecase(base_case, hades_file, olf_file):
         hades_tree=hades_tree,
         olf_tree=olf_tree,
     )
-
-def disconnect_vl_item_from_node(vl_item, root):
-    vl = vl_item.getparent()
+def add_dummy_switch(vl, root, suffix=""):
     topoElt = vl.find(".//iidm:nodeBreakerTopology", root.nsmap)
     tag = etree.QName(root.nsmap.get("iidm"), "switch")
     switch = etree.SubElement(topoElt, tag)
-    switch.set("id", "broken")
-    switch.set("name", "broken")
+    switch.set("id", "broken" + suffix)
+    switch.set("name", "broken" + suffix)
     switch.set("node2", "999")
     switch.set("node1", "0")
     switch.set("open", "true")
     switch.set("retained", "false")
     switch.set("kind", "BREAKER")
     topoElt.append(switch)
+    return switch
+def disconnect_branch_from_node(branch, side, vl, root):
+    switch = add_dummy_switch(vl, root, side)
+    node = branch.get("node" + side)
+    branch.set("node" + side, "999")
+    return (switch, node)
+def disconnect_vl_item_from_node(vl_item, root):
+    switch = add_dummy_switch(vl_item.getparent(), root)
     item_node = vl_item.get("node")
     vl_item.set("node", "999")
     return (switch, item_node)
 
+def reconnect_branch(branch, switch, bus, side):
+    if switch is None:
+        branch.set("bus" + side, bus)
+    else:
+        switch.getparent().remove(switch)
+        branch.set("node" + side, bus)
 def reconnect_vl_item_to_node(vl_item, switch, item_node):
     switch.getparent().remove(switch)
     vl_item.set("node", item_node)
