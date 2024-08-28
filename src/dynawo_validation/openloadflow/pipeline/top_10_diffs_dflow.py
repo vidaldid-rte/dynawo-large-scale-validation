@@ -161,8 +161,8 @@ def main():
                     )[:10]
 
 
-
-    df_metrics = pd.read_csv(pf_metrics_dir + "metrics.csv.xz", index_col=0)
+    metrics_file = "metrics.csv.xz" if filter_file is None else "metrics_filtered.csv.xz"
+    df_metrics = pd.read_csv(pf_metrics_dir + metrics_file, index_col=0)
     df_weights = pd.read_csv(
         pf_metrics_dir + "../../score_weights.csv", sep=";", index_col=0
     )

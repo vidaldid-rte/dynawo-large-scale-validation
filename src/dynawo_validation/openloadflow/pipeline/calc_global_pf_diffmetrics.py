@@ -115,7 +115,7 @@ def main():
         + list(delta_p95.index + "_p95")
         + list(delta_mean.index + "_mean"),
     )
-    fileName = os.path.join(PF_METRICS_DIR, "metrics.csv.xz")
+    fileName = os.path.join(PF_METRICS_DIR, "metrics.csv.xz" if filter_file is None else "metrics_filtered.csv.xz")
     df.to_csv(fileName, compression="xz")
 
     all_tap_score_df = pd.concat(all_tap_score, ignore_index=True)

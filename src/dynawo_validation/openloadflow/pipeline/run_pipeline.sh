@@ -56,6 +56,8 @@ Usage: olf_run_validation [OPTIONS] BASECASE RESULTS_DIR
     -H | --launcherH  Defines the launcher for Hades
     -O | --launcherO  Defines the launcher for OpenLoadFlow
     -c | --cleanup    Delete input cases after getting the results
+    -f | --filter  <filterFile> If present, produces also filtered statistics from which the differences
+                    involving the filtered items are ignored
     -t | --contingence-type Contingences to play (all, none, shunt, gen, branch,load)
     -d | --debug      More debug messages
     -m | --max        Maximum number of contingencies for each type (default 20)
@@ -88,8 +90,8 @@ if [[ $? -ne 4 ]]; then
 fi
 set -e
 
-OPTIONS=H:O:hdcm:sw:t:
-LONGOPTS=launcherO:,launcherH:,help,debug,cleanup,weights,max:,minP:,maxP:,sequential,contingence-type:
+OPTIONS=H:O:hdcm:sw:t:f:
+LONGOPTS=launcherO:,launcherH:,help,debug,cleanup,weights,max:,minP:,maxP:,sequential,contingence-type:,filter:
 # -activate quoting/enhanced mode (e.g. by writing out “--options”)
 # -pass arguments only via   -- "$@"   to separate them correctly
 PARSED=$(getopt --options=$OPTIONS --longoptions=$LONGOPTS --name "$0" -- "$@")
@@ -98,7 +100,7 @@ eval set -- "$PARSED"
 
 # now enjoy the options in order and nicely split until we see --
 H="hades2.sh" O="itools" h=n sequential='n' maxCont=20 minP=0 maxP=-1
-debug=n cleanup=n weightslist="None" ctype="all"
+debug=n cleanup=n weightslist="None" ctype="all" filter=""
 while true; do
     case "$1" in
         -H|--launcherH)
@@ -151,6 +153,17 @@ while true; do
         -c|--cleanup)
             cleanup=y
             shift
+            ;;
+        -f|--filter)
+            filter="$2"
+            echo "Filter file: $2"
+            if [ ! -e "$2" ]
+            then
+              echo "Error: Filter file $2 does not exist"
+              usage
+              exit 1
+            fi
+            shift 2
             ;;
         --)
             shift
@@ -301,6 +314,10 @@ export powsybl_config_dirs="${ITOOLS_DIR}"
 ###############################
 colormsg "*** COMPUTING DIFF METRICS:"
 python3 "$CONTG_SRC"/calc_global_pf_diffmetrics.py "$RESULTS_DIR"/pf_sol  "$BASECASE_NAME"
+if [ ! -z $filter ]
+then
+  python3 "$CONTG_SRC"/calc_global_pf_diffmetrics.py --filter "$filter"  "$RESULTS_DIR"/pf_sol  "$BASECASE_NAME"
+fi
 echo
 
 
@@ -310,6 +327,11 @@ echo
 colormsg "*** COMPUTING TOP 10 DIFFS:"
 python3 "$OLF_VALIDATION_SRC"/pipeline/top_10_diffs_dflow.py "$RESULTS_DIR"/pf_sol/ \
         "$RESULTS_DIR"/pf_metrics/ >| "$RESULTS_DIR"/../top_10_diffs_"$BASECASE_NAME".txt
+if [ ! -z $filter ]
+then
+  python3 "$OLF_VALIDATION_SRC"/pipeline/top_10_diffs_dflow.py --filter "$filter" "$RESULTS_DIR"/pf_sol/ \
+          "$RESULTS_DIR"/pf_metrics/ >| "$RESULTS_DIR"/../top_10_diffs_"$BASECASE_NAME"_filtered.txt
+fi
 echo
 
 ##########################################################
@@ -380,6 +402,10 @@ for DEVICE in "${!create_contg[@]}"; do
     ###############################
     colormsg "*** COMPUTING DIFF METRICS:"
     python3 "$CONTG_SRC"/calc_global_pf_diffmetrics.py "$RESULTS_DIR"/pf_sol "$DEVICE#"
+    if [ ! -z $filter ]
+      then
+        python3 "$CONTG_SRC"/calc_global_pf_diffmetrics.py --filter "$filter"  "$RESULTS_DIR"/pf_sol  "$DEVICE#"
+      fi
     echo
 
     #####################################
@@ -388,6 +414,11 @@ for DEVICE in "${!create_contg[@]}"; do
     colormsg "*** COMPUTING TOP 10 DIFFS:"
     python3 "$OLF_VALIDATION_SRC"/pipeline/top_10_diffs_dflow.py "$RESULTS_DIR"/pf_sol/ \
             "$RESULTS_DIR"/pf_metrics/ >| "$RESULTS_DIR"/../top_10_diffs_"$DEVICE".txt
+    if [ ! -z $filter ]
+      then
+        python3 "$OLF_VALIDATION_SRC"/pipeline/top_10_diffs_dflow.py --filter "$filter" "$RESULTS_DIR"/pf_sol/ \
+                "$RESULTS_DIR"/pf_metrics/ >| "$RESULTS_DIR"/../top_10_diffs_"$DEVICE"_filtered.txt
+    fi
     echo
 
 
