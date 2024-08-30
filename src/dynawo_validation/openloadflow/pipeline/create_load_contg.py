@@ -13,7 +13,6 @@ from collections import namedtuple
 from common_funcs import parse_basecase, copy_basecase, disconnect_vl_item_from_node, reconnect_vl_item_to_node
 from lxml import etree
 import pandas as pd
-from frozendict import frozendict
 import argparse
 
 # Relative imports only work for proper Python packages, but we do not want (yet) to
@@ -27,21 +26,6 @@ sys.path.insert(
 HADES_FILE = "entreeHades.xml"
 OLF_FILE = "entreeOLF.xiidm"
 PARAM_FILE = "OLFParams.json"
-
-# This dictionary refers to the possible load models. Depending on each of them, the
-# variable for the disconnection event can be one or another.
-LOAD_MODELS = frozendict(
-    {
-        "DYNModelLoadAlphaBeta": "switchOffSignal2",
-        "DYNModelLoadRestorativeWithLimits": "switchOff2_value",
-        "LoadAlphaBeta": "load_switchOffSignal2_value",
-        "LoadAlphaBetaRestorative": "load_switchOffSignal2_value",
-        "LoadAlphaBetaRestorativeLimitsRecalc": "load_switchOffSignal2_value",
-        "LoadPQCompensation": "load_switchOffSignal2_value",
-        "LoadPQ": "load_switchOffSignal2_value",
-        "LoadZIP": "load_switchOffSignal2_value",
-    }
-)
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
