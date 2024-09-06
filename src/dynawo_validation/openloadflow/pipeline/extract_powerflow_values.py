@@ -251,9 +251,9 @@ def get_bus_name(bus, voltage_level, toplogy, root, bus_connections):
         substation = voltage_level.getparent()
         for t in chain(substation.iterfind(".//iidm:twoWindingsTransformer", root.nsmap), root.iterfind(".//iidm:line", root.nsmap)):
             t_vl1 = t.get("voltageLevelId1")
+            t_vl2 = t.get("voltageLevelId2")
             if t_vl1 == vlid and t.get("node1") in nodes and (t.get("id"), t_vl1) in bus_connections:
                 return bus_connections[(t.get("id"), t_vl1)]
-            t_vl2 = t.get("voltageLevelId2")
             if t_vl2 == vlid and t.get("node2") in nodes and (t.get("id"), t_vl2) in bus_connections:
                 return bus_connections[(t.get("id"), t_vl2)]
 
@@ -289,6 +289,9 @@ def extract_iidm_buses(root, data, vl_nomv, bus_connections):
                     lid = load.get("id")
                     if lid not in bus_connections and load.get("node") in bus_nodes:
                         bus_connections[lid] = bus_name
+                ##  add the nodes in bus connection for the TD transformers that have both ends in the same VL
+                for node in bus_nodes:
+                    bus_connections[(voltage_level.get("id"), node)] = bus_name
 
             # skip inactive buses
             if (v == "0" or v is None) and (angle == "0" or angle is None) :
@@ -514,6 +517,9 @@ def extract_hds_buses_connections(hades_input):
 
     donneesQuadripoles = reseau.find("./donneesQuadripoles", root.nsmap)
     for quadripole in donneesQuadripoles.iterfind("./quadripole", root.nsmap):
+        if quadripole.get("postor") == quadripole.get("postex"):
+            # Avoid bus confusion for TD connected in the same voltage level
+            continue
         if quadripole.get("postor") in poste_names and quadripole.get("nor") in bus_names:
             bus_connections[(quadripole.get("nom"),poste_names[quadripole.get("postor")])] = bus_names[quadripole.get("nor")]
         if quadripole.get("postex") in poste_names and quadripole.get("nex") in bus_names:
