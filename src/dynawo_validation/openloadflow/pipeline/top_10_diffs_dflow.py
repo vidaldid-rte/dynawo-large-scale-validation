@@ -74,7 +74,6 @@ def main():
     databusqsortedreltotal = None
     databranchqsortedabstotal = None
     databranchqsortedreltotal = None
-    dataiterationstatus = None
 
     for i in data_files_list:
 
@@ -226,7 +225,7 @@ def main():
         )
         print(pd.DataFrame(convergence_mismatch, columns=["Case", "Hades Status", "OLF Status"]).to_string(index=False))
 
-    print("\n\nCONVERGENCE STATUS: TOP 10 MAX ITERATIONS\n")
+    print("\n\nCONVERGENCE STATUS: TOP 10 MAX OLF ITERATIONS\n")
     print(pd.DataFrame(nb_iterations, columns=["Case", "Hades_Iterations", "OLF_Iterations"]).sort_values("OLF_Iterations", ascending=False)[:10].to_string(index=False))
 
 

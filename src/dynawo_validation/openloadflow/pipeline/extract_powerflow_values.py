@@ -190,7 +190,7 @@ def extract_hades_status(df_hds, hades_output):
 
     df_hds.loc[len(df_hds)] = ["status#code", "status", "status", status]
     df_hds.loc[len(df_hds)] = ["status#slack", "status", "p", slack]
-    df_hds.loc[len(df_hds)] = ["status#nb_iterations", "status", None, "nb_iterations", nb_iterations]
+    df_hds.loc[len(df_hds)] = ["status#nb_iterations", "status", "nb_iterations", nb_iterations]
 
 
 def extract_iidm_solution(iidm_output, bus_connections):
