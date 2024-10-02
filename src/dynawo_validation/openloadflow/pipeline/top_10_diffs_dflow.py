@@ -63,6 +63,7 @@ def main():
 
     convergence_mismatch = []
     noconv=[]
+    nb_iterations = []
     databusvoltsortedabstotal = None
     databusvoltsortedreltotal = None
     databranchpsortedabstotal = None
@@ -73,6 +74,8 @@ def main():
     databusqsortedreltotal = None
     databranchqsortedabstotal = None
     databranchqsortedreltotal = None
+    dataiterationstatus = None
+
     for i in data_files_list:
 
         # Reading the cases and ordering the values according to the metrics
@@ -126,6 +129,11 @@ def main():
             noconv.append([split_contg,
                            status_df.iloc[0]["VALUE_HADES"],
                            status_df.iloc[0]["VALUE_OLF"]])
+        else :
+            nb_iter_df = data[data.ID == "status#nb_iterations"]
+            nb_iterations.append([split_contg,
+                                  nb_iter_df.iloc[0]["VALUE_HADES"],
+                                  nb_iter_df.iloc[0]["VALUE_OLF"]])
 
     if databusvoltsortedabstotal is None:
         raise ValueError(
@@ -217,6 +225,11 @@ def main():
         "\n\nCONVERGENCE ISSUE: CASES WITH DIFFERENT CONVERGENCE STATUS in HADES and OLF "
         )
         print(pd.DataFrame(convergence_mismatch, columns=["Case", "Hades Status", "OLF Status"]).to_string(index=False))
+
+    print("\n\nCONVERGENCE STATUS: TOP 10 MAX ITERATIONS\n")
+    print(pd.DataFrame(nb_iterations, columns=["Case", "Hades_Iterations", "OLF_Iterations"]).sort_values("OLF_Iterations", ascending=False)[:10].to_string(index=False))
+
+
 
     print(
         "\n\nCOMPOUND SCORES: TOP 10 MAX METRIC --- # of cases exceeding threshold = "

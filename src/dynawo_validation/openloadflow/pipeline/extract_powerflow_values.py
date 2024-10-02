@@ -149,6 +149,7 @@ def extract_olf_status(df_olf, olf_log):
                 if len(tokens) == 11 and found:
                     status_string = tokens[3].strip()
                     slack = float(tokens[8].replace(",","."))
+                    nb_iterations = int(tokens[6].strip())
                     break
                 if len(tokens) == 11 and "Slack bus mismatch" in tokens[8]:
                     found = True
@@ -171,6 +172,7 @@ def extract_olf_status(df_olf, olf_log):
 
     df_olf.loc[len(df_olf)] = ["status#code", "status", None, "status", status_code]
     df_olf.loc[len(df_olf)] = ["status#slack", "status", None, "p", slack]
+    df_olf.loc[len(df_olf)] = ["status#nb_iterations", "status", None, "nb_iterations", nb_iterations]
 
 
 
@@ -183,10 +185,12 @@ def extract_hades_status(df_hds, hades_output):
     slack = float(result.get("ecartNoeudBilan"))
     res_lf = result.find("./resLF", root.nsmap)
     status = res_lf.get("statut")
+    nb_iterations = int(res_lf.get("nbIter"))
     slack = 0.000999 if res_lf.get("nonVentile") is None else float(res_lf.get("nonVentile"))
 
     df_hds.loc[len(df_hds)] = ["status#code", "status", "status", status]
     df_hds.loc[len(df_hds)] = ["status#slack", "status", "p", slack]
+    df_hds.loc[len(df_hds)] = ["status#nb_iterations", "status", None, "nb_iterations", nb_iterations]
 
 
 def extract_iidm_solution(iidm_output, bus_connections):
