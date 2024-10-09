@@ -360,13 +360,13 @@ def calc_global_score(df, W_V, W_P, W_Q, W_T, MAX_THRESH, MEAN_THRESH, P95_THRES
 
     for i in range(len(df_all.index)):
         max_val = (
-            abs(df_all.iloc[i, 3]) * W_P
-            + abs((df_all.iloc[i, 4] * 0.5 + df_all.iloc[i, 5] * 0.5)) * W_P
-            + abs(df_all.iloc[i, 6]) * W_T
-            + abs(df_all.iloc[i, 7]) * W_Q
-            + abs((df_all.iloc[i, 8] * 0.5 + df_all.iloc[i, 9] * 0.5)) * W_Q
-            + abs(df_all.iloc[i, 10]) * W_T
-            + abs(df_all.iloc[i, 11]) * W_V
+            abs(df_all.iloc[i, df.columns.get_loc("p_max")]) * W_P
+            + abs((df_all.iloc[i, df.columns.get_loc("p1_max")] * 0.5 + df_all.iloc[i, df.columns.get_loc("p2_max")] * 0.5)) * W_P
+            + abs(df_all.iloc[i, df.columns.get_loc("pstap_max")]) * W_T
+            + abs(df_all.iloc[i, df.columns.get_loc("q_max")]) * W_Q
+            + abs((df_all.iloc[i, df.columns.get_loc("q1_max")] * 0.5 + df_all.iloc[i, df.columns.get_loc("q2_max")] * 0.5)) * W_Q
+            + abs(df_all.iloc[i, df.columns.get_loc("tap_max")]) * W_T
+            + abs(df_all.iloc[i, df.columns.get_loc("v_max")]) * W_V
         )
         if max_val > MAX_THRESH:
             max_n_pass += 1
@@ -374,26 +374,26 @@ def calc_global_score(df, W_V, W_P, W_Q, W_T, MAX_THRESH, MEAN_THRESH, P95_THRES
         score_max.append(max_val)
 
         p95_val = (
-            abs(df_all.iloc[i, 13]) * W_P
-            + abs((df_all.iloc[i, 14] * 0.5 + df_all.iloc[i, 15] * 0.5)) * W_P
-            + abs(df_all.iloc[i, 16]) * W_T
-            + abs(df_all.iloc[i, 17]) * W_Q
-            + abs((df_all.iloc[i, 18] * 0.5 + df_all.iloc[i, 19] * 0.5)) * W_Q
-            + abs(df_all.iloc[i, 20]) * W_T
-            + abs(df_all.iloc[i, 21]) * W_V
+            abs(df_all.iloc[i, df.columns.get_loc("p_p95")]) * W_P
+            + abs((df_all.iloc[i, df.columns.get_loc("p1_p95")] * 0.5 + df_all.iloc[i, df.columns.get_loc("p2_p95")] * 0.5)) * W_P
+            + abs(df_all.iloc[i, df.columns.get_loc("pstap_p95")]) * W_T
+            + abs(df_all.iloc[i, df.columns.get_loc("q_p95")]) * W_Q
+            + abs((df_all.iloc[i, df.columns.get_loc("q1_p95")] * 0.5 + df_all.iloc[i, df.columns.get_loc("q2_p95")] * 0.5)) * W_Q
+            + abs(df_all.iloc[i, df.columns.get_loc("tap_p95")]) * W_T
+            + abs(df_all.iloc[i, df.columns.get_loc("v_p95")]) * W_V
         )
         if p95_val > P95_THRESH:
             p95_n_pass += 1
         score_p95.append(p95_val)
 
         mean_val = (
-            abs(df_all.iloc[i, 23]) * W_P
-            + abs((df_all.iloc[i, 24] * 0.5 + df_all.iloc[i, 25] * 0.5)) * W_P
-            + abs(df_all.iloc[i, 26]) * W_T
-            + abs(df_all.iloc[i, 27]) * W_Q
-            + abs((df_all.iloc[i, 28] * 0.5 + df_all.iloc[i, 29] * 0.5)) * W_Q
-            + abs(df_all.iloc[i, 30]) * W_T
-            + abs(df_all.iloc[i, 31]) * W_V
+            abs(df_all.iloc[i, df.columns.get_loc("p_mean")]) * W_P
+            + abs((df_all.iloc[i, df.columns.get_loc("p1_mean")] * 0.5 + df_all.iloc[i, df.columns.get_loc("p2_mean")] * 0.5)) * W_P
+            + abs(df_all.iloc[i, df.columns.get_loc("pstap_mean")]) * W_T
+            + abs(df_all.iloc[i, df.columns.get_loc("q_mean")]) * W_Q
+            + abs((df_all.iloc[i, df.columns.get_loc("q1_mean")] * 0.5 + df_all.iloc[i, df.columns.get_loc("q2_mean")] * 0.5)) * W_Q
+            + abs(df_all.iloc[i, df.columns.get_loc("tap_mean")]) * W_T
+            + abs(df_all.iloc[i, df.columns.get_loc("v_mean")]) * W_V
         )
         if mean_val > MEAN_THRESH:
             mean_n_pass += 1
