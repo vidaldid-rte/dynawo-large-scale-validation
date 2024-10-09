@@ -93,14 +93,15 @@ def main():
             delta_vl_p95 = delta_vl.groupby("VAR").quantile(0.95, numeric_only=True).sort_values("VAR")
             delta_vl_max = delta_vl.groupby("VAR").max(numeric_only=True).sort_values("VAR")
 
-            res2 = (
-                [contg]
-                + [str(volt_level)]
-                + delta_vl_max["DIFF_ABS"].to_list()
-                + delta_vl_p95["DIFF_ABS"].to_list()
-                + delta_vl_mean["DIFF_ABS"].to_list()
-            )
-            res = res + [res2]
+            if "DIFF_ABS" in delta_vl_max:  # Some VL may have no data
+                res2 = (
+                    [contg]
+                    + [str(volt_level)]
+                    + delta_vl_max["DIFF_ABS"].to_list()
+                    + delta_vl_p95["DIFF_ABS"].to_list()
+                    + delta_vl_mean["DIFF_ABS"].to_list()
+                )
+                res = res + [res2]
 
         # (end of main for loop, file processed)
         print(".", end="", flush=True)

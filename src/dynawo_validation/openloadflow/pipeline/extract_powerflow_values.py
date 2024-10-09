@@ -355,7 +355,7 @@ def get_line_vnom_bus2(line, vl_nomv, bus_connections):
 def extract_iidm_lines(root, data, vl_nomv, branches, bus_connections):
     """Read line flows, and update data. Also update branches dict"""
     ctr = 0
-    for line in root.iterfind("./iidm:line", root.nsmap):
+    for line in root.iterfind(".//iidm:line", root.nsmap):
         line_name = line.get("id")
         p1 = floatOrZero(line.get("p1"))
         q1 = floatOrZero(line.get("q1"))
