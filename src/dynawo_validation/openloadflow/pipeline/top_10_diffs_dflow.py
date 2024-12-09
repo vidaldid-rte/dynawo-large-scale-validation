@@ -16,7 +16,7 @@ import re
 import sys
 import pandas as pd
 import argparse
-from dynawo_validation.dynaflow.pipeline.common_funcs import calc_global_score
+from dynawo_validation.dynaflow.pipeline.common_funcs import calc_global_score_with_max
 
 
 parser = argparse.ArgumentParser()
@@ -174,25 +174,11 @@ def main():
         pf_metrics_dir + "../../score_weights.csv", sep=";", index_col=0
     )
 
-    datascore, max_n_pass, p95_n_pass, mean_n_pass, total_n_pass = calc_global_score(
-        df_metrics,
-        df_weights["W_V"].to_list()[0],
-        df_weights["W_P"].to_list()[0],
-        df_weights["W_Q"].to_list()[0],
-        df_weights["W_T"].to_list()[0],
-        df_weights["MAX_THRESH"].to_list()[0],
-        df_weights["MEAN_THRESH"].to_list()[0],
-        df_weights["P95_THRESH"].to_list()[0],
-    )
+    datascore, max_n_pass = calc_global_score_with_max(df_metrics, df_weights["MAX_THRESH"].to_list()[0])
 
     datascore_max = datascore.sort_values("MAX_SCORE", ascending=False)
-    datascore_p95 = datascore.sort_values("P95_SCORE", ascending=False)
-    datascore_mean = datascore.sort_values("MEAN_SCORE", ascending=False)
-
 
     datascore_max_total = datascore_max[:10]
-    datascore_p95_total = datascore_p95[:10]
-    datascore_mean_total = datascore_mean[:10]
 
     # Print results on screen
     print("WEIGHTS AND THRESHOLDS USED FOR SCORE CALCULATIONS:")
