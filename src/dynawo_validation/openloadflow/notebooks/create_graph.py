@@ -79,7 +79,7 @@ def insert_lines(iidm_tree, branch_info, G):
             bus2 = branch_info.loc[lid].bus2
             if pd.notna(bus2):
                 imp = complex(float(line.get("r")), float(line.get("x")))
-                adm = 1 / (math.sqrt(pow(imp.real, 2) + pow(imp.imag, 2)))
+                adm = 1 / (math.sqrt(pow(imp.real, 2) + pow(imp.imag, 2))) if imp != 0 else 1e6 # a big value for null impedance
                 p1 = abs(float(line.get("p1"))) if line.get("p1") is not None else math.nan
                 line_id = line.get("id")
                 if (bus1, bus2) not in G.edges:
