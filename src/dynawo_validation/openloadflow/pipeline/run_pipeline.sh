@@ -66,6 +66,7 @@ Usage: olf_run_validation [OPTIONS] BASECASE RESULTS_DIR
     -s | --sequential Run jobs sequentially (defult is parallel)
     -w | --weights    Calculate scores with weights
     -h | --help       This help message
+    -p | --preprocess <preprocessingFile> A file to preprocess the bases case (currently list of groups to remove from tension control)
 EOF
 }
 
@@ -90,8 +91,8 @@ if [[ $? -ne 4 ]]; then
 fi
 set -e
 
-OPTIONS=H:O:hdcm:sw:t:f:
-LONGOPTS=launcherO:,launcherH:,help,debug,cleanup,weights,max:,minP:,maxP:,sequential,contingence-type:,filter:
+OPTIONS=H:O:hdcm:sw:t:f:p:
+LONGOPTS=launcherO:,launcherH:,help,debug,cleanup,weights,max:,minP:,maxP:,sequential,contingence-type:,filter:,preprocess:
 # -activate quoting/enhanced mode (e.g. by writing out “--options”)
 # -pass arguments only via   -- "$@"   to separate them correctly
 PARSED=$(getopt --options=$OPTIONS --longoptions=$LONGOPTS --name "$0" -- "$@")
@@ -100,7 +101,7 @@ eval set -- "$PARSED"
 
 # now enjoy the options in order and nicely split until we see --
 H="hades2.sh" O="itools" h=n sequential='n' maxCont=20 minP=0 maxP=-1
-debug=n cleanup=n weightslist="None" ctype="all" filter=""
+debug=n cleanup=n weightslist="None" ctype="all" filter="" preprocess=""
 while true; do
     case "$1" in
         -H|--launcherH)
@@ -160,6 +161,17 @@ while true; do
             if [ ! -e "$2" ]
             then
               echo "Error: Filter file $2 does not exist"
+              usage
+              exit 1
+            fi
+            shift 2
+            ;;
+        -p|--preprocess)
+            preprocess="$2"
+            echo "Preprocess file: $2"
+            if [ ! -e "$2" ]
+            then
+              echo "Error: Preprocess file $2 does not exist"
               usage
               exit 1
             fi
@@ -299,7 +311,13 @@ fi
 # Set the config directory variable for itools
 export powsybl_config_dirs="${ITOOLS_DIR}"
 
-
+#######################################
+# Update the base case if needed
+#######################################
+if [[ -n ${preprocess} ]]; then
+  echo "Preprocess files"
+  python3 "$CONTG_SRC"/preprocess_case.py "$preprocess"  "$CP_BASECASE"
+fi
 #######################################
 # Run the base case
 #######################################
