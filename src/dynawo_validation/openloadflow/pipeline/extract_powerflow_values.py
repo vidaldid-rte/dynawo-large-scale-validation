@@ -21,6 +21,7 @@ import re
 import sys
 import json
 import pandas as pd
+import numpy as np
 from lxml import etree
 from collections import namedtuple
 from itertools import chain
@@ -170,9 +171,9 @@ def extract_olf_status(df_olf, olf_log):
         # Remove all values as they make no sense
         df_olf.drop(df_olf.index, axis=0, inplace=True)
 
-    df_olf.loc[len(df_olf)] = ["status#code", "status", None, "status", status_code]
-    df_olf.loc[len(df_olf)] = ["status#slack", "status", None, "p", slack]
-    df_olf.loc[len(df_olf)] = ["status#nb_iterations", "status", None, "nb_iterations", nb_iterations]
+    df_olf.loc[len(df_olf)] = ["status#code", "status", np.nan, "status", status_code]
+    df_olf.loc[len(df_olf)] = ["status#slack", "status", np.nan, "p", slack]
+    df_olf.loc[len(df_olf)] = ["status#nb_iterations", "status", np.nan, "nb_iterations", nb_iterations]
 
 
 

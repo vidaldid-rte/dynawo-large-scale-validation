@@ -85,9 +85,10 @@ def main():
             delta_vl = delta[delta.VOLT_LEVEL == volt_level].copy().reset_index()
             # Ensure there is at least a Nan for all VARs to make sure we have the right number of aggregates
             for VAR in delta.VAR.unique():
-                delta_vl.loc[len(delta_vl)] = [None] * delta_vl.shape[1]
-                delta_vl.at[len(delta_vl) - 1, "VAR"] = VAR
-                delta_vl.at[len(delta_vl) - 1, "VOLT_LEVEL"] = volt_level
+                values = [np.nan] * delta_vl.shape[1]
+                values[delta_vl.columns.get_loc("VAR")] = VAR
+                values[delta_vl.columns.get_loc("VOLT_LEVEL")] = volt_level
+                delta_vl.loc[len(delta_vl)] = values
 
             delta_vl_mean = delta_vl.groupby("VAR").mean(numeric_only=True).sort_values("VAR")
             delta_vl_p95 = delta_vl.groupby("VAR").quantile(0.95, numeric_only=True).sort_values("VAR")
