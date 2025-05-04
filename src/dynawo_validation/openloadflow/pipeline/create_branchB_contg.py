@@ -8,7 +8,7 @@ import random
 import re
 import sys
 from collections import namedtuple
-from dynawo_validation.openloadflow.pipeline.common_funcs import parse_basecase, copy_basecase
+from dynawo_validation.openloadflow.pipeline.common_funcs import parse_basecase, copy_basecase, disconnect_branch_from_node,reconnect_branch
 
 from lxml import etree
 import pandas as pd
@@ -242,9 +242,13 @@ def extract_olf_branches(iidm_tree, verbose=False):
             print("   WARNING: unknown branch type %s (skipping)" % branch_name)
             continue
         # Find its FROM and TO buses
-        bus_from = branch.get("bus1")
-        bus_to = branch.get("bus2")
-        if bus_from is None or bus_to is None:
+        bus_or_node_from = branch.get("bus1")
+        if bus_or_node_from is None:
+            bus_or_node_from = branch.get("node1")
+        bus_or_node_to = branch.get("bus2")
+        if bus_or_node_to is None:
+            bus_or_node_to = branch.get("node2")
+        if bus_or_node_from is None or bus_or_node_to is None:
             # Ignoring disconnected branches or branches connected to a node breaker topology
             print(
                 "   WARNING: couldn't find bus FROM/TO for %s %s (skipping)"
@@ -253,7 +257,7 @@ def extract_olf_branches(iidm_tree, verbose=False):
             continue
 
         branches[branch_name] = Branch_info(
-            P=P_flow, Q=Q_flow, branchType=branch_type, busFrom=bus_from, busTo=bus_to
+            P=P_flow, Q=Q_flow, branchType=branch_type, busFrom=bus_or_node_from, busTo=bus_or_node_to
         )
 
     print("\nFound %d ACTIVE branches" % len(branches), end=",")
@@ -305,6 +309,19 @@ def matching_in_hades(hades_tree, dynawo_branches, verbose=False):
 
     return dict(new_list)
 
+def disconnect(branch, side, root):
+    bus = branch.get("bus" + side)
+    if bus is not None:
+        del branch.attrib["bus"+side]
+        return (None, bus)
+    else:
+        vlid = branch.get("voltageLevelId" + side)
+        for vl in root.iterfind(".//iidm:voltageLevel", root.nsmap):
+            if vl.get("id") == vlid:
+                switch, bus = disconnect_branch_from_node(branch, side, vl, root)
+                return (switch, bus)
+        return (None, None)  # vl not found - should not happen
+
 
 def config_olf_branch_contingency(
     casedir, iidm_tree, branch_name, branch_info, disc_mode
@@ -321,17 +338,15 @@ def config_olf_branch_contingency(
             iidm_branch = branch
             break
 
-    bus1 = iidm_branch.get("bus1")
-    bus2 = iidm_branch.get("bus2")
+    switch1 = bus1 = switch2 = bus2 = None
     # the branch should always be found, because they have been previously matched
-
     if disc_mode == "FROM":
-        del iidm_branch.attrib["bus1"]  #
+        switch1, bus1 = disconnect(iidm_branch, "1", root)
     elif disc_mode == "TO":
-        del iidm_branch.attrib["bus2"]  #
+        switch2, bus2 = disconnect(iidm_branch, "2", root)
     else:
-        del iidm_branch.attrib["bus1"]
-        del iidm_branch.attrib["bus2"]  #
+        switch1, bus1 = disconnect(iidm_branch, "1", root)
+        switch2, bus2 = disconnect(iidm_branch, "2", root)
 
     # Write out the Hades file, preserving the XML format
     # Remove symbolic link if exists
@@ -345,8 +360,8 @@ def config_olf_branch_contingency(
         standalone=False,
     )
     # IMPORTANT: undo the changes we made, as we'll be reusing this parsed tree!
-    iidm_branch.set("bus1", bus1)
-    iidm_branch.set("bus2", bus2)
+    reconnect_branch(iidm_branch, switch1, bus1, "1")
+    reconnect_branch(iidm_branch, switch2, bus2, "2")
 
     return 0
 

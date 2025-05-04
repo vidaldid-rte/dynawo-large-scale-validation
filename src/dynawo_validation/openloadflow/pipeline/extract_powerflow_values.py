@@ -21,8 +21,10 @@ import re
 import sys
 import json
 import pandas as pd
+import numpy as np
 from lxml import etree
 from collections import namedtuple
+from itertools import chain
 
 sys.path.insert(
     1, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -36,6 +38,7 @@ HDS_VERSION = "LAUNCHER_HADES"
 OLF_VERSION = "LAUNCHER_OLF"
 OLF_PARAMS = "OLFParams.json"
 OUTPUT_FILE = "pfsolution_HO.csv"
+BRANCH_FILE= "branches.csv"
 TAP_SCORE_FILE = "tapScore.csv"
 ERRORS_HADES_FILE = "elements_not_in_Hades.csv"
 ERRORS_OLF_FILE = "elements_not_in_Olf.csv"
@@ -101,8 +104,10 @@ def main():
         hades_info.to_csv(os.path.join(case_dir, "hadesInfo.csv"),index=False, sep=";", encoding="utf-8")
         olf_info.to_csv(os.path.join(case_dir, "olfInfo.csv"), index=False, sep=";", encoding="utf-8")
 
+    bus_connections = extract_hds_buses_connections(hades_input)
+
     # Extract the solution values from Dynawo results
-    df_olf, vl_nomV, branch_info = extract_iidm_solution(olf_file)
+    df_olf, vl_nomV, branch_info = extract_iidm_solution(olf_file, bus_connections)
     extract_olf_status(df_olf, olf_log)
 
     # TODO - faire les psTap aussi  (lorsque indicateurs dispos)
@@ -116,6 +121,7 @@ def main():
 
     # Merge, sort, and save
     save_extracted_values(df_hds, df_olf, case_dir, nb_computed_tap)
+    save_branch_info(branch_info, case_dir)
     save_nonmatching_elements(
         df_hds, df_olf, os.path.join(case_dir, ERRORS_HADES_FILE), os.path.join(case_dir,ERRORS_OLF_FILE)
     )
@@ -127,7 +133,6 @@ def check_input_files(case_dir, fileList):
     if not os.path.isdir(case_dir):
         raise ValueError(f"case directory {case_dir} not found")
 
-    # TODO: Verifier ce qu'il se passe si un des fichiers ne converge pas
     for file in fileList:
         if not (
             os.path.isfile(file)
@@ -145,6 +150,7 @@ def extract_olf_status(df_olf, olf_log):
                 if len(tokens) == 11 and found:
                     status_string = tokens[3].strip()
                     slack = float(tokens[8].replace(",","."))
+                    nb_iterations = int(tokens[6].strip())
                     break
                 if len(tokens) == 11 and "Slack bus mismatch" in tokens[8]:
                     found = True
@@ -165,8 +171,9 @@ def extract_olf_status(df_olf, olf_log):
         # Remove all values as they make no sense
         df_olf.drop(df_olf.index, axis=0, inplace=True)
 
-    df_olf.loc[len(df_olf)] = ["status#code", "status", None, "status", status_code]
-    df_olf.loc[len(df_olf)] = ["status#slack", "status", None, "p", slack]
+    df_olf.loc[len(df_olf)] = ["status#code", "status", np.nan, "status", status_code]
+    df_olf.loc[len(df_olf)] = ["status#slack", "status", np.nan, "p", slack]
+    df_olf.loc[len(df_olf)] = ["status#nb_iterations", "status", np.nan, "nb_iterations", nb_iterations]
 
 
 
@@ -179,13 +186,15 @@ def extract_hades_status(df_hds, hades_output):
     slack = float(result.get("ecartNoeudBilan"))
     res_lf = result.find("./resLF", root.nsmap)
     status = res_lf.get("statut")
+    nb_iterations = int(res_lf.get("nbIter"))
     slack = 0.000999 if res_lf.get("nonVentile") is None else float(res_lf.get("nonVentile"))
 
     df_hds.loc[len(df_hds)] = ["status#code", "status", "status", status]
     df_hds.loc[len(df_hds)] = ["status#slack", "status", "p", slack]
+    df_hds.loc[len(df_hds)] = ["status#nb_iterations", "status", "nb_iterations", nb_iterations]
 
 
-def extract_iidm_solution(iidm_output):
+def extract_iidm_solution(iidm_output, bus_connections):
     """Read all output and return a dataframe. Create vl_nomv & branches"""
     tree = etree.parse(iidm_output)
 
@@ -199,41 +208,105 @@ def extract_iidm_solution(iidm_output):
     data = []
     print("   found in IIDM file: ", end="")
     # Buses: get V & angle
-    valid_buses = extract_iidm_buses(root, data, vl_nomv)
+    valid_buses = extract_iidm_buses(root, data, vl_nomv, bus_connections)
     # Lines: p & q flows
-    extract_iidm_lines(root, data, vl_nomv, branches)
+    extract_iidm_lines(root, data, vl_nomv, branches, bus_connections)
     # Transformers and phase shifters: p & q flows
-    extract_iidm_xfmrs(root, data, vl_nomv, branches)
+    extract_iidm_xfmrs(root, data, vl_nomv, branches, bus_connections)
 
     # Aggregate bus injections (loads, generators, shunts, VSCs)
-    extract_iidm_bus_inj(root, data, vl_nomv, valid_buses)
+    extract_iidm_bus_inj(root, data, vl_nomv, valid_buses, bus_connections)
 
     return pd.DataFrame(data, columns=column_list), vl_nomv, branches
 
+def identify_line_buses(root, bus_connections):
+    for line in chain(root.iterfind(".//iidm:line", root.nsmap), root.iterfind(".//iidm:twoWindingsTransformer", root.nsmap)):
+        lid = line.get("id")
+        voltageLevelId1 = line.get("voltageLevelId1")
+        key = (lid, voltageLevelId1)
+        if key in bus_connections:
+            node1=line.get("node1")
+            if node1 is not None:
+                bus_connections[(voltageLevelId1, node1)] = bus_connections[key]
+        voltageLevelId2 = line.get("voltageLevelId2")
+        key = (lid, voltageLevelId2)
+        if key in bus_connections:
+            node2 = line.get("node2")
+            if node2 is not None:
+                bus_connections[(voltageLevelId2, node2)] = bus_connections[key]
 
-def extract_iidm_buses(root, data, vl_nomv):
+
+def get_bus_name(bus, voltage_level, toplogy, root, bus_connections):
+    if toplogy=="BUS_BREAKER":
+        return bus.get("id")
+    else:
+        vlid = voltage_level.get("id")
+        nodes = set(bus.get("nodes").split(","))
+        for n in nodes:
+            if (vlid,n) in bus_connections:
+                return bus_connections[(vlid,n)]
+        for g in voltage_level.iterfind(".//iidm:generator", root.nsmap):
+            if g.get("node") in nodes and g.get("id") in bus_connections:
+                return bus_connections[g.get("id")]
+        for l in voltage_level.iterfind(".//iidm:load", root.nsmap):
+            if l.get("node") in nodes and l.get("id") in bus_connections:
+                return bus_connections[l.get("id")]
+
+        # If nothing found in voltage level check transformers and lines
+        substation = voltage_level.getparent()
+        for t in chain(substation.iterfind(".//iidm:twoWindingsTransformer", root.nsmap), root.iterfind(".//iidm:line", root.nsmap)):
+            t_vl1 = t.get("voltageLevelId1")
+            t_vl2 = t.get("voltageLevelId2")
+            if t_vl1 == vlid and t.get("node1") in nodes and (t.get("id"), t_vl1) in bus_connections:
+                return bus_connections[(t.get("id"), t_vl1)]
+            if t_vl2 == vlid and t.get("node2") in nodes and (t.get("id"), t_vl2) in bus_connections:
+                return bus_connections[(t.get("id"), t_vl2)]
+
+        return None
+
+def extract_iidm_buses(root, data, vl_nomv, bus_connections):
     """Read V & angles, and update data. Also update the vl_nomv dict"""
     ctr = 0
     ign = 0
     validBuses = []
-    for bus in root.iterfind(".//iidm:bus", root.nsmap):
-        bus_name = bus.get("id")
-        v = bus.get("v")
-        angle = bus.get("angle")
-        # build the voltlevel dict *before* skipping inactive buses
-        vl_nomv[bus_name] = float(bus.getparent().getparent().get("nominalV"))
-        # skip inactive buses
-        if (v == "0" or v is None) and (angle == "0" or angle is None) :
-            continue
-        if bus_name is None:
-            # unnamed bus in node breaker mode cannot be matched with Hades so they are ignored
-            ign += 1
-            continue
-        validBuses.append(bus_name)
-        volt_level = vl_nomv[bus_name]
-        data.append([bus_name, "bus", volt_level, "v", float(v)])
-        data.append([bus_name, "bus", volt_level, "angle", float(angle)])
-        ctr += 1
+
+    identify_line_buses(root,bus_connections)
+
+    for voltage_level in root.iterfind(".//iidm:voltageLevel", root.nsmap):
+        nominalV = float(voltage_level.get("nominalV"))
+        toplogy = voltage_level.get("topologyKind")
+        for bus in voltage_level.iterfind(".//iidm:bus", root.nsmap):
+            bus_name = get_bus_name(bus, voltage_level, toplogy, root, bus_connections)
+            if bus_name is None:
+                print("Bus ignored in vl " + voltage_level.get("id"))
+                continue
+            if bus_name in vl_nomv:
+                # in node breaker mode a bus node has already been visited
+                continue
+            v = bus.get("v")
+            angle = bus.get("angle")
+            # build the voltlevel dict *before* skipping inactive buses
+            vl_nomv[bus_name] = nominalV
+            # Assign load buses if needed (some loads have different names in hades/CVG an OLF/Arcade)
+            if toplogy == "NODE_BREAKER":
+                bus_nodes = bus.get("nodes").split(",")
+                for load in voltage_level.iterfind(".//iidm:load", root.nsmap):
+                    lid = load.get("id")
+                    if lid not in bus_connections and load.get("node") in bus_nodes:
+                        bus_connections[lid] = bus_name
+                ##  add the nodes in bus connection for the TD transformers that have both ends in the same VL
+                for node in bus_nodes:
+                    bus_connections[(voltage_level.get("id"), node)] = bus_name
+
+            # skip inactive buses
+            if (v == "0" or v is None) and (angle == "0" or angle is None) :
+                continue
+            validBuses.append(bus_name)
+            volt_level = vl_nomv[bus_name]
+            data.append([bus_name, "bus", volt_level, "v", float(v)])
+            data.append([bus_name, "bus", volt_level, "angle", float(angle)])
+            ctr += 1
+
     print(f" {ctr:5d} buses", end="")
     print(f" {ign:5d} ignored buses", end="")
     return validBuses
@@ -241,10 +314,49 @@ def extract_iidm_buses(root, data, vl_nomv):
 def floatOrZero(v):
     return 0 if v is None else float(v)
 
-def extract_iidm_lines(root, data, vl_nomv, branches):
+def get_inj_bus(elt, bus_connections):
+    bus = elt.get("bus")
+    if bus is not None:
+        return bus
+    else:
+        id = elt.get("id") if "vscConverterStation" not in elt.tag else elt.get("name")
+        return bus_connections[id] if id in bus_connections else None
+
+def get_line_bus1(line, bus_connections):
+    bus1 = line.get("connectableBus1")
+    if bus1 is not None:
+        return bus1
+    else:
+        return bus_connections[(line.get("voltageLevelId1"), line.get("node1"))] if (line.get(
+            "voltageLevelId1"), line.get("node1")) in bus_connections else None
+
+def get_line_bus2(line, bus_connections):
+    bus2 = line.get("connectableBus2")
+    if bus2 is not None:
+        return bus2
+    else:
+        return bus_connections[(line.get("voltageLevelId2"), line.get("node2"))] if (line.get(
+            "voltageLevelId2"), line.get("node2")) in bus_connections else None
+
+def get_line_vnom_bus1(line, vl_nomv, bus_connections):
+    bus1 = get_line_bus1(line, bus_connections)
+    if bus1 is not None and bus1 in vl_nomv:
+        return vl_nomv[bus1]
+    else:
+        None
+
+def get_line_vnom_bus2(line, vl_nomv, bus_connections):
+    bus2 = get_line_bus2(line, bus_connections)
+    if bus2 is not None and bus2 in vl_nomv:
+        return vl_nomv[bus2]
+    else:
+        None
+
+
+def extract_iidm_lines(root, data, vl_nomv, branches, bus_connections):
     """Read line flows, and update data. Also update branches dict"""
     ctr = 0
-    for line in root.iterfind("./iidm:line", root.nsmap):
+    for line in root.iterfind(".//iidm:line", root.nsmap):
         line_name = line.get("id")
         p1 = floatOrZero(line.get("p1"))
         q1 = floatOrZero(line.get("q1"))
@@ -253,8 +365,8 @@ def extract_iidm_lines(root, data, vl_nomv, branches):
         # build the branches dict *before* skipping inactive lines
         branches[line_name] = Branch_info(
             type="line",
-            bus1=line.get("connectableBus1"),
-            bus2=line.get("connectableBus2"),
+            bus1=get_line_bus1(line, bus_connections),
+            bus2=get_line_bus2(line, bus_connections),
             compute_tap=False,
         )
         # skip inactive lines (beware threshold effect when comparing to the other case)
@@ -265,17 +377,18 @@ def extract_iidm_lines(root, data, vl_nomv, branches):
             and abs(q2) < ZEROPQ_TOL
         ):
             continue
-        volt_level = vl_nomv[line.get("connectableBus1")]
-        element_type = branches[line_name].type
-        data.append([line_name, element_type, volt_level, "p1", p1])
-        data.append([line_name, element_type, volt_level, "q1", q1])
-        data.append([line_name, element_type, volt_level, "p2", p2])
-        data.append([line_name, element_type, volt_level, "q2", q2])
-        ctr += 1
+        volt_level = get_line_vnom_bus1(line, vl_nomv, bus_connections)
+        if volt_level is not None:
+            element_type = branches[line_name].type
+            data.append([line_name, element_type, volt_level, "p1", p1])
+            data.append([line_name, element_type, volt_level, "q1", q1])
+            data.append([line_name, element_type, volt_level, "p2", p2])
+            data.append([line_name, element_type, volt_level, "q2", q2])
+            ctr += 1
     print(f" {ctr:5d} lines", end="")
 
 
-def extract_iidm_xfmrs(root, data, vl_nomv, branches):
+def extract_iidm_xfmrs(root, data, vl_nomv, branches, bus_connections):
     """Read xfmr flows & taps, and update data. Also update branches dict, if case_A"""
     ctr, psctr = [0, 0]
     for xfmr in root.iterfind(".//iidm:twoWindingsTransformer", root.nsmap):
@@ -290,18 +403,18 @@ def extract_iidm_xfmrs(root, data, vl_nomv, branches):
         if ps_tap is not None:
             branches[xfmr_name] = Branch_info(
                 type="psxfmr",
-                bus1=xfmr.get("connectableBus1"),
-                bus2=xfmr.get("connectableBus2"),
+                bus1= get_line_bus1(xfmr, bus_connections),
+                bus2=get_line_bus2(xfmr, bus_connections),
                 compute_tap=False, # TODO
             )
         else:
             branches[xfmr_name] = Branch_info(
                 type="xfmr",
-                bus1=xfmr.get("connectableBus1"),
-                bus2=xfmr.get("connectableBus2"),
-                compute_tap=tap.get("regulating") == "true",
+                bus1= get_line_bus1(xfmr, bus_connections),
+                bus2= get_line_bus2(xfmr, bus_connections),
+                compute_tap=tap.get("regulating") == "true" if tap is not None else False,
             )
-        volt_level = vl_nomv[xfmr.get("connectableBus2")]  # side 2 assumed always HV
+        volt_level = get_line_vnom_bus2(xfmr, vl_nomv, bus_connections)  # side 2 assumed always HV
         data.append([xfmr_name, branches[xfmr_name].type, volt_level, "p1", p1])
         data.append([xfmr_name, branches[xfmr_name].type, volt_level, "q1", q1])
         data.append([xfmr_name, branches[xfmr_name].type, volt_level, "p2", p2])
@@ -325,7 +438,7 @@ def extract_iidm_xfmrs(root, data, vl_nomv, branches):
                     branches[xfmr_name].type,
                     volt_level,
                     "pstap",
-                    int(ps_tap.get("tapPosition")),
+                    int(ps_tap.get("tapPosition")) - int(ps_tap.get("lowTapPosition")),
                 ]
             )
         # counters
@@ -337,7 +450,7 @@ def extract_iidm_xfmrs(root, data, vl_nomv, branches):
     print(f" {psctr:3d} psxfmrs", end="")
 
 
-def extract_iidm_bus_inj(root, data, vl_nomv, valid_buses):
+def extract_iidm_bus_inj(root, data, vl_nomv, valid_buses, bus_connections):
     """Aggregate injections (loads, gens, shunts, VSCs) by bus, and update data."""
     # Since a voltage level may contain more than one bus, it is easier to keep the
     # aggregate injections in dicts indexed by bus, and then output at the end.
@@ -356,12 +469,13 @@ def extract_iidm_bus_inj(root, data, vl_nomv, valid_buses):
             e for e in vl if etree.QName(e.tag).localname in injection_types
         ]
         for element in injection_elements:
-            bus_name = element.get("bus")
+            bus_name = get_inj_bus(element, bus_connections)
             if bus_name is not None:
                 if element.get("p") is not None:
                     p_inj[bus_name] = p_inj.get(bus_name, 0.0) + float(element.get("p"))
                 if element.get("q") is not None:
                     q_inj[bus_name] = q_inj.get(bus_name, 0.0) + float(element.get("q"))
+
     # Set 0 to buses without injection
     for b in valid_buses:
         if not b in p_inj:
@@ -370,13 +484,78 @@ def extract_iidm_bus_inj(root, data, vl_nomv, valid_buses):
             q_inj[b]=0
     # update data
     for bus_name in p_inj:
-        data.append([bus_name, "bus", vl_nomv[bus_name], "p", p_inj[bus_name]])
+        if bus_name is not None and bus_name in vl_nomv:
+            data.append([bus_name, "bus", vl_nomv[bus_name], "p", p_inj[bus_name]])
     for bus_name in q_inj:
-        data.append([bus_name, "bus", vl_nomv[bus_name], "q", q_inj[bus_name]])
+        if bus_name is not None and bus_name in vl_nomv:
+            data.append([bus_name, "bus", vl_nomv[bus_name], "q", q_inj[bus_name]])
     print("                         ", end="")  # Hades has extra output here
     print(f" {len(p_inj):5d} P-injections", end="")
     print(f" {len(q_inj):5d} Q-injections")
 
+def extract_hds_injection_bus(root, reseau, category, tag, bus_connections, bus_names):
+    donnees = reseau.find(category, root.nsmap)
+    for inj in donnees.iterfind(tag, root.nsmap):
+        bus = inj.get("noeud") if "cspr" not in tag else inj.get("conbus")
+        if bus in bus_names:
+            bus_connections[inj.get("nom")] = bus_names[bus]
+def extract_hds_buses_connections(hades_input):
+    tree = etree.parse(hades_input)
+    root = tree.getroot()
+    """Read V & angles, and update data."""
+    reseau = root.find("./reseau", root.nsmap)
+    donneesNoeuds = reseau.find("./donneesNoeuds", root.nsmap)
+    bus_names={bus.get("num"):bus.get("nom") for bus in donneesNoeuds.iterfind("./noeud", root.nsmap)}
+
+    postes = reseau.find("./postes", root.nsmap)
+    poste_names={poste.get("num"):poste.get("nom") for poste in postes.iterfind("./poste", root.nsmap)}
+
+    bus_connections={}
+
+    reseau = root.find("./reseau", root.nsmap)
+
+    extract_hds_injection_bus(root, reseau, "./donneesShunts", "./shunt", bus_connections, bus_names)
+    extract_hds_injection_bus(root, reseau, "./donneesGroupes", "./groupe", bus_connections, bus_names)
+    extract_hds_injection_bus(root, reseau, "./donneesConsos", "./conso", bus_connections, bus_names)
+    extract_hds_injection_bus(root, reseau, "./donneesHvdcs/stationsVsc", "./stationVsc", bus_connections, bus_names)
+    extract_hds_injection_bus(root, reseau, "./donneesCsprs", "./cspr", bus_connections, bus_names)
+
+    donneesQuadripoles = reseau.find("./donneesQuadripoles", root.nsmap)
+    for quadripole in donneesQuadripoles.iterfind("./quadripole", root.nsmap):
+        if quadripole.get("postor") == quadripole.get("postex"):
+            # Avoid bus confusion for TD connected in the same voltage level
+            continue
+        if quadripole.get("postor") in poste_names and quadripole.get("nor") in bus_names:
+            bus_connections[(quadripole.get("nom"),poste_names[quadripole.get("postor")])] = bus_names[quadripole.get("nor")]
+        if quadripole.get("postex") in poste_names and quadripole.get("nex") in bus_names:
+            bus_connections[(quadripole.get("nom"),poste_names[quadripole.get("postex")])] = bus_names[quadripole.get("nex")]
+
+    return bus_connections
+
+    # The fixed part of SVCs will need to be calculated inside the loop below
+    # svc_qfixed = gridinfo.svc_qfixed
+    # # Finally, we collect all the injection data, making the appropriate corrections
+    # pctr, qctr = [0, 0]
+    # donneesNoeuds = reseau.find("./donneesNoeuds", root.nsmap)
+    # for bus in donneesNoeuds.iterfind("./noeud", root.nsmap):
+    #     bus_name = bus.get("nom")
+    #     bus_vars = bus.find("./variables", root.nsmap)
+    #     if bus_vars.get("v") == HDS_INACT_BUS and bus_vars.get("ph") == HDS_INACT_BUS:
+    #         continue  # skip inactive buses
+    #     # update data (note the opposite sign convention w.r.t. Dynawo)
+    #     p = -float(bus_vars.get("injact"))
+    #     data.append([bus_name, "bus", "p", p])
+    #     pctr += 1
+    #     # SVC's fixed shunt Q values are calculated here because we need the bus V
+    #     q = (
+    #         -float(bus_vars.get("injrea"))
+    #         + shunt_qcorr.get(bus_name, 0)
+    #         - (svc_qfixed.get(bus_name, 0) * float(bus_vars.get("v")) ** 2)
+    #     )
+    #     data.append([bus_name, "bus", "q", q])
+    #     qctr += 1
+    # print(f" {pctr:5d} P-injections", end="")
+    # print(f" {qctr:5d} Q-injections")
 
 def extract_hades_solution(
     hades_input, hades_output, vl_nomv, dwo_branches
@@ -418,7 +597,8 @@ def extract_hds_gridinfo(hades_input):
     donneesQuadripoles = reseau.find("./donneesQuadripoles", root.nsmap)
     for branch in donneesQuadripoles.iterfind("./quadripole", root.nsmap):
         branch_sides[branch.get("nom")] = Hds_branch_side(
-            bus1=buses[branch.get("nor")], bus2=buses[branch.get("nex")]
+            bus1=buses[branch.get("nor")] if branch.get("nor") is not None else None,
+            bus2=buses[branch.get("nex")] if branch.get("nex") is not None else None
         )
     # Build a dict that maps "regleur" IDs to their transformer's name AND a dict
     # that maps "dephaseur" IDs to their transformer's name
@@ -436,7 +616,7 @@ def extract_hds_gridinfo(hades_input):
     donneesShunts = reseau.find("./donneesShunts", root.nsmap)
     for shunt in donneesShunts.iterfind("./shunt", root.nsmap):
         bus_num = shunt.get("noeud")
-        if bus_num != "-1":
+        if bus_num != "-1" and bus_num is not None:
             shunt2busname[shunt.get("num")] = buses[bus_num]
     # Build a dict that maps bus names to total QFixed originated from SVCs (if any)
     svc_qfixed = dict()
@@ -653,10 +833,17 @@ def save_tap_score(df, nb_computed_tap, case_dir):
     output_file=os.path.join(case_dir,TAP_SCORE_FILE)
     score_df.to_csv(output_file, index=False, sep=";", encoding="utf-8")
 
+def save_branch_info(branch_info, case_dir):
+    data=[(id, branch_info[id].bus1, branch_info[id].bus2) for id in branch_info]
+    df = pd.DataFrame(data = data, columns = ["id", "bus1", "bus2"])
+    output_file=os.path.join(case_dir,BRANCH_FILE)
+    df.to_csv(output_file, index=False, sep=";", encoding="utf-8")
+
 def save_extracted_values(df_hds, df_olf, case_dir, nb_computed_tap):
     """Save the values for all elements that are matched in both outputs."""
     # Merge (inner join) the two dataframes, checking for duplicates (just in case)
     key_fields = ["ELEMENT_TYPE", "ID", "VAR"]
+
     df = pd.merge(
         df_hds,
         df_olf,

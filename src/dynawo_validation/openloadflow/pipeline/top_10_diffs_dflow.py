@@ -16,14 +16,19 @@ import re
 import sys
 import pandas as pd
 import argparse
-from dynawo_validation.dynaflow.pipeline.common_funcs import calc_global_score
+from dynawo_validation.dynaflow.pipeline.common_funcs import calc_global_score_with_max
 
 
 parser = argparse.ArgumentParser()
 parser.add_argument("pf_solutions_dir", help="enter pf_solutions_dir directory")
 parser.add_argument("pf_metrics_dir", help="enter pf_metrics_dir directory")
 parser.add_argument("--regex", nargs="+", help="enter prefix name", default=[".*"])
+parser.add_argument("--filter", help="enter fitler file", default=None)
 args = parser.parse_args()
+
+def read_filter(filter_file) :
+    file = open(filter_file, 'r')
+    return [l.strip() for l in file.readlines()]
 
 
 def main():
@@ -33,6 +38,10 @@ def main():
 
     # argument management
     pf_solutions_dir = args.pf_solutions_dir
+
+    filter_file = args.filter
+
+    filters = read_filter(filter_file) if filter_file is not None else []
 
     if pf_solutions_dir[-1] != "/":
         pf_solutions_dir = pf_solutions_dir + "/"
@@ -54,6 +63,7 @@ def main():
 
     convergence_mismatch = []
     noconv=[]
+    nb_iterations = []
     databusvoltsortedabstotal = None
     databusvoltsortedreltotal = None
     databranchpsortedabstotal = None
@@ -62,10 +72,16 @@ def main():
     databuspsortedreltotal = None
     databusqsortedabstotal = None
     databusqsortedreltotal = None
+    databranchqsortedabstotal = None
+    databranchqsortedreltotal = None
+
     for i in data_files_list:
 
         # Reading the cases and ordering the values according to the metrics
         data = read_case(pf_solutions_dir + i)
+        if len(filters) > 0:
+            data.drop(data[data['ID'].isin(filters)].index, inplace = True)
+
         split_contg = i[:-20].split("#")[-1]
         data.insert(0, "CONTG_ID", split_contg)
 
@@ -95,6 +111,14 @@ def main():
         databusqsortedabstotal = add_top_ten(databusqsortedabs, databusqsortedabstotal)
         databusqsortedreltotal = add_top_ten(databusqsortedrel, databusqsortedreltotal)
 
+        databranchq = data.loc[
+            ((data.VAR == "q1") | (data.VAR == "q2")) & (data.ELEMENT_TYPE != "bus")
+            ]
+        databranchqsortedabs = databranchq.sort_values("ABS_ERR", ascending=False)
+        databranchqsortedrel = databranchq.sort_values("REL_ERR", ascending=False)
+        databranchqsortedabstotal = add_top_ten(databranchqsortedabs, databranchqsortedabstotal)
+        databranchqsortedreltotal = add_top_ten(databranchqsortedrel, databranchqsortedreltotal)
+
         status_df = data[data.ID == "status#code"]
         if status_df.iloc[0]["ABS_ERR"] > 0:
             convergence_mismatch.append([split_contg,
@@ -104,6 +128,11 @@ def main():
             noconv.append([split_contg,
                            status_df.iloc[0]["VALUE_HADES"],
                            status_df.iloc[0]["VALUE_OLF"]])
+        else :
+            nb_iter_df = data[data.ID == "status#nb_iterations"]
+            nb_iterations.append([split_contg,
+                                  nb_iter_df.iloc[0]["VALUE_HADES"],
+                                  nb_iter_df.iloc[0]["VALUE_OLF"]])
 
     if databusvoltsortedabstotal is None:
         raise ValueError(
@@ -134,31 +163,22 @@ def main():
     databusqsortedreltotal = databusqsortedreltotal.sort_values(
                         "REL_ERR", ascending=False
                     )[:10]
+    databranchqsortedabstotal = databranchqsortedabstotal.sort_values(
+                        "ABS_ERR", ascending=False
+                    )[:10]
 
-    df_metrics = pd.read_csv(pf_metrics_dir + "metrics.csv.xz", index_col=0)
+
+    metrics_file = "metrics.csv.xz" if filter_file is None else "metrics_filtered.csv.xz"
+    df_metrics = pd.read_csv(pf_metrics_dir + metrics_file, index_col=0)
     df_weights = pd.read_csv(
         pf_metrics_dir + "../../score_weights.csv", sep=";", index_col=0
     )
 
-    datascore, max_n_pass, p95_n_pass, mean_n_pass, total_n_pass = calc_global_score(
-        df_metrics,
-        df_weights["W_V"].to_list()[0],
-        df_weights["W_P"].to_list()[0],
-        df_weights["W_Q"].to_list()[0],
-        df_weights["W_T"].to_list()[0],
-        df_weights["MAX_THRESH"].to_list()[0],
-        df_weights["MEAN_THRESH"].to_list()[0],
-        df_weights["P95_THRESH"].to_list()[0],
-    )
+    datascore, max_n_pass = calc_global_score_with_max(df_metrics, df_weights["MAX_THRESH"].to_list()[0])
 
     datascore_max = datascore.sort_values("MAX_SCORE", ascending=False)
-    datascore_p95 = datascore.sort_values("P95_SCORE", ascending=False)
-    datascore_mean = datascore.sort_values("MEAN_SCORE", ascending=False)
-
 
     datascore_max_total = datascore_max[:10]
-    datascore_p95_total = datascore_p95[:10]
-    datascore_mean_total = datascore_mean[:10]
 
     # Print results on screen
     print("WEIGHTS AND THRESHOLDS USED FOR SCORE CALCULATIONS:")
@@ -191,40 +211,47 @@ def main():
         )
         print(pd.DataFrame(convergence_mismatch, columns=["Case", "Hades Status", "OLF Status"]).to_string(index=False))
 
+    print("\n\nCONVERGENCE STATUS: TOP 10 MAX OLF ITERATIONS\n")
+    print(pd.DataFrame(nb_iterations, columns=["Case", "Hades_Iterations", "OLF_Iterations"]).sort_values("OLF_Iterations", ascending=False)[:10].to_string(index=False))
+
+
+
     print(
         "\n\nCOMPOUND SCORES: TOP 10 MAX METRIC --- # of cases exceeding threshold = "
         + str(max_n_pass)
         + "\n"
     )
     print(datascore_max_total.to_string(index=False))
-    print(
-        "\n\nCOMPOUND SCORES: TOP 10 P95 METRIC --- # of cases exceeding threshold = "
-        + str(p95_n_pass)
-        + "\n"
-    )
-    print(datascore_p95_total.to_string(index=False))
-    print(
-        "\n\nCOMPOUND SCORES: TOP 10 MEAN METRIC --- # of cases exceeding threshold = "
-        + str(mean_n_pass)
-        + "\n"
-    )
-    print(datascore_mean_total.to_string(index=False))
+    # print(
+    #     "\n\nCOMPOUND SCORES: TOP 10 P95 METRIC --- # of cases exceeding threshold = "
+    #     + str(p95_n_pass)
+    #     + "\n"
+    # )
+    # print(datascore_p95_total.to_string(index=False))
+    # print(
+    #     "\n\nCOMPOUND SCORES: TOP 10 MEAN METRIC --- # of cases exceeding threshold = "
+    #     + str(mean_n_pass)
+    #     + "\n"
+    # )
+    # print(datascore_mean_total.to_string(index=False))
     print("\n\n\n\nTOP 10 VALUES BUS-V OF ABS_ERR\n")
     print(databusvoltsortedabstotal.to_string(index=False))
-    print("\n\nTOP 10 VALUES BUS-V OF REL_ERR\n")
-    print(databusvoltsortedreltotal.to_string(index=False))
+    # print("\n\nTOP 10 VALUES BUS-V OF REL_ERR\n")
+    # print(databusvoltsortedreltotal.to_string(index=False))
     print("\n\n\n\nTOP 10 VALUES BRANCH-P OF ABS_ERR\n")
     print(databranchpsortedabstotal.to_string(index=False))
-    print("\n\nTOP 10 VALUES BRANCH-P OF REL_ERR\n")
-    print(databranchpsortedreltotal.to_string(index=False))
+    # print("\n\nTOP 10 VALUES BRANCH-P OF REL_ERR\n")
+    # print(databranchpsortedreltotal.to_string(index=False))
     print("\n\n\n\nTOP 10 VALUES BUS-P OF ABS_ERR\n")
     print(databuspsortedabstotal.to_string(index=False))
-    print("\n\nTOP 10 VALUES BUS-P OF REL_ERR\n")
-    print(databuspsortedreltotal.to_string(index=False))
+    # print("\n\nTOP 10 VALUES BUS-P OF REL_ERR\n")
+    # print(databuspsortedreltotal.to_string(index=False))
     print("\n\n\n\nTOP 10 VALUES BUS-Q OF ABS_ERR\n")
     print(databusqsortedabstotal.to_string(index=False))
-    print("\n\nTOP 10 VALUES BUS-Q OF REL_ERR\n")
-    print(databusqsortedreltotal.to_string(index=False))
+    # print("\n\nTOP 10 VALUES BUS-Q OF REL_ERR\n")
+    # print(databusqsortedreltotal.to_string(index=False))
+    print("\n\n\n\nTOP 10 VALUES BRANCH-Q OF ABS_ERR\n")
+    print(databranchqsortedabstotal.to_string(index=False))
 
 
 # Read a specific contingency

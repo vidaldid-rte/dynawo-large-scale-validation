@@ -18,9 +18,12 @@ import numpy as np
 parser = argparse.ArgumentParser()
 parser.add_argument("pfsoldir", help="PF_SOL_DIR directory")
 parser.add_argument("prefix", help="Contingency prefix")
+parser.add_argument("--filter", help="enter fitler file", default=None)
 args = parser.parse_args()
 
-
+def read_filter(filter_file) :
+    file = open(filter_file, 'r')
+    return [l.strip() for l in file.readlines()]
 def main():
     PF_SOL_DIR = args.pfsoldir
     PREFIX = args.prefix
@@ -28,6 +31,9 @@ def main():
     PF_METRICS_DIR = PF_SOL_DIR + "/../pf_metrics"
     Path(PF_METRICS_DIR).mkdir(parents=False, exist_ok=True)
 
+    filter_file = args.filter
+
+    filters = read_filter(filter_file) if filter_file is not None else []
 
     all_tap_score = []
     noconv= []
@@ -41,6 +47,9 @@ def main():
         score_filepath= filepath[:-len("pfsolutionHO.csv.xz")] + "tapScore.csv"
         tap_score = pd.read_csv(score_filepath, sep=";", index_col=False)
         tap_score.insert(0, "contg", contg)
+
+        if len(filters) > 0:
+            delta.drop(delta[delta['ID'].isin(filters)].index, inplace = True)
 
         all_tap_score.append(tap_score)
 
@@ -76,22 +85,24 @@ def main():
             delta_vl = delta[delta.VOLT_LEVEL == volt_level].copy().reset_index()
             # Ensure there is at least a Nan for all VARs to make sure we have the right number of aggregates
             for VAR in delta.VAR.unique():
-                delta_vl.loc[len(delta_vl)] = [None] * delta_vl.shape[1]
-                delta_vl.at[len(delta_vl) - 1, "VAR"] = VAR
-                delta_vl.at[len(delta_vl) - 1, "VOLT_LEVEL"] = volt_level
+                values = [np.nan] * delta_vl.shape[1]
+                values[delta_vl.columns.get_loc("VAR")] = VAR
+                values[delta_vl.columns.get_loc("VOLT_LEVEL")] = volt_level
+                delta_vl.loc[len(delta_vl)] = values
 
             delta_vl_mean = delta_vl.groupby("VAR").mean(numeric_only=True).sort_values("VAR")
             delta_vl_p95 = delta_vl.groupby("VAR").quantile(0.95, numeric_only=True).sort_values("VAR")
             delta_vl_max = delta_vl.groupby("VAR").max(numeric_only=True).sort_values("VAR")
 
-            res2 = (
-                [contg]
-                + [str(volt_level)]
-                + delta_vl_max["DIFF_ABS"].to_list()
-                + delta_vl_p95["DIFF_ABS"].to_list()
-                + delta_vl_mean["DIFF_ABS"].to_list()
-            )
-            res = res + [res2]
+            if "DIFF_ABS" in delta_vl_max:  # Some VL may have no data
+                res2 = (
+                    [contg]
+                    + [str(volt_level)]
+                    + delta_vl_max["DIFF_ABS"].to_list()
+                    + delta_vl_p95["DIFF_ABS"].to_list()
+                    + delta_vl_mean["DIFF_ABS"].to_list()
+                )
+                res = res + [res2]
 
         # (end of main for loop, file processed)
         print(".", end="", flush=True)
@@ -106,7 +117,7 @@ def main():
         + list(delta_p95.index + "_p95")
         + list(delta_mean.index + "_mean"),
     )
-    fileName = os.path.join(PF_METRICS_DIR, "metrics.csv.xz")
+    fileName = os.path.join(PF_METRICS_DIR, "metrics.csv.xz" if filter_file is None else "metrics_filtered.csv.xz")
     df.to_csv(fileName, compression="xz")
 
     all_tap_score_df = pd.concat(all_tap_score, ignore_index=True)
